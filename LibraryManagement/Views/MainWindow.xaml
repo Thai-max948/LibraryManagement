@@ -1,0 +1,34 @@
+﻿<Window x:Class="LibraryManagement.Views.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="clr-namespace:LibraryManagement.ViewModels"
+        Title="Library Management" Height="650" Width="1000">
+
+    <Window.DataContext>
+        <vm:MainViewModel />
+    </Window.DataContext>
+
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="220"/>
+            <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+
+        <!-- Sidebar -->
+        <StackPanel Grid.Column="0" Background="{StaticResource SidebarBrush}">
+            <TextBlock Text="📚 Library" Foreground="White" FontSize="18" FontWeight="Bold" Margin="16,20,0,20"/>
+
+            <Button Content="📊 Dashboard" Command="{Binding ShowDashboardCommand}" Style="{StaticResource SidebarButtonStyle}"/>
+            <Button Content="📚 Books"     Command="{Binding ShowBooksCommand}"     Style="{StaticResource SidebarButtonStyle}"/>
+            <Button Content="👥 Readers"   Command="{Binding ShowReadersCommand}"   Style="{StaticResource SidebarButtonStyle}"/>
+            <Button Content="📖 Borrow"    Command="{Binding ShowBorrowCommand}"    Style="{StaticResource SidebarButtonStyle}"/>
+            <Button Content="↩ Return"     Command="{Binding ShowReturnCommand}"    Style="{StaticResource SidebarButtonStyle}"/>
+            <Button Content="📋 History"   Command="{Binding ShowHistoryCommand}"   Style="{StaticResource SidebarButtonStyle}"/>
+        </StackPanel>
+
+        <!-- Content -->
+        <Grid Grid.Column="1" Background="{StaticResource BackgroundBrush}">
+            <ContentControl Content="{Binding CurrentView}" Margin="20"/>
+        </Grid>
+    </Grid>
+</Window>

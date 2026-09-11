@@ -1,0 +1,52 @@
+﻿<UserControl x:Class="LibraryManagement.Views.HistoryView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="clr-namespace:LibraryManagement.ViewModels">
+
+    <UserControl.DataContext>
+        <vm:HistoryViewModel/>
+    </UserControl.DataContext>
+
+    <StackPanel Margin="10">
+        <TextBlock Text="📋 Borrowing History" FontSize="22" FontWeight="Bold" Foreground="{StaticResource TextBrush}" Margin="0,0,0,16"/>
+
+        <Grid Margin="0,0,0,10">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="10"/>
+                <ColumnDefinition Width="140"/>
+            </Grid.ColumnDefinitions>
+            <TextBox Grid.Column="0" Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}"
+                     Tag="Search reader / book..."
+                     Style="{StaticResource PlaceholderTextBoxStyle}"/>
+            <ComboBox Grid.Column="2" ItemsSource="{Binding StatusOptions}" SelectedItem="{Binding SelectedStatus}" Padding="6"/>
+        </Grid>
+
+        <Grid Margin="0,0,0,16">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="10"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+            <StackPanel Grid.Column="0">
+                <TextBlock Text="From" Foreground="{StaticResource TextBrush}"/>
+                <DatePicker SelectedDate="{Binding FromDate}" Margin="0,4,0,0"/>
+            </StackPanel>
+            <StackPanel Grid.Column="2">
+                <TextBlock Text="To" Foreground="{StaticResource TextBrush}"/>
+                <DatePicker SelectedDate="{Binding ToDate}" Margin="0,4,0,0"/>
+            </StackPanel>
+        </Grid>
+
+        <DataGrid ItemsSource="{Binding Records}" AutoGenerateColumns="False" IsReadOnly="True"
+                  Style="{StaticResource AppDataGridStyle}" Height="400">
+            <DataGrid.Columns>
+                <DataGridTextColumn Header="Reader" Binding="{Binding ReaderName}" Width="*"/>
+                <DataGridTextColumn Header="Book" Binding="{Binding BookTitle}" Width="*"/>
+                <DataGridTextColumn Header="Borrow" Binding="{Binding BorrowDate}" Width="110"/>
+                <DataGridTextColumn Header="Return" Binding="{Binding ReturnDate}" Width="110"/>
+                <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="100"/>
+            </DataGrid.Columns>
+        </DataGrid>
+    </StackPanel>
+</UserControl>

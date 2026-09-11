@@ -1,0 +1,60 @@
+﻿<UserControl x:Class="LibraryManagement.Views.Books.BooksView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="clr-namespace:LibraryManagement.ViewModels">
+
+    <UserControl.DataContext>
+        <vm:BooksViewModel/>
+    </UserControl.DataContext>
+
+    <StackPanel Margin="10">
+        <TextBlock Text="📚 Books Management" FontSize="22" FontWeight="Bold" Foreground="{StaticResource TextBrush}"/>
+        <TextBlock Text="Manage your library collection" Foreground="{StaticResource SecondaryTextBrush}" Margin="0,0,0,16"/>
+
+        <UniformGrid Columns="3" Margin="0,0,0,16">
+            <Border Style="{StaticResource CardStyle}">
+                <StackPanel>
+                    <TextBlock Text="{Binding TotalBooks}" FontSize="22" FontWeight="Bold" Foreground="{StaticResource TextBrush}"/>
+                    <TextBlock Text="Books" Foreground="{StaticResource SecondaryTextBrush}"/>
+                </StackPanel>
+            </Border>
+            <Border Style="{StaticResource CardStyle}">
+                <StackPanel>
+                    <TextBlock Text="{Binding TotalAvailable}" FontSize="22" FontWeight="Bold" Foreground="{StaticResource TextBrush}"/>
+                    <TextBlock Text="Available" Foreground="{StaticResource SecondaryTextBrush}"/>
+                </StackPanel>
+            </Border>
+            <Border Style="{StaticResource CardStyle}">
+                <StackPanel>
+                    <TextBlock Text="{Binding TotalBorrowed}" FontSize="22" FontWeight="Bold" Foreground="{StaticResource TextBrush}"/>
+                    <TextBlock Text="Borrowed" Foreground="{StaticResource SecondaryTextBrush}"/>
+                </StackPanel>
+            </Border>
+        </UniformGrid>
+
+        <TextBox Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}"
+                 Margin="0,0,0,10"
+                 Tag="Search title / author..."
+                 Style="{StaticResource PlaceholderTextBoxStyle}"/>
+
+        <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
+            <Button Content="+ Add Book" Command="{Binding AddCommand}" Style="{StaticResource PrimaryButtonStyle}"/>
+            <Button Content="✏ Edit" Command="{Binding EditCommand}" Style="{StaticResource SecondaryButtonStyle}"/>
+            <Button Content="🗑 Delete" Command="{Binding DeleteCommand}" Style="{StaticResource DangerButtonStyle}"/>
+        </StackPanel>
+
+        <DataGrid ItemsSource="{Binding Books}" SelectedItem="{Binding SelectedBook}"
+                  AutoGenerateColumns="False" IsReadOnly="True"
+                  Style="{StaticResource AppDataGridStyle}" Height="380">
+            <DataGrid.Columns>
+                <DataGridTextColumn Header="ID" Binding="{Binding BookId}" Width="50"/>
+                <DataGridTextColumn Header="Title" Binding="{Binding Title}" Width="*"/>
+                <DataGridTextColumn Header="Author" Binding="{Binding Author}" Width="150"/>
+                <DataGridTextColumn Header="Category" Binding="{Binding Category}" Width="120"/>
+                <DataGridTextColumn Header="Year" Binding="{Binding PublishYear}" Width="70"/>
+                <DataGridTextColumn Header="Stock" Binding="{Binding Quantity}" Width="70"/>
+                <DataGridTextColumn Header="Available" Binding="{Binding AvailableQuantity}" Width="80"/>
+            </DataGrid.Columns>
+        </DataGrid>
+    </StackPanel>
+</UserControl>
