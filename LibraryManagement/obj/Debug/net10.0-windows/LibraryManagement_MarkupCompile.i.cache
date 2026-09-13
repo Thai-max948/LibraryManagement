@@ -4,17 +4,17 @@
 winexe
 C#
 .cs
-C:\Users\Admin\OneDrive\Documents\LibraryManagement\LibraryManagement\obj\Debug\net10.0-windows\
+C:\Users\Admin\LibraryManagement\LibraryManagement\obj\Debug\net10.0-windows\
 LibraryManagement
 none
 false
 TRACE;DEBUG;NET;NET10_0;NETCOREAPP;WINDOWS;WINDOWS7_0;NET5_0_OR_GREATER;NET6_0_OR_GREATER;NET7_0_OR_GREATER;NET8_0_OR_GREATER;NET9_0_OR_GREATER;NET10_0_OR_GREATER;NETCOREAPP3_0_OR_GREATER;NETCOREAPP3_1_OR_GREATER;WINDOWS7_0_OR_GREATER
-C:\Users\Admin\OneDrive\Documents\LibraryManagement\LibraryManagement\App.xaml
+C:\Users\Admin\LibraryManagement\LibraryManagement\App.xaml
 111029441794
 
 37-1309017547
 220-298755191
 Views\Books\AddBookDialog.xaml;Views\Books\BooksView.xaml;Views\Books\EditBookDialog.xaml;Views\BorrowView.xaml;Views\DashboardView.xaml;Views\HistoryView.xaml;Views\MainWindow.xaml;Views\Readers\AddReaderDialog.xaml;Views\Readers\EditReaderDialog.xaml;Views\Readers\ReadersView.xaml;Views\ReturnView.xaml;
 
-False
+True
 
