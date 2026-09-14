@@ -46,19 +46,24 @@
                     <Button Content="👥  Readers"   Command="{Binding ShowReadersCommand}"   Style="{StaticResource SidebarButtonStyle}"/>
                     <Button Content="📖  Borrow"    Command="{Binding ShowBorrowCommand}"    Style="{StaticResource SidebarButtonStyle}"/>
                     <Button Content="↩  Return"     Command="{Binding ShowReturnCommand}"    Style="{StaticResource SidebarButtonStyle}"/>
-                    <Button Content="📋  History"   Command="{Binding ShowHistoryCommand}"   Style="{StaticResource SidebarButtonStyle}"/>
+                    <Button Content="📋  History"       Command="{Binding ShowHistoryCommand}"   Style="{StaticResource SidebarButtonStyle}"/>
+                    <Button Content="👤  My Account"    Command="{Binding ShowMyAccountCommand}" Style="{StaticResource SidebarButtonStyle}"/>
+                    <Button Content="⚙  User Accounts" Command="{Binding ShowAccountsCommand}"  Style="{StaticResource SidebarButtonStyle}" Visibility="{Binding AccountsVisibility}"/>
                 </StackPanel>
 
-                <!-- Footer Status Indicator -->
-                <Border Grid.Row="2" Margin="14,16" Padding="12,10" Background="#0A111E" CornerRadius="6" BorderBrush="{StaticResource TechBorderBrush}" BorderThickness="1">
-                    <StackPanel>
-                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                            <Ellipse Width="6" Height="6" Fill="{StaticResource TechAccentCyan}" Margin="0,0,6,0"/>
-                            <TextBlock Text="SYSTEM ONLINE" Foreground="{StaticResource TechAccentCyan}" FontSize="10" FontWeight="Bold"/>
+                <!-- Footer Status Indicator & Logout -->
+                <StackPanel Grid.Row="2" Margin="14,14">
+                    <Border Padding="12,10" Background="#0A111E" CornerRadius="6" BorderBrush="{StaticResource TechBorderBrush}" BorderThickness="1">
+                        <StackPanel>
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                <Ellipse Width="6" Height="6" Fill="{StaticResource TechAccentCyan}" Margin="0,0,6,0"/>
+                                <TextBlock Text="{Binding CurrentUserName}" Foreground="{StaticResource TechAccentCyan}" FontSize="10" FontWeight="Bold" TextTrimming="CharacterEllipsis"/>
+                            </StackPanel>
+                            <TextBlock Text="{Binding CurrentUserRole}" Foreground="{StaticResource SecondaryTextBrush}" FontSize="10" Margin="12,2,0,0"/>
                         </StackPanel>
-                        <TextBlock Text="v2.4 • Active Node" Foreground="{StaticResource SecondaryTextBrush}" FontSize="10" Margin="12,2,0,0"/>
-                    </StackPanel>
-                </Border>
+                    </Border>
+                    <Button Content="🚪  Sign Out / Switch" Click="BtnLogout_Click" Style="{StaticResource SidebarButtonStyle}" Margin="0,6,0,0" FontSize="11.5"/>
+                </StackPanel>
             </Grid>
         </Border>
 

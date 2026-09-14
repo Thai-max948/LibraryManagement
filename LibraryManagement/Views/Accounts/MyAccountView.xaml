@@ -1,0 +1,290 @@
+<UserControl x:Class="LibraryManagement.Views.Accounts.MyAccountView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="clr-namespace:LibraryManagement.ViewModels">
+
+    <UserControl.DataContext>
+        <vm:MyAccountViewModel/>
+    </UserControl.DataContext>
+
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <StackPanel Margin="10">
+            <!-- Title & Subtitle -->
+            <TextBlock Text="👤 My Account" FontSize="22" FontWeight="Bold" Foreground="{StaticResource TextBrush}"/>
+            <TextBlock Text="Manage your profile, project assignment, and credentials" Foreground="{StaticResource SecondaryTextBrush}" Margin="0,0,0,16"/>
+
+            <!-- Tab Buttons Bar -->
+            <StackPanel Orientation="Horizontal" Margin="0,0,0,16">
+                <RadioButton x:Name="TabBtnProject" Content="📌 My Project" IsChecked="True" 
+                             Checked="Tab_Checked" Tag="0"
+                             Style="{StaticResource {x:Type ToggleButton}}"
+                             Height="34" Padding="14,0" Margin="0,0,8,0" Cursor="Hand"
+                             Background="#0284C7" Foreground="White" FontWeight="SemiBold" BorderThickness="0"/>
+                
+                <RadioButton x:Name="TabBtnProfile" Content="✏️ Edit Profile" 
+                             Checked="Tab_Checked" Tag="1"
+                             Style="{StaticResource {x:Type ToggleButton}}"
+                             Height="34" Padding="14,0" Margin="0,0,8,0" Cursor="Hand"
+                             Background="#E2E8F0" Foreground="{StaticResource TextBrush}" FontWeight="SemiBold" BorderThickness="0"/>
+                
+                <RadioButton x:Name="TabBtnPassword" Content="🔑 Change Password" 
+                             Checked="Tab_Checked" Tag="2"
+                             Style="{StaticResource {x:Type ToggleButton}}"
+                             Height="34" Padding="14,0" Cursor="Hand"
+                             Background="#E2E8F0" Foreground="{StaticResource TextBrush}" FontWeight="SemiBold" BorderThickness="0"/>
+            </StackPanel>
+
+            <!-- TAB 1: MY PROJECT -->
+            <StackPanel x:Name="PanelProject" Visibility="Visible">
+                <Grid Margin="0,0,0,16">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="16"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+
+                    <!-- User Identity Card -->
+                    <Border Grid.Column="0" Style="{StaticResource CardStyle}">
+                        <StackPanel>
+                            <DockPanel Margin="0,0,0,14">
+                                <Border Width="38" Height="38" Background="#E0F2FE" CornerRadius="8" Margin="0,0,12,0">
+                                    <TextBlock Text="👤" FontSize="18" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </Border>
+                                <StackPanel VerticalAlignment="Center">
+                                    <TextBlock Text="{Binding FullName}" FontSize="17" FontWeight="Bold" Foreground="{StaticResource TextBrush}"/>
+                                    <TextBlock Text="{Binding Email}" FontSize="12" Foreground="{StaticResource SecondaryTextBrush}"/>
+                                </StackPanel>
+                                <Border HorizontalAlignment="Right" Background="#F1F5F9" CornerRadius="6" Padding="10,4" VerticalAlignment="Center">
+                                    <TextBlock Text="{Binding Role}" FontWeight="Bold" FontSize="12" Foreground="{StaticResource TechAccentCyan}"/>
+                                </Border>
+                            </DockPanel>
+
+                            <Separator Background="{StaticResource TechBorderBrush}" Margin="0,4,0,14"/>
+
+                            <Grid Margin="0,0,0,8">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="130"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="Username:" Foreground="{StaticResource SecondaryTextBrush}" FontSize="12"/>
+                                <TextBlock Grid.Column="1" Text="{Binding Username}" FontWeight="SemiBold" Foreground="{StaticResource TextBrush}" FontSize="12"/>
+                            </Grid>
+
+                            <Grid Margin="0,0,0,8">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="130"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="Account ID:" Foreground="{StaticResource SecondaryTextBrush}" FontSize="12"/>
+                                <TextBlock Grid.Column="1" Text="{Binding UserId}" FontWeight="SemiBold" Foreground="{StaticResource TextBrush}" FontSize="12"/>
+                            </Grid>
+
+                            <Grid Margin="0,0,0,8">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="130"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="Member Since:" Foreground="{StaticResource SecondaryTextBrush}" FontSize="12"/>
+                                <TextBlock Grid.Column="1" Text="{Binding CreatedAtFormatted}" FontWeight="SemiBold" Foreground="{StaticResource TextBrush}" FontSize="12"/>
+                            </Grid>
+
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="130"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="Session Status:" Foreground="{StaticResource SecondaryTextBrush}" FontSize="12"/>
+                                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                                    <Ellipse Width="6" Height="6" Fill="{StaticResource TechAccentGreen}" Margin="0,0,6,0"/>
+                                    <TextBlock Text="Active &amp; Authenticated" FontWeight="SemiBold" Foreground="{StaticResource TechAccentGreen}" FontSize="12"/>
+                                </StackPanel>
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Project Info Card -->
+                    <Border Grid.Column="2" Style="{StaticResource CardStyle}">
+                        <StackPanel>
+                            <DockPanel Margin="0,0,0,14">
+                                <Border Width="38" Height="38" Background="#EDE9FE" CornerRadius="8" Margin="0,0,12,0">
+                                    <TextBlock Text="⚡" FontSize="18" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </Border>
+                                <StackPanel VerticalAlignment="Center">
+                                    <TextBlock Text="Library OS Core" FontSize="17" FontWeight="Bold" Foreground="{StaticResource TextBrush}"/>
+                                    <TextBlock Text="Circulation &amp; Catalog Node" FontSize="12" Foreground="{StaticResource SecondaryTextBrush}"/>
+                                </StackPanel>
+                                <Border HorizontalAlignment="Right" Background="#F5F3FF" CornerRadius="6" Padding="10,4" VerticalAlignment="Center">
+                                    <TextBlock Text="v2.4" FontWeight="Bold" FontSize="12" Foreground="{StaticResource TechAccentPurple}"/>
+                                </Border>
+                            </DockPanel>
+
+                            <Separator Background="{StaticResource TechBorderBrush}" Margin="0,4,0,14"/>
+
+                            <Grid Margin="0,0,0,8">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="130"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="System Name:" Foreground="{StaticResource SecondaryTextBrush}" FontSize="12"/>
+                                <TextBlock Grid.Column="1" Text="{Binding ProjectName}" FontWeight="SemiBold" Foreground="{StaticResource TextBrush}" FontSize="12"/>
+                            </Grid>
+
+                            <Grid Margin="0,0,0,8">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="130"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="Node Version:" Foreground="{StaticResource SecondaryTextBrush}" FontSize="12"/>
+                                <TextBlock Grid.Column="1" Text="{Binding ProjectVersion}" FontWeight="SemiBold" Foreground="{StaticResource TextBrush}" FontSize="12"/>
+                            </Grid>
+
+                            <Grid Margin="0,0,0,8">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="130"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="Database Node:" Foreground="{StaticResource SecondaryTextBrush}" FontSize="12"/>
+                                <TextBlock Grid.Column="1" Text="{Binding DatabaseStatus}" FontWeight="SemiBold" Foreground="{StaticResource TechAccentCyan}" FontSize="12"/>
+                            </Grid>
+
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="130"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="Security Clearance:" Foreground="{StaticResource SecondaryTextBrush}" FontSize="12"/>
+                                <TextBlock Grid.Column="1" Text="{Binding Role}" FontWeight="SemiBold" Foreground="{StaticResource TechAccentPurple}" FontSize="12"/>
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+                </Grid>
+
+                <!-- Project Scope & Permissions -->
+                <Border Style="{StaticResource CardStyle}">
+                    <StackPanel>
+                        <TextBlock Text="📋 Project Scope &amp; Role Permissions" FontSize="14" FontWeight="Bold" Foreground="{StaticResource TextBrush}" Margin="0,0,0,6"/>
+                        <TextBlock Text="{Binding PermissionsSummary}" FontSize="12.5" Foreground="{StaticResource SecondaryTextBrush}" TextWrapping="Wrap" Margin="0,0,0,14"/>
+
+                        <UniformGrid Columns="3" Margin="0,4,0,0">
+                            <!-- Books Module -->
+                            <Border Background="#F8FAFC" BorderBrush="{StaticResource TechBorderBrush}" BorderThickness="1" CornerRadius="6" Padding="12" Margin="0,0,8,0">
+                                <StackPanel>
+                                    <TextBlock Text="📚 Book Catalog" FontWeight="Bold" FontSize="13" Foreground="{StaticResource TextBrush}" Margin="0,0,0,4"/>
+                                    <TextBlock Text="Search titles, authors, update inventory stock, and add books." FontSize="11.5" Foreground="{StaticResource SecondaryTextBrush}" TextWrapping="Wrap"/>
+                                </StackPanel>
+                            </Border>
+
+                            <!-- Readers Module -->
+                            <Border Background="#F8FAFC" BorderBrush="{StaticResource TechBorderBrush}" BorderThickness="1" CornerRadius="6" Padding="12" Margin="4,0,4,0">
+                                <StackPanel>
+                                    <TextBlock Text="👥 Readers &amp; Members" FontWeight="Bold" FontSize="13" Foreground="{StaticResource TextBrush}" Margin="0,0,0,4"/>
+                                    <TextBlock Text="Manage library member registry, contact phone, and emails." FontSize="11.5" Foreground="{StaticResource SecondaryTextBrush}" TextWrapping="Wrap"/>
+                                </StackPanel>
+                            </Border>
+
+                            <!-- Circulation Module -->
+                            <Border Background="#F8FAFC" BorderBrush="{StaticResource TechBorderBrush}" BorderThickness="1" CornerRadius="6" Padding="12" Margin="8,0,0,0">
+                                <StackPanel>
+                                    <TextBlock Text="📖 Loan &amp; Return Services" FontWeight="Bold" FontSize="13" Foreground="{StaticResource TextBrush}" Margin="0,0,0,4"/>
+                                    <TextBlock Text="Process book borrowings, manage returns, and track history." FontSize="11.5" Foreground="{StaticResource SecondaryTextBrush}" TextWrapping="Wrap"/>
+                                </StackPanel>
+                            </Border>
+                        </UniformGrid>
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+
+            <!-- TAB 2: EDIT PROFILE -->
+            <StackPanel x:Name="PanelProfile" Visibility="Collapsed">
+                <Border Style="{StaticResource CardStyle}" MaxWidth="560" HorizontalAlignment="Left">
+                    <StackPanel>
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,14">
+                            <Border Width="34" Height="34" Background="#E0F2FE" CornerRadius="8" Margin="0,0,10,0">
+                                <TextBlock Text="✏️" FontSize="16" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Border>
+                            <StackPanel VerticalAlignment="Center">
+                                <TextBlock Text="Edit Profile Information" FontSize="16" FontWeight="Bold" Foreground="{StaticResource TextBrush}"/>
+                                <TextBlock Text="Update your personal identification and contact email" FontSize="12" Foreground="{StaticResource SecondaryTextBrush}"/>
+                            </StackPanel>
+                        </StackPanel>
+
+                        <Separator Background="{StaticResource TechBorderBrush}" Margin="0,0,0,16"/>
+
+                        <!-- Full Name -->
+                        <TextBlock Text="Full Name *" FontWeight="SemiBold" FontSize="12" Foreground="{StaticResource TextBrush}" Margin="0,0,0,4"/>
+                        <TextBox Text="{Binding EditFullName, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource PlaceholderTextBoxStyle}" Margin="0,0,0,12"/>
+
+                        <!-- Username -->
+                        <TextBlock Text="Username *" FontWeight="SemiBold" FontSize="12" Foreground="{StaticResource TextBrush}" Margin="0,0,0,4"/>
+                        <TextBox Text="{Binding EditUsername, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource PlaceholderTextBoxStyle}" Margin="0,0,0,12"/>
+
+                        <!-- Email -->
+                        <TextBlock Text="Email Address *" FontWeight="SemiBold" FontSize="12" Foreground="{StaticResource TextBrush}" Margin="0,0,0,4"/>
+                        <TextBox Text="{Binding EditEmail, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource PlaceholderTextBoxStyle}" Margin="0,0,0,12"/>
+
+                        <!-- Role (Read-only notice) -->
+                        <TextBlock Text="System Role" FontWeight="SemiBold" FontSize="12" Foreground="{StaticResource TextBrush}" Margin="0,0,0,4"/>
+                        <Border Background="#F1F5F9" BorderBrush="{StaticResource TechBorderBrush}" BorderThickness="1" CornerRadius="6" Padding="10,8" Margin="0,0,0,16">
+                            <DockPanel>
+                                <TextBlock Text="{Binding Role}" FontWeight="Bold" Foreground="{StaticResource TechAccentCyan}" FontSize="12.5"/>
+                                <TextBlock Text="(Role assigned by administrator)" HorizontalAlignment="Right" Foreground="{StaticResource SecondaryTextBrush}" FontSize="11"/>
+                            </DockPanel>
+                        </Border>
+
+                        <!-- Feedback Banner -->
+                        <Border x:Name="ProfileAlertBox" Padding="12,8" CornerRadius="6" Margin="0,0,0,12" Visibility="Collapsed">
+                            <TextBlock x:Name="TxtProfileAlert" Text="{Binding ProfileMessage}" FontSize="12" TextWrapping="Wrap"/>
+                        </Border>
+
+                        <!-- Buttons -->
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                            <Button Content="↩ Reset" Command="{Binding ResetProfileFieldsCommand}" Style="{StaticResource SecondaryButtonStyle}" Width="90" Margin="0,0,8,0"/>
+                            <Button Content="💾 Save Profile" Command="{Binding SaveProfileCommand}" Style="{StaticResource PrimaryButtonStyle}" Width="130"/>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+
+            <!-- TAB 3: CHANGE PASSWORD -->
+            <StackPanel x:Name="PanelPassword" Visibility="Collapsed">
+                <Border Style="{StaticResource CardStyle}" MaxWidth="560" HorizontalAlignment="Left">
+                    <StackPanel>
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,14">
+                            <Border Width="34" Height="34" Background="#FEF3C7" CornerRadius="8" Margin="0,0,10,0">
+                                <TextBlock Text="🔒" FontSize="16" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Border>
+                            <StackPanel VerticalAlignment="Center">
+                                <TextBlock Text="Change Password" FontSize="16" FontWeight="Bold" Foreground="{StaticResource TextBrush}"/>
+                                <TextBlock Text="Update your password credentials securely" FontSize="12" Foreground="{StaticResource SecondaryTextBrush}"/>
+                            </StackPanel>
+                        </StackPanel>
+
+                        <Separator Background="{StaticResource TechBorderBrush}" Margin="0,0,0,16"/>
+
+                        <!-- Current Password -->
+                        <TextBlock Text="Current Password *" FontWeight="SemiBold" FontSize="12" Foreground="{StaticResource TextBrush}" Margin="0,0,0,4"/>
+                        <PasswordBox x:Name="PwdCurrent" Height="34" VerticalContentAlignment="Center" Margin="0,0,0,12" PasswordChanged="PwdBox_PasswordChanged"/>
+
+                        <!-- New Password -->
+                        <TextBlock Text="New Password (min 6 characters) *" FontWeight="SemiBold" FontSize="12" Foreground="{StaticResource TextBrush}" Margin="0,0,0,4"/>
+                        <PasswordBox x:Name="PwdNew" Height="34" VerticalContentAlignment="Center" Margin="0,0,0,12" PasswordChanged="PwdBox_PasswordChanged"/>
+
+                        <!-- Confirm Password -->
+                        <TextBlock Text="Confirm New Password *" FontWeight="SemiBold" FontSize="12" Foreground="{StaticResource TextBrush}" Margin="0,0,0,4"/>
+                        <PasswordBox x:Name="PwdConfirm" Height="34" VerticalContentAlignment="Center" Margin="0,0,0,16" PasswordChanged="PwdBox_PasswordChanged"/>
+
+                        <!-- Feedback Banner -->
+                        <Border x:Name="PasswordAlertBox" Padding="12,8" CornerRadius="6" Margin="0,0,0,12" Visibility="Collapsed">
+                            <TextBlock x:Name="TxtPasswordAlert" Text="{Binding PasswordMessage}" FontSize="12" TextWrapping="Wrap"/>
+                        </Border>
+
+                        <!-- Button -->
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                            <Button Content="🔒 Update Password" Click="BtnChangePassword_Click" Style="{StaticResource PrimaryButtonStyle}" Width="150"/>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

@@ -1,0 +1,311 @@
+<Window x:Class="LibraryManagement.Views.AuthWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:auth="clr-namespace:LibraryManagement.Views.Auth"
+        xmlns:vm="clr-namespace:LibraryManagement.ViewModels"
+        Title="Bitsness - Sign In / Create Account"
+        Height="640" Width="1020"
+        WindowStartupLocation="CenterScreen"
+        WindowStyle="None"
+        AllowsTransparency="True"
+        Background="Transparent">
+
+    <Window.DataContext>
+        <vm:AuthViewModel x:Name="ViewModel"/>
+    </Window.DataContext>
+
+    <Grid Margin="30">
+        <!-- Outer Card with rounded corners and soft drop shadow -->
+        <Border x:Name="CardBorder"
+                Width="940" Height="560"
+                CornerRadius="24"
+                ClipToBounds="True">
+            <Border.Background>
+                <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                    <GradientStop Color="#FFFFFF" Offset="0.0"/>
+                    <GradientStop Color="#FDFBF7" Offset="0.4"/>
+                    <GradientStop Color="#FFF6EC" Offset="0.85"/>
+                    <GradientStop Color="#FFEDE0" Offset="1.0"/>
+                </LinearGradientBrush>
+            </Border.Background>
+            <Border.Effect>
+                <DropShadowEffect Color="#050814" BlurRadius="45" Opacity="0.45" Direction="270" ShadowDepth="12"/>
+            </Border.Effect>
+
+            <Grid x:Name="CardContainer"
+                  PreviewMouseLeftButtonDown="CardContainer_PreviewMouseLeftButtonDown"
+                  PreviewMouseLeftButtonUp="CardContainer_PreviewMouseLeftButtonUp">
+
+                <!-- ================= LAYER 0: FORMS LAYER (LIGHT WARM BACKGROUND) ================= -->
+                <!-- Sign In Form (Positioned Left) -->
+                <Grid x:Name="PanelSignIn"
+                      HorizontalAlignment="Left"
+                      Width="440"
+                      Margin="50,40,0,30"
+                      Opacity="1"
+                      IsHitTestVisible="True">
+                    <Grid.RenderTransform>
+                        <TranslateTransform x:Name="TransSignIn" X="0" Y="0"/>
+                    </Grid.RenderTransform>
+                    <auth:LoginView x:Name="LoginControl"/>
+                </Grid>
+
+                <!-- Create Account Form (Positioned Right) -->
+                <Grid x:Name="PanelRegister"
+                      HorizontalAlignment="Right"
+                      Width="400"
+                      Margin="0,35,10,30"
+                      Opacity="0"
+                      IsHitTestVisible="False">
+                    <Grid.RenderTransform>
+                        <TranslateTransform x:Name="TransRegister" X="30" Y="0"/>
+                    </Grid.RenderTransform>
+                    <auth:RegisterView x:Name="RegisterControl"/>
+                </Grid>
+
+                <!-- ================= LAYER 1: SLIDING DARK OVERLAY PANEL ================= -->
+                <!--
+                    Parallelogram geometry:
+                    Width: 575, Height: 560
+                    Points: (0,0) -> (520,0) -> (575,560) -> (55,560)
+                    Slant offset: 55px (tilts down-right \)
+                    
+                    When in Sign In mode:
+                    TranslateX = 455.
+                    Left border is at (455, 0) to (510, 560) - perfectly dividing Left (Light) and Right (Dark).
+                    Right border is at (975, 0) to (1030, 560) - safely past the 940px edge.
+                    
+                    When in Register mode:
+                    TranslateX = -65.
+                    Left border is at (-65, 0) to (-10, 560) - safely past the 0px edge.
+                    Right border is at (455, 0) to (510, 560) - perfectly dividing Left (Dark) and Right (Light).
+                -->
+                <Canvas HorizontalAlignment="Left" VerticalAlignment="Top" Width="940" Height="560" IsHitTestVisible="False">
+                    <Grid x:Name="SlidingDarkOverlay"
+                          Width="575" Height="560"
+                          Canvas.Left="0" Canvas.Top="0">
+                        <Grid.RenderTransform>
+                            <TranslateTransform x:Name="TransOverlay" X="455" Y="0"/>
+                        </Grid.RenderTransform>
+
+                        <!-- Angled Path Background -->
+                        <Path Data="M 0,0 L 520,0 L 575,560 L 55,560 Z"
+                              Stretch="Fill"
+                              IsHitTestVisible="False">
+                            <Path.Fill>
+                                <LinearGradientBrush StartPoint="0.1,0" EndPoint="0.9,1">
+                                    <GradientStop Color="#0C1021" Offset="0.0"/>
+                                    <GradientStop Color="#131B32" Offset="0.45"/>
+                                    <GradientStop Color="#090D18" Offset="1.0"/>
+                                </LinearGradientBrush>
+                            </Path.Fill>
+                        </Path>
+
+                        <!-- Ambient Soft Glow in Dark Panel -->
+                        <Ellipse Width="340" Height="340"
+                                 HorizontalAlignment="Center" VerticalAlignment="Center"
+                                 IsHitTestVisible="False">
+                            <Ellipse.Fill>
+                                <RadialGradientBrush Center="0.5,0.5" RadiusX="0.5" RadiusY="0.5">
+                                    <GradientStop Color="#1E2B52" Offset="0.0"/>
+                                    <GradientStop Color="#001E2B52" Offset="1.0"/>
+                                </RadialGradientBrush>
+                            </Ellipse.Fill>
+                        </Ellipse>
+
+                        <!-- Glowing Star 1 (Top-Right subtle indigo) -->
+                        <Ellipse Width="5" Height="5"
+                                 Fill="#818CF8"
+                                 HorizontalAlignment="Right" VerticalAlignment="Top"
+                                 Margin="0,48,85,0"
+                                 IsHitTestVisible="False">
+                            <Ellipse.Effect>
+                                <DropShadowEffect Color="#818CF8" BlurRadius="12" ShadowDepth="0"/>
+                            </Ellipse.Effect>
+                        </Ellipse>
+
+                        <!-- Glowing Star 2 (Bottom-Right subtle coral/red) -->
+                        <Ellipse Width="4" Height="4"
+                                 Fill="#FB7185"
+                                 HorizontalAlignment="Right" VerticalAlignment="Bottom"
+                                 Margin="0,0,70,75"
+                                 IsHitTestVisible="False">
+                            <Ellipse.Effect>
+                                <DropShadowEffect Color="#F43F5E" BlurRadius="10" ShadowDepth="0"/>
+                            </Ellipse.Effect>
+                        </Ellipse>
+
+                        <!-- Glowing Star 3 (Bottom-Left subtle cyan for register mode) -->
+                        <Ellipse Width="4" Height="4"
+                                 Fill="#38BDF8"
+                                 HorizontalAlignment="Left" VerticalAlignment="Bottom"
+                                 Margin="80,0,0,90"
+                                 IsHitTestVisible="False">
+                            <Ellipse.Effect>
+                                <DropShadowEffect Color="#38BDF8" BlurRadius="10" ShadowDepth="0"/>
+                            </Ellipse.Effect>
+                        </Ellipse>
+
+                        <!-- ================= CONTENT FOR SIGN IN ("Welcome back.") ================= -->
+                        <Grid x:Name="PanelWelcomeBack"
+                              Width="360"
+                              HorizontalAlignment="Left"
+                              Margin="55,130,40,60"
+                              Opacity="1"
+                              IsHitTestVisible="False">
+                            <Grid.RenderTransform>
+                                <TranslateTransform x:Name="TransWelcomeBack" X="0" Y="0"/>
+                            </Grid.RenderTransform>
+
+                            <StackPanel>
+                                <!-- Kicker Tag -->
+                                <TextBlock Text="B I T S N E S S"
+                                           Foreground="#38BDF8"
+                                           FontSize="11"
+                                           FontWeight="Bold"
+                                           Margin="0,0,0,20"/>
+
+                                <!-- Large Serif Heading -->
+                                <TextBlock FontFamily="Georgia, Sitka Display, Cambria, 'Times New Roman'"
+                                           FontSize="42"
+                                           LineHeight="50"
+                                           Foreground="White">
+                                    <Run Text="Welcome" FontWeight="Normal"/><LineBreak/>
+                                    <Run Text="back." FontStyle="Italic"/>
+                                </TextBlock>
+
+                                <!-- Subtitle -->
+                                <TextBlock Text="Your boards, your drafts and your people are exactly where you left them."
+                                           Foreground="#8E9CB2"
+                                           FontSize="13.5"
+                                           LineHeight="20"
+                                           TextWrapping="Wrap"
+                                           Margin="0,18,0,0"/>
+                            </StackPanel>
+                        </Grid>
+
+                        <!-- ================= CONTENT FOR REGISTER ("Start the first page.") ================= -->
+                        <Grid x:Name="PanelStartPage"
+                              Width="360"
+                              HorizontalAlignment="Left"
+                              Margin="95,130,40,60"
+                              Opacity="0"
+                              IsHitTestVisible="False">
+                            <Grid.RenderTransform>
+                                <TranslateTransform x:Name="TransStartPage" X="30" Y="0"/>
+                            </Grid.RenderTransform>
+
+                            <StackPanel>
+                                <!-- Kicker Tag -->
+                                <TextBlock Text="B I T S N E S S"
+                                           Foreground="#38BDF8"
+                                           FontSize="11"
+                                           FontWeight="Bold"
+                                           Margin="0,0,0,20"/>
+
+                                <!-- Large Serif Heading -->
+                                <TextBlock FontFamily="Georgia, Sitka Display, Cambria, 'Times New Roman'"
+                                           FontSize="42"
+                                           LineHeight="50"
+                                           Foreground="White">
+                                    <Run Text="Start the" FontWeight="Normal"/><LineBreak/>
+                                    <Run Text="first page." FontStyle="Italic"/>
+                                </TextBlock>
+
+                                <!-- Subtitle -->
+                                <TextBlock Text="One account for every board, every draft and every delivery you own."
+                                           Foreground="#8E9CB2"
+                                           FontSize="13.5"
+                                           LineHeight="20"
+                                           TextWrapping="Wrap"
+                                           Margin="0,18,0,0"/>
+                            </StackPanel>
+                        </Grid>
+
+                    </Grid>
+                </Canvas>
+
+                <!-- ================= LAYER 2: WINDOW TITLEBAR & CONTROLS ================= -->
+                <!-- Top Header Drag Area & Window Buttons -->
+                <Grid Height="40" VerticalAlignment="Top" HorizontalAlignment="Stretch" Margin="16,10,16,0"
+                      MouseLeftButtonDown="TitleBar_MouseLeftButtonDown">
+                    <!-- Center Mode Switcher Pill -->
+                    <Border HorizontalAlignment="Center" VerticalAlignment="Center"
+                            Background="#15000000" CornerRadius="16" Padding="3">
+                        <StackPanel Orientation="Horizontal">
+                            <Button x:Name="TabSignIn" Content="Sign in" Click="TabSignIn_Click"
+                                    Foreground="#1E293B" FontWeight="SemiBold" FontSize="11.5"
+                                    Padding="14,4" Background="White" BorderThickness="0" Cursor="Hand">
+                                <Button.Template>
+                                    <ControlTemplate TargetType="Button">
+                                        <Border x:Name="Bd" Background="{TemplateBinding Background}" CornerRadius="13" Padding="{TemplateBinding Padding}">
+                                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                        </Border>
+                                    </ControlTemplate>
+                                </Button.Template>
+                            </Button>
+                            <Button x:Name="TabRegister" Content="Create account" Click="TabRegister_Click"
+                                    Foreground="#64748B" FontWeight="Medium" FontSize="11.5"
+                                    Padding="14,4" Background="Transparent" BorderThickness="0" Cursor="Hand">
+                                <Button.Template>
+                                    <ControlTemplate TargetType="Button">
+                                        <Border x:Name="Bd" Background="{TemplateBinding Background}" CornerRadius="13" Padding="{TemplateBinding Padding}">
+                                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                        </Border>
+                                    </ControlTemplate>
+                                </Button.Template>
+                            </Button>
+                        </StackPanel>
+                    </Border>
+
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                        <!-- Minimize Button -->
+                        <Button Click="BtnMinimize_Click"
+                                Width="30" Height="30"
+                                Background="Transparent"
+                                BorderThickness="0"
+                                Cursor="Hand"
+                                Margin="0,0,4,0">
+                            <Button.Template>
+                                <ControlTemplate TargetType="Button">
+                                    <Border x:Name="Bd" Background="Transparent" CornerRadius="15">
+                                        <TextBlock Text="—" Foreground="#64748B" FontSize="12"
+                                                   HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    </Border>
+                                    <ControlTemplate.Triggers>
+                                        <Trigger Property="IsMouseOver" Value="True">
+                                            <Setter TargetName="Bd" Property="Background" Value="#20000000"/>
+                                        </Trigger>
+                                    </ControlTemplate.Triggers>
+                                </ControlTemplate>
+                            </Button.Template>
+                        </Button>
+
+                        <!-- Close Button -->
+                        <Button Click="BtnClose_Click"
+                                Width="30" Height="30"
+                                Background="Transparent"
+                                BorderThickness="0"
+                                Cursor="Hand">
+                            <Button.Template>
+                                <ControlTemplate TargetType="Button">
+                                    <Border x:Name="Bd" Background="Transparent" CornerRadius="15">
+                                        <TextBlock Text="✕" Foreground="#64748B" FontSize="12"
+                                                   HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    </Border>
+                                    <ControlTemplate.Triggers>
+                                        <Trigger Property="IsMouseOver" Value="True">
+                                            <Setter TargetName="Bd" Property="Background" Value="#E11D48"/>
+                                            <Setter Property="Foreground" Value="White"/>
+                                        </Trigger>
+                                    </ControlTemplate.Triggers>
+                                </ControlTemplate>
+                            </Button.Template>
+                        </Button>
+                    </StackPanel>
+                </Grid>
+
+            </Grid>
+        </Border>
+    </Grid>
+</Window>

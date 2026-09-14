@@ -1,0 +1,121 @@
+<Window x:Class="LibraryManagement.Views.Accounts.CreateAccountDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Create account" Height="630" Width="520"
+        WindowStartupLocation="CenterOwner" ResizeMode="NoResize"
+        Background="{StaticResource BackgroundBrush}"
+        Loaded="Window_Loaded">
+
+    <Window.Resources>
+        <Style x:Key="FormLabelStyle" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Foreground" Value="{StaticResource TextBrush}"/>
+        </Style>
+        <Style x:Key="FormPasswordBoxStyle" TargetType="PasswordBox">
+            <Setter Property="Height" Value="38"/>
+            <Setter Property="Padding" Value="10,7"/>
+            <Setter Property="Background" Value="White"/>
+            <Setter Property="Foreground" Value="{StaticResource TextBrush}"/>
+            <Setter Property="BorderBrush" Value="#CBD5E1"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Style.Triggers>
+                <Trigger Property="IsKeyboardFocused" Value="True">
+                    <Setter Property="BorderBrush" Value="{StaticResource PrimaryBrush}"/>
+                    <Setter Property="BorderThickness" Value="2"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+    </Window.Resources>
+
+    <Border Margin="16" Padding="28" Background="White" CornerRadius="12"
+            BorderBrush="{StaticResource TechBorderBrush}" BorderThickness="1">
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <StackPanel Grid.Row="0" Margin="0,0,0,20">
+                <TextBlock Text="Create account" FontSize="24" FontWeight="SemiBold"
+                           Foreground="{StaticResource TextBrush}"/>
+                <TextBlock Text="Set up access for a librarian or administrator."
+                           Margin="0,5,0,0" FontSize="13"
+                           Foreground="{StaticResource SecondaryTextBrush}"/>
+                <TextBlock Text="Fields marked * are required." Margin="0,12,0,0"
+                           FontSize="12" Foreground="{StaticResource SecondaryTextBrush}"/>
+            </StackPanel>
+
+            <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                <StackPanel>
+                    <TextBlock Text="Full name *" Style="{StaticResource FormLabelStyle}"/>
+                    <TextBox x:Name="TxtFullName" Tag="For example: Nguyen Minh Anh"
+                             Style="{StaticResource PlaceholderTextBoxStyle}"
+                             TextChanged="InputChanged" Margin="0,5,0,16"/>
+
+                    <Grid Margin="0,0,0,16">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="16"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Grid.Column="0">
+                            <TextBlock Text="Username *" Style="{StaticResource FormLabelStyle}"/>
+                            <TextBox x:Name="TxtUsername" Tag="For example: minhanh"
+                                     Style="{StaticResource PlaceholderTextBoxStyle}"
+                                     TextChanged="InputChanged" Margin="0,5,0,0"/>
+                        </StackPanel>
+                        <StackPanel Grid.Column="2">
+                            <TextBlock Text="System role *" Style="{StaticResource FormLabelStyle}"/>
+                            <ComboBox x:Name="CmbRole" SelectedIndex="0" Height="38"
+                                      VerticalContentAlignment="Center" Margin="0,5,0,0"
+                                      SelectionChanged="InputChanged">
+                                <ComboBoxItem Content="Librarian"/>
+                                <ComboBoxItem Content="Administrator"/>
+                            </ComboBox>
+                        </StackPanel>
+                    </Grid>
+
+                    <TextBlock Text="Email address *" Style="{StaticResource FormLabelStyle}"/>
+                    <TextBox x:Name="TxtEmail" Tag="For example: minh.anh@library.com"
+                             Style="{StaticResource PlaceholderTextBoxStyle}"
+                             TextChanged="InputChanged" Margin="0,5,0,16"/>
+
+                    <TextBlock Text="Password *" Style="{StaticResource FormLabelStyle}"/>
+                    <PasswordBox x:Name="TxtPassword" Style="{StaticResource FormPasswordBoxStyle}"
+                                 PasswordChanged="InputChanged" Margin="0,5,0,4"/>
+                    <TextBlock Text="Use at least 6 characters." FontSize="12"
+                               Foreground="{StaticResource SecondaryTextBrush}" Margin="0,0,0,16"/>
+
+                    <TextBlock Text="Confirm password *" Style="{StaticResource FormLabelStyle}"/>
+                    <PasswordBox x:Name="TxtConfirmPassword" Style="{StaticResource FormPasswordBoxStyle}"
+                                 PasswordChanged="InputChanged" Margin="0,5,0,12"/>
+
+                    <Border x:Name="ErrorPanel" Background="#FFF1F2" BorderBrush="#FECDD3"
+                            BorderThickness="1" CornerRadius="6" Padding="10" Visibility="Collapsed">
+                        <TextBlock x:Name="TxtError" Foreground="{StaticResource DangerBrush}"
+                                   FontSize="12" TextWrapping="Wrap"/>
+                    </Border>
+                </StackPanel>
+            </ScrollViewer>
+
+            <Grid Grid.Row="2" Margin="0,24,0,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Grid.Column="0" Text="The account will be ready to sign in after creation."
+                           VerticalAlignment="Center" FontSize="11.5"
+                           Foreground="{StaticResource SecondaryTextBrush}"/>
+                <Button Grid.Column="1" Content="Cancel" Click="BtnCancel_Click"
+                        Style="{StaticResource SecondaryButtonStyle}" Width="92" Margin="0,0,8,0"/>
+                <Button Grid.Column="2" Content="Create account" Click="BtnCreate_Click"
+                        Style="{StaticResource PrimaryButtonStyle}" Width="126" Margin="0"
+                        IsDefault="True"/>
+            </Grid>
+        </Grid>
+    </Border>
+</Window>

@@ -92,7 +92,7 @@ namespace LibraryManagement.Views.Books {
                 return;
             }
             _contentLoaded = true;
-            System.Uri resourceLocater = new System.Uri("/LibraryManagement;V1.0.0.0;component/views/books/addbookdialog.xaml", System.UriKind.Relative);
+            System.Uri resourceLocater = new System.Uri("/LibraryManagement;component/views/books/addbookdialog.xaml", System.UriKind.Relative);
             
             #line 1 "..\..\..\..\..\Views\Books\AddBookDialog.xaml"
             System.Windows.Application.LoadComponent(this, resourceLocater);
