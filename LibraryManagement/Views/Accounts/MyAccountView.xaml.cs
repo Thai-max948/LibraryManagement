@@ -11,6 +11,20 @@ namespace LibraryManagement.Views.Accounts
         {
             InitializeComponent();
             DataContextChanged += MyAccountView_DataContextChanged;
+            if (DataContext is MyAccountViewModel vm)
+            {
+                vm.PropertyChanged += (s, args) =>
+                {
+                    if (args.PropertyName == nameof(MyAccountViewModel.ProfileMessage))
+                    {
+                        UpdateProfileAlert(vm);
+                    }
+                    else if (args.PropertyName == nameof(MyAccountViewModel.PasswordMessage))
+                    {
+                        UpdatePasswordAlert(vm);
+                    }
+                };
+            }
         }
 
         private void MyAccountView_DataContextChanged(object sender, DependencyPropertyChangedEventArgs e)

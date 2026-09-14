@@ -1,73 +1,89 @@
 {
   "Version": 1,
-  "WorkspaceRootPath": "C:\\Users\\Admin\\LibraryManagement\\",
+  "WorkspaceRootPath": "C:\\Users\\Admin\\LibraryManagement1\\",
   "Documents": [
     {
-      "AbsoluteMoniker": "D:0:0:{7E2B733A-DBF8-FDB5-F770-1327FBD7B25A}|LibraryManagement\\LibraryManagement.csproj|c:\\users\\admin\\librarymanagement\\librarymanagement\\viewmodels\\accountsviewmodel.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{7E2B733A-DBF8-FDB5-F770-1327FBD7B25A}|LibraryManagement\\LibraryManagement.csproj|solutionrelative:librarymanagement\\viewmodels\\accountsviewmodel.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+      "AbsoluteMoniker": "D:0:0:{7E2B733A-DBF8-FDB5-F770-1327FBD7B25A}|LibraryManagement\\LibraryManagement.csproj|c:\\users\\admin\\librarymanagement1\\librarymanagement\\views\\readers\\addreaderdialog.xaml||{F11ACC28-31D1-4C80-A34B-F4E09D3D753C}",
+      "RelativeMoniker": "D:0:0:{7E2B733A-DBF8-FDB5-F770-1327FBD7B25A}|LibraryManagement\\LibraryManagement.csproj|solutionrelative:librarymanagement\\views\\readers\\addreaderdialog.xaml||{F11ACC28-31D1-4C80-A34B-F4E09D3D753C}"
     },
     {
-      "AbsoluteMoniker": "D:0:0:{7E2B733A-DBF8-FDB5-F770-1327FBD7B25A}|LibraryManagement\\LibraryManagement.csproj|c:\\users\\admin\\librarymanagement\\librarymanagement\\views\\accounts\\createaccountdialog.xaml.cs||{8B382828-6202-11D1-8870-0000F87579D2}|",
-      "RelativeMoniker": "D:0:0:{7E2B733A-DBF8-FDB5-F770-1327FBD7B25A}|LibraryManagement\\LibraryManagement.csproj|solutionrelative:librarymanagement\\views\\accounts\\createaccountdialog.xaml.cs||{8B382828-6202-11D1-8870-0000F87579D2}|"
+      "AbsoluteMoniker": "D:0:0:{7E2B733A-DBF8-FDB5-F770-1327FBD7B25A}|LibraryManagement\\LibraryManagement.csproj|c:\\users\\admin\\librarymanagement1\\librarymanagement\\views\\readers\\editreaderdialog.xaml||{F11ACC28-31D1-4C80-A34B-F4E09D3D753C}",
+      "RelativeMoniker": "D:0:0:{7E2B733A-DBF8-FDB5-F770-1327FBD7B25A}|LibraryManagement\\LibraryManagement.csproj|solutionrelative:librarymanagement\\views\\readers\\editreaderdialog.xaml||{F11ACC28-31D1-4C80-A34B-F4E09D3D753C}"
     },
     {
-      "AbsoluteMoniker": "D:0:0:{7E2B733A-DBF8-FDB5-F770-1327FBD7B25A}|LibraryManagement\\LibraryManagement.csproj|c:\\users\\admin\\librarymanagement\\librarymanagement\\views\\accounts\\editaccountdialog.xaml.cs||{8B382828-6202-11D1-8870-0000F87579D2}|",
-      "RelativeMoniker": "D:0:0:{7E2B733A-DBF8-FDB5-F770-1327FBD7B25A}|LibraryManagement\\LibraryManagement.csproj|solutionrelative:librarymanagement\\views\\accounts\\editaccountdialog.xaml.cs||{8B382828-6202-11D1-8870-0000F87579D2}|"
+      "AbsoluteMoniker": "D:0:0:{7E2B733A-DBF8-FDB5-F770-1327FBD7B25A}|LibraryManagement\\LibraryManagement.csproj|c:\\users\\admin\\librarymanagement1\\librarymanagement\\views\\readers\\readersview.xaml||{F11ACC28-31D1-4C80-A34B-F4E09D3D753C}",
+      "RelativeMoniker": "D:0:0:{7E2B733A-DBF8-FDB5-F770-1327FBD7B25A}|LibraryManagement\\LibraryManagement.csproj|solutionrelative:librarymanagement\\views\\readers\\readersview.xaml||{F11ACC28-31D1-4C80-A34B-F4E09D3D753C}"
     },
     {
-      "AbsoluteMoniker": "D:0:0:{7E2B733A-DBF8-FDB5-F770-1327FBD7B25A}|LibraryManagement\\LibraryManagement.csproj|c:\\users\\admin\\librarymanagement\\librarymanagement\\views\\accounts\\myaccountview.xaml.cs||{8B382828-6202-11D1-8870-0000F87579D2}|",
-      "RelativeMoniker": "D:0:0:{7E2B733A-DBF8-FDB5-F770-1327FBD7B25A}|LibraryManagement\\LibraryManagement.csproj|solutionrelative:librarymanagement\\views\\accounts\\myaccountview.xaml.cs||{8B382828-6202-11D1-8870-0000F87579D2}|"
+      "AbsoluteMoniker": "D:0:0:{7E2B733A-DBF8-FDB5-F770-1327FBD7B25A}|LibraryManagement\\LibraryManagement.csproj|c:\\users\\admin\\librarymanagement1\\librarymanagement\\viewmodels\\myaccountviewmodel.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{7E2B733A-DBF8-FDB5-F770-1327FBD7B25A}|LibraryManagement\\LibraryManagement.csproj|solutionrelative:librarymanagement\\viewmodels\\myaccountviewmodel.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     },
     {
-      "AbsoluteMoniker": "D:0:0:{7E2B733A-DBF8-FDB5-F770-1327FBD7B25A}|LibraryManagement\\LibraryManagement.csproj|c:\\users\\admin\\librarymanagement\\librarymanagement\\views\\accounts\\createaccountdialog.xaml||{F11ACC28-31D1-4C80-A34B-F4E09D3D753C}",
-      "RelativeMoniker": "D:0:0:{7E2B733A-DBF8-FDB5-F770-1327FBD7B25A}|LibraryManagement\\LibraryManagement.csproj|solutionrelative:librarymanagement\\views\\accounts\\createaccountdialog.xaml||{F11ACC28-31D1-4C80-A34B-F4E09D3D753C}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{7E2B733A-DBF8-FDB5-F770-1327FBD7B25A}|LibraryManagement\\LibraryManagement.csproj|c:\\users\\admin\\librarymanagement\\librarymanagement\\app.xaml.cs||{8B382828-6202-11D1-8870-0000F87579D2}|",
-      "RelativeMoniker": "D:0:0:{7E2B733A-DBF8-FDB5-F770-1327FBD7B25A}|LibraryManagement\\LibraryManagement.csproj|solutionrelative:librarymanagement\\app.xaml.cs||{8B382828-6202-11D1-8870-0000F87579D2}|"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{7E2B733A-DBF8-FDB5-F770-1327FBD7B25A}|LibraryManagement\\LibraryManagement.csproj|c:\\users\\admin\\librarymanagement\\librarymanagement\\app.xaml||{F11ACC28-31D1-4C80-A34B-F4E09D3D753C}",
-      "RelativeMoniker": "D:0:0:{7E2B733A-DBF8-FDB5-F770-1327FBD7B25A}|LibraryManagement\\LibraryManagement.csproj|solutionrelative:librarymanagement\\app.xaml||{F11ACC28-31D1-4C80-A34B-F4E09D3D753C}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{7E2B733A-DBF8-FDB5-F770-1327FBD7B25A}|LibraryManagement\\LibraryManagement.csproj|c:\\users\\admin\\librarymanagement\\librarymanagement\\views\\accounts\\editaccountdialog.xaml||{F11ACC28-31D1-4C80-A34B-F4E09D3D753C}",
-      "RelativeMoniker": "D:0:0:{7E2B733A-DBF8-FDB5-F770-1327FBD7B25A}|LibraryManagement\\LibraryManagement.csproj|solutionrelative:librarymanagement\\views\\accounts\\editaccountdialog.xaml||{F11ACC28-31D1-4C80-A34B-F4E09D3D753C}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{7E2B733A-DBF8-FDB5-F770-1327FBD7B25A}|LibraryManagement\\LibraryManagement.csproj|c:\\users\\admin\\librarymanagement\\librarymanagement\\views\\accounts\\accountsview.xaml||{F11ACC28-31D1-4C80-A34B-F4E09D3D753C}",
-      "RelativeMoniker": "D:0:0:{7E2B733A-DBF8-FDB5-F770-1327FBD7B25A}|LibraryManagement\\LibraryManagement.csproj|solutionrelative:librarymanagement\\views\\accounts\\accountsview.xaml||{F11ACC28-31D1-4C80-A34B-F4E09D3D753C}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{7E2B733A-DBF8-FDB5-F770-1327FBD7B25A}|LibraryManagement\\LibraryManagement.csproj|c:\\users\\admin\\librarymanagement\\librarymanagement\\services\\userservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{7E2B733A-DBF8-FDB5-F770-1327FBD7B25A}|LibraryManagement\\LibraryManagement.csproj|solutionrelative:librarymanagement\\services\\userservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{7E2B733A-DBF8-FDB5-F770-1327FBD7B25A}|LibraryManagement\\LibraryManagement.csproj|c:\\users\\admin\\librarymanagement\\librarymanagement\\services\\authservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{7E2B733A-DBF8-FDB5-F770-1327FBD7B25A}|LibraryManagement\\LibraryManagement.csproj|solutionrelative:librarymanagement\\services\\authservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{7E2B733A-DBF8-FDB5-F770-1327FBD7B25A}|LibraryManagement\\LibraryManagement.csproj|c:\\users\\admin\\librarymanagement\\librarymanagement\\viewmodels\\authviewmodel.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{7E2B733A-DBF8-FDB5-F770-1327FBD7B25A}|LibraryManagement\\LibraryManagement.csproj|solutionrelative:librarymanagement\\viewmodels\\authviewmodel.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{7E2B733A-DBF8-FDB5-F770-1327FBD7B25A}|LibraryManagement\\LibraryManagement.csproj|c:\\users\\admin\\librarymanagement\\librarymanagement\\views\\auth\\loginview.xaml||{F11ACC28-31D1-4C80-A34B-F4E09D3D753C}",
-      "RelativeMoniker": "D:0:0:{7E2B733A-DBF8-FDB5-F770-1327FBD7B25A}|LibraryManagement\\LibraryManagement.csproj|solutionrelative:librarymanagement\\views\\auth\\loginview.xaml||{F11ACC28-31D1-4C80-A34B-F4E09D3D753C}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{7E2B733A-DBF8-FDB5-F770-1327FBD7B25A}|LibraryManagement\\LibraryManagement.csproj|c:\\users\\admin\\librarymanagement\\librarymanagement\\views\\accounts\\myaccountview.xaml||{F11ACC28-31D1-4C80-A34B-F4E09D3D753C}",
+      "AbsoluteMoniker": "D:0:0:{7E2B733A-DBF8-FDB5-F770-1327FBD7B25A}|LibraryManagement\\LibraryManagement.csproj|c:\\users\\admin\\librarymanagement1\\librarymanagement\\views\\accounts\\myaccountview.xaml||{F11ACC28-31D1-4C80-A34B-F4E09D3D753C}",
       "RelativeMoniker": "D:0:0:{7E2B733A-DBF8-FDB5-F770-1327FBD7B25A}|LibraryManagement\\LibraryManagement.csproj|solutionrelative:librarymanagement\\views\\accounts\\myaccountview.xaml||{F11ACC28-31D1-4C80-A34B-F4E09D3D753C}"
     },
     {
-      "AbsoluteMoniker": "D:0:0:{7E2B733A-DBF8-FDB5-F770-1327FBD7B25A}|LibraryManagement\\LibraryManagement.csproj|c:\\users\\admin\\librarymanagement\\librarymanagement\\views\\auth\\registerview.xaml||{F11ACC28-31D1-4C80-A34B-F4E09D3D753C}",
+      "AbsoluteMoniker": "D:0:0:{7E2B733A-DBF8-FDB5-F770-1327FBD7B25A}|LibraryManagement\\LibraryManagement.csproj|c:\\users\\admin\\librarymanagement1\\librarymanagement\\viewmodels\\accountsviewmodel.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{7E2B733A-DBF8-FDB5-F770-1327FBD7B25A}|LibraryManagement\\LibraryManagement.csproj|solutionrelative:librarymanagement\\viewmodels\\accountsviewmodel.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{7E2B733A-DBF8-FDB5-F770-1327FBD7B25A}|LibraryManagement\\LibraryManagement.csproj|c:\\users\\admin\\librarymanagement1\\librarymanagement\\views\\accounts\\createaccountdialog.xaml.cs||{8B382828-6202-11D1-8870-0000F87579D2}|",
+      "RelativeMoniker": "D:0:0:{7E2B733A-DBF8-FDB5-F770-1327FBD7B25A}|LibraryManagement\\LibraryManagement.csproj|solutionrelative:librarymanagement\\views\\accounts\\createaccountdialog.xaml.cs||{8B382828-6202-11D1-8870-0000F87579D2}|"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{7E2B733A-DBF8-FDB5-F770-1327FBD7B25A}|LibraryManagement\\LibraryManagement.csproj|c:\\users\\admin\\librarymanagement1\\librarymanagement\\views\\accounts\\editaccountdialog.xaml.cs||{8B382828-6202-11D1-8870-0000F87579D2}|",
+      "RelativeMoniker": "D:0:0:{7E2B733A-DBF8-FDB5-F770-1327FBD7B25A}|LibraryManagement\\LibraryManagement.csproj|solutionrelative:librarymanagement\\views\\accounts\\editaccountdialog.xaml.cs||{8B382828-6202-11D1-8870-0000F87579D2}|"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{7E2B733A-DBF8-FDB5-F770-1327FBD7B25A}|LibraryManagement\\LibraryManagement.csproj|c:\\users\\admin\\librarymanagement1\\librarymanagement\\views\\accounts\\myaccountview.xaml.cs||{8B382828-6202-11D1-8870-0000F87579D2}|",
+      "RelativeMoniker": "D:0:0:{7E2B733A-DBF8-FDB5-F770-1327FBD7B25A}|LibraryManagement\\LibraryManagement.csproj|solutionrelative:librarymanagement\\views\\accounts\\myaccountview.xaml.cs||{8B382828-6202-11D1-8870-0000F87579D2}|"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{7E2B733A-DBF8-FDB5-F770-1327FBD7B25A}|LibraryManagement\\LibraryManagement.csproj|c:\\users\\admin\\librarymanagement1\\librarymanagement\\views\\accounts\\createaccountdialog.xaml||{F11ACC28-31D1-4C80-A34B-F4E09D3D753C}",
+      "RelativeMoniker": "D:0:0:{7E2B733A-DBF8-FDB5-F770-1327FBD7B25A}|LibraryManagement\\LibraryManagement.csproj|solutionrelative:librarymanagement\\views\\accounts\\createaccountdialog.xaml||{F11ACC28-31D1-4C80-A34B-F4E09D3D753C}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{7E2B733A-DBF8-FDB5-F770-1327FBD7B25A}|LibraryManagement\\LibraryManagement.csproj|c:\\users\\admin\\librarymanagement1\\librarymanagement\\app.xaml.cs||{8B382828-6202-11D1-8870-0000F87579D2}|",
+      "RelativeMoniker": "D:0:0:{7E2B733A-DBF8-FDB5-F770-1327FBD7B25A}|LibraryManagement\\LibraryManagement.csproj|solutionrelative:librarymanagement\\app.xaml.cs||{8B382828-6202-11D1-8870-0000F87579D2}|"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{7E2B733A-DBF8-FDB5-F770-1327FBD7B25A}|LibraryManagement\\LibraryManagement.csproj|c:\\users\\admin\\librarymanagement1\\librarymanagement\\app.xaml||{F11ACC28-31D1-4C80-A34B-F4E09D3D753C}",
+      "RelativeMoniker": "D:0:0:{7E2B733A-DBF8-FDB5-F770-1327FBD7B25A}|LibraryManagement\\LibraryManagement.csproj|solutionrelative:librarymanagement\\app.xaml||{F11ACC28-31D1-4C80-A34B-F4E09D3D753C}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{7E2B733A-DBF8-FDB5-F770-1327FBD7B25A}|LibraryManagement\\LibraryManagement.csproj|c:\\users\\admin\\librarymanagement1\\librarymanagement\\views\\accounts\\editaccountdialog.xaml||{F11ACC28-31D1-4C80-A34B-F4E09D3D753C}",
+      "RelativeMoniker": "D:0:0:{7E2B733A-DBF8-FDB5-F770-1327FBD7B25A}|LibraryManagement\\LibraryManagement.csproj|solutionrelative:librarymanagement\\views\\accounts\\editaccountdialog.xaml||{F11ACC28-31D1-4C80-A34B-F4E09D3D753C}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{7E2B733A-DBF8-FDB5-F770-1327FBD7B25A}|LibraryManagement\\LibraryManagement.csproj|c:\\users\\admin\\librarymanagement1\\librarymanagement\\views\\accounts\\accountsview.xaml||{F11ACC28-31D1-4C80-A34B-F4E09D3D753C}",
+      "RelativeMoniker": "D:0:0:{7E2B733A-DBF8-FDB5-F770-1327FBD7B25A}|LibraryManagement\\LibraryManagement.csproj|solutionrelative:librarymanagement\\views\\accounts\\accountsview.xaml||{F11ACC28-31D1-4C80-A34B-F4E09D3D753C}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{7E2B733A-DBF8-FDB5-F770-1327FBD7B25A}|LibraryManagement\\LibraryManagement.csproj|c:\\users\\admin\\librarymanagement1\\librarymanagement\\services\\userservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{7E2B733A-DBF8-FDB5-F770-1327FBD7B25A}|LibraryManagement\\LibraryManagement.csproj|solutionrelative:librarymanagement\\services\\userservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{7E2B733A-DBF8-FDB5-F770-1327FBD7B25A}|LibraryManagement\\LibraryManagement.csproj|c:\\users\\admin\\librarymanagement1\\librarymanagement\\services\\authservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{7E2B733A-DBF8-FDB5-F770-1327FBD7B25A}|LibraryManagement\\LibraryManagement.csproj|solutionrelative:librarymanagement\\services\\authservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{7E2B733A-DBF8-FDB5-F770-1327FBD7B25A}|LibraryManagement\\LibraryManagement.csproj|c:\\users\\admin\\librarymanagement1\\librarymanagement\\viewmodels\\authviewmodel.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{7E2B733A-DBF8-FDB5-F770-1327FBD7B25A}|LibraryManagement\\LibraryManagement.csproj|solutionrelative:librarymanagement\\viewmodels\\authviewmodel.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{7E2B733A-DBF8-FDB5-F770-1327FBD7B25A}|LibraryManagement\\LibraryManagement.csproj|c:\\users\\admin\\librarymanagement1\\librarymanagement\\views\\auth\\loginview.xaml||{F11ACC28-31D1-4C80-A34B-F4E09D3D753C}",
+      "RelativeMoniker": "D:0:0:{7E2B733A-DBF8-FDB5-F770-1327FBD7B25A}|LibraryManagement\\LibraryManagement.csproj|solutionrelative:librarymanagement\\views\\auth\\loginview.xaml||{F11ACC28-31D1-4C80-A34B-F4E09D3D753C}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{7E2B733A-DBF8-FDB5-F770-1327FBD7B25A}|LibraryManagement\\LibraryManagement.csproj|c:\\users\\admin\\librarymanagement1\\librarymanagement\\views\\auth\\registerview.xaml||{F11ACC28-31D1-4C80-A34B-F4E09D3D753C}",
       "RelativeMoniker": "D:0:0:{7E2B733A-DBF8-FDB5-F770-1327FBD7B25A}|LibraryManagement\\LibraryManagement.csproj|solutionrelative:librarymanagement\\views\\auth\\registerview.xaml||{F11ACC28-31D1-4C80-A34B-F4E09D3D753C}"
     },
     {
-      "AbsoluteMoniker": "D:0:0:{7E2B733A-DBF8-FDB5-F770-1327FBD7B25A}|LibraryManagement\\LibraryManagement.csproj|c:\\users\\admin\\librarymanagement\\librarymanagement\\views\\auth\\loginview.xaml.cs||{8B382828-6202-11D1-8870-0000F87579D2}|",
+      "AbsoluteMoniker": "D:0:0:{7E2B733A-DBF8-FDB5-F770-1327FBD7B25A}|LibraryManagement\\LibraryManagement.csproj|c:\\users\\admin\\librarymanagement1\\librarymanagement\\views\\auth\\loginview.xaml.cs||{8B382828-6202-11D1-8870-0000F87579D2}|",
       "RelativeMoniker": "D:0:0:{7E2B733A-DBF8-FDB5-F770-1327FBD7B25A}|LibraryManagement\\LibraryManagement.csproj|solutionrelative:librarymanagement\\views\\auth\\loginview.xaml.cs||{8B382828-6202-11D1-8870-0000F87579D2}|"
     },
     {
-      "AbsoluteMoniker": "D:0:0:{7E2B733A-DBF8-FDB5-F770-1327FBD7B25A}|LibraryManagement\\LibraryManagement.csproj|c:\\users\\admin\\librarymanagement\\librarymanagement\\views\\authwindow.xaml||{F11ACC28-31D1-4C80-A34B-F4E09D3D753C}",
+      "AbsoluteMoniker": "D:0:0:{7E2B733A-DBF8-FDB5-F770-1327FBD7B25A}|LibraryManagement\\LibraryManagement.csproj|c:\\users\\admin\\librarymanagement1\\librarymanagement\\views\\authwindow.xaml||{F11ACC28-31D1-4C80-A34B-F4E09D3D753C}",
       "RelativeMoniker": "D:0:0:{7E2B733A-DBF8-FDB5-F770-1327FBD7B25A}|LibraryManagement\\LibraryManagement.csproj|solutionrelative:librarymanagement\\views\\authwindow.xaml||{F11ACC28-31D1-4C80-A34B-F4E09D3D753C}"
     }
   ],
@@ -127,23 +143,79 @@
             {
               "$type": "Document",
               "DocumentIndex": 0,
-              "Title": "AccountsViewModel.cs",
-              "DocumentMoniker": "C:\\Users\\Admin\\LibraryManagement\\LibraryManagement\\ViewModels\\AccountsViewModel.cs",
-              "RelativeDocumentMoniker": "LibraryManagement\\ViewModels\\AccountsViewModel.cs",
-              "ToolTip": "C:\\Users\\Admin\\LibraryManagement\\LibraryManagement\\ViewModels\\AccountsViewModel.cs",
-              "RelativeToolTip": "LibraryManagement\\ViewModels\\AccountsViewModel.cs",
-              "ViewState": "AgIAALwAAAAAAAAAAABBwNEAAAAAAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2026-09-14T04:06:06.153Z",
+              "Title": "AddReaderDialog.xaml",
+              "DocumentMoniker": "C:\\Users\\Admin\\LibraryManagement1\\LibraryManagement\\Views\\Readers\\AddReaderDialog.xaml",
+              "RelativeDocumentMoniker": "LibraryManagement\\Views\\Readers\\AddReaderDialog.xaml",
+              "ToolTip": "C:\\Users\\Admin\\LibraryManagement1\\LibraryManagement\\Views\\Readers\\AddReaderDialog.xaml",
+              "RelativeToolTip": "LibraryManagement\\Views\\Readers\\AddReaderDialog.xaml",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.003549|",
+              "WhenOpened": "2026-09-14T14:44:01.136Z",
               "EditorCaption": ""
             },
             {
               "$type": "Document",
               "DocumentIndex": 1,
+              "Title": "EditReaderDialog.xaml",
+              "DocumentMoniker": "C:\\Users\\Admin\\LibraryManagement1\\LibraryManagement\\Views\\Readers\\EditReaderDialog.xaml",
+              "RelativeDocumentMoniker": "LibraryManagement\\Views\\Readers\\EditReaderDialog.xaml",
+              "ToolTip": "C:\\Users\\Admin\\LibraryManagement1\\LibraryManagement\\Views\\Readers\\EditReaderDialog.xaml",
+              "RelativeToolTip": "LibraryManagement\\Views\\Readers\\EditReaderDialog.xaml",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.003549|",
+              "WhenOpened": "2026-09-14T14:44:04.439Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 2,
+              "Title": "ReadersView.xaml",
+              "DocumentMoniker": "C:\\Users\\Admin\\LibraryManagement1\\LibraryManagement\\Views\\Readers\\ReadersView.xaml",
+              "RelativeDocumentMoniker": "LibraryManagement\\Views\\Readers\\ReadersView.xaml",
+              "ToolTip": "C:\\Users\\Admin\\LibraryManagement1\\LibraryManagement\\Views\\Readers\\ReadersView.xaml",
+              "RelativeToolTip": "LibraryManagement\\Views\\Readers\\ReadersView.xaml",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.003549|",
+              "WhenOpened": "2026-09-14T14:43:55.484Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 3,
+              "Title": "MyAccountViewModel.cs",
+              "DocumentMoniker": "C:\\Users\\Admin\\LibraryManagement1\\LibraryManagement\\ViewModels\\MyAccountViewModel.cs",
+              "RelativeDocumentMoniker": "LibraryManagement\\ViewModels\\MyAccountViewModel.cs",
+              "ToolTip": "C:\\Users\\Admin\\LibraryManagement1\\LibraryManagement\\ViewModels\\MyAccountViewModel.cs",
+              "RelativeToolTip": "LibraryManagement\\ViewModels\\MyAccountViewModel.cs",
+              "ViewState": "AgIAAMUAAAAAAAAAAAAowMsAAAAxAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-09-14T07:57:58.525Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 4,
+              "Title": "MyAccountView.xaml",
+              "DocumentMoniker": "C:\\Users\\Admin\\LibraryManagement1\\LibraryManagement\\Views\\Accounts\\MyAccountView.xaml",
+              "RelativeDocumentMoniker": "LibraryManagement\\Views\\Accounts\\MyAccountView.xaml",
+              "ToolTip": "C:\\Users\\Admin\\LibraryManagement1\\LibraryManagement\\Views\\Accounts\\MyAccountView.xaml",
+              "RelativeToolTip": "LibraryManagement\\Views\\Accounts\\MyAccountView.xaml",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.003549|",
+              "WhenOpened": "2026-09-14T03:16:42.189Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 5,
+              "Title": "AccountsViewModel.cs",
+              "DocumentMoniker": "C:\\Users\\Admin\\LibraryManagement1\\LibraryManagement\\ViewModels\\AccountsViewModel.cs",
+              "RelativeDocumentMoniker": "LibraryManagement\\ViewModels\\AccountsViewModel.cs",
+              "ToolTip": "C:\\Users\\Admin\\LibraryManagement1\\LibraryManagement\\ViewModels\\AccountsViewModel.cs",
+              "RelativeToolTip": "LibraryManagement\\ViewModels\\AccountsViewModel.cs",
+              "ViewState": "AgIAALwAAAAAAAAAAABBwNEAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-09-14T04:06:06.153Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 6,
               "Title": "CreateAccountDialog.xaml.cs",
-              "DocumentMoniker": "C:\\Users\\Admin\\LibraryManagement\\LibraryManagement\\Views\\Accounts\\CreateAccountDialog.xaml.cs",
+              "DocumentMoniker": "C:\\Users\\Admin\\LibraryManagement1\\LibraryManagement\\Views\\Accounts\\CreateAccountDialog.xaml.cs",
               "RelativeDocumentMoniker": "LibraryManagement\\Views\\Accounts\\CreateAccountDialog.xaml.cs",
-              "ToolTip": "C:\\Users\\Admin\\LibraryManagement\\LibraryManagement\\Views\\Accounts\\CreateAccountDialog.xaml.cs",
+              "ToolTip": "C:\\Users\\Admin\\LibraryManagement1\\LibraryManagement\\Views\\Accounts\\CreateAccountDialog.xaml.cs",
               "RelativeToolTip": "LibraryManagement\\Views\\Accounts\\CreateAccountDialog.xaml.cs",
               "ViewState": "AgIAAE0AAAAAAAAAAAAUwA4AAAAiAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
@@ -151,11 +223,11 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 3,
+              "DocumentIndex": 8,
               "Title": "MyAccountView.xaml.cs",
-              "DocumentMoniker": "C:\\Users\\Admin\\LibraryManagement\\LibraryManagement\\Views\\Accounts\\MyAccountView.xaml.cs",
+              "DocumentMoniker": "C:\\Users\\Admin\\LibraryManagement1\\LibraryManagement\\Views\\Accounts\\MyAccountView.xaml.cs",
               "RelativeDocumentMoniker": "LibraryManagement\\Views\\Accounts\\MyAccountView.xaml.cs",
-              "ToolTip": "C:\\Users\\Admin\\LibraryManagement\\LibraryManagement\\Views\\Accounts\\MyAccountView.xaml.cs",
+              "ToolTip": "C:\\Users\\Admin\\LibraryManagement1\\LibraryManagement\\Views\\Accounts\\MyAccountView.xaml.cs",
               "RelativeToolTip": "LibraryManagement\\Views\\Accounts\\MyAccountView.xaml.cs",
               "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
@@ -163,11 +235,11 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 2,
+              "DocumentIndex": 7,
               "Title": "EditAccountDialog.xaml.cs",
-              "DocumentMoniker": "C:\\Users\\Admin\\LibraryManagement\\LibraryManagement\\Views\\Accounts\\EditAccountDialog.xaml.cs",
+              "DocumentMoniker": "C:\\Users\\Admin\\LibraryManagement1\\LibraryManagement\\Views\\Accounts\\EditAccountDialog.xaml.cs",
               "RelativeDocumentMoniker": "LibraryManagement\\Views\\Accounts\\EditAccountDialog.xaml.cs",
-              "ToolTip": "C:\\Users\\Admin\\LibraryManagement\\LibraryManagement\\Views\\Accounts\\EditAccountDialog.xaml.cs",
+              "ToolTip": "C:\\Users\\Admin\\LibraryManagement1\\LibraryManagement\\Views\\Accounts\\EditAccountDialog.xaml.cs",
               "RelativeToolTip": "LibraryManagement\\Views\\Accounts\\EditAccountDialog.xaml.cs",
               "ViewState": "AgIAABYAAAAAAAAAAAAywAAAAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
@@ -175,11 +247,11 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 5,
+              "DocumentIndex": 10,
               "Title": "App.xaml.cs",
-              "DocumentMoniker": "C:\\Users\\Admin\\LibraryManagement\\LibraryManagement\\App.xaml.cs",
+              "DocumentMoniker": "C:\\Users\\Admin\\LibraryManagement1\\LibraryManagement\\App.xaml.cs",
               "RelativeDocumentMoniker": "LibraryManagement\\App.xaml.cs",
-              "ToolTip": "C:\\Users\\Admin\\LibraryManagement\\LibraryManagement\\App.xaml.cs",
+              "ToolTip": "C:\\Users\\Admin\\LibraryManagement1\\LibraryManagement\\App.xaml.cs",
               "RelativeToolTip": "LibraryManagement\\App.xaml.cs",
               "ViewState": "AgIAAAcAAAAAAAAAAABCwBEAAAAJAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
@@ -187,55 +259,56 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 4,
+              "DocumentIndex": 9,
               "Title": "CreateAccountDialog.xaml",
-              "DocumentMoniker": "C:\\Users\\Admin\\LibraryManagement\\LibraryManagement\\Views\\Accounts\\CreateAccountDialog.xaml",
+              "DocumentMoniker": "C:\\Users\\Admin\\LibraryManagement1\\LibraryManagement\\Views\\Accounts\\CreateAccountDialog.xaml",
               "RelativeDocumentMoniker": "LibraryManagement\\Views\\Accounts\\CreateAccountDialog.xaml",
-              "ToolTip": "C:\\Users\\Admin\\LibraryManagement\\LibraryManagement\\Views\\Accounts\\CreateAccountDialog.xaml",
+              "ToolTip": "C:\\Users\\Admin\\LibraryManagement1\\LibraryManagement\\Views\\Accounts\\CreateAccountDialog.xaml",
               "RelativeToolTip": "LibraryManagement\\Views\\Accounts\\CreateAccountDialog.xaml",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.003549|",
               "WhenOpened": "2026-09-14T04:06:29.836Z"
             },
             {
               "$type": "Document",
-              "DocumentIndex": 6,
+              "DocumentIndex": 11,
               "Title": "App.xaml",
-              "DocumentMoniker": "C:\\Users\\Admin\\LibraryManagement\\LibraryManagement\\App.xaml",
+              "DocumentMoniker": "C:\\Users\\Admin\\LibraryManagement1\\LibraryManagement\\App.xaml",
               "RelativeDocumentMoniker": "LibraryManagement\\App.xaml",
-              "ToolTip": "C:\\Users\\Admin\\LibraryManagement\\LibraryManagement\\App.xaml",
+              "ToolTip": "C:\\Users\\Admin\\LibraryManagement1\\LibraryManagement\\App.xaml",
               "RelativeToolTip": "LibraryManagement\\App.xaml",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.003549|",
-              "WhenOpened": "2026-09-11T01:39:38.218Z"
+              "WhenOpened": "2026-09-11T01:39:38.218Z",
+              "EditorCaption": ""
             },
             {
               "$type": "Document",
-              "DocumentIndex": 8,
+              "DocumentIndex": 13,
               "Title": "AccountsView.xaml",
-              "DocumentMoniker": "C:\\Users\\Admin\\LibraryManagement\\LibraryManagement\\Views\\Accounts\\AccountsView.xaml",
+              "DocumentMoniker": "C:\\Users\\Admin\\LibraryManagement1\\LibraryManagement\\Views\\Accounts\\AccountsView.xaml",
               "RelativeDocumentMoniker": "LibraryManagement\\Views\\Accounts\\AccountsView.xaml",
-              "ToolTip": "C:\\Users\\Admin\\LibraryManagement\\LibraryManagement\\Views\\Accounts\\AccountsView.xaml",
+              "ToolTip": "C:\\Users\\Admin\\LibraryManagement1\\LibraryManagement\\Views\\Accounts\\AccountsView.xaml",
               "RelativeToolTip": "LibraryManagement\\Views\\Accounts\\AccountsView.xaml",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.003549|",
               "WhenOpened": "2026-09-14T03:54:56.506Z"
             },
             {
               "$type": "Document",
-              "DocumentIndex": 7,
+              "DocumentIndex": 12,
               "Title": "EditAccountDialog.xaml",
-              "DocumentMoniker": "C:\\Users\\Admin\\LibraryManagement\\LibraryManagement\\Views\\Accounts\\EditAccountDialog.xaml",
+              "DocumentMoniker": "C:\\Users\\Admin\\LibraryManagement1\\LibraryManagement\\Views\\Accounts\\EditAccountDialog.xaml",
               "RelativeDocumentMoniker": "LibraryManagement\\Views\\Accounts\\EditAccountDialog.xaml",
-              "ToolTip": "C:\\Users\\Admin\\LibraryManagement\\LibraryManagement\\Views\\Accounts\\EditAccountDialog.xaml",
+              "ToolTip": "C:\\Users\\Admin\\LibraryManagement1\\LibraryManagement\\Views\\Accounts\\EditAccountDialog.xaml",
               "RelativeToolTip": "LibraryManagement\\Views\\Accounts\\EditAccountDialog.xaml",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.003549|",
               "WhenOpened": "2026-09-14T03:15:40.099Z"
             },
             {
               "$type": "Document",
-              "DocumentIndex": 11,
+              "DocumentIndex": 16,
               "Title": "AuthViewModel.cs",
-              "DocumentMoniker": "C:\\Users\\Admin\\LibraryManagement\\LibraryManagement\\ViewModels\\AuthViewModel.cs",
+              "DocumentMoniker": "C:\\Users\\Admin\\LibraryManagement1\\LibraryManagement\\ViewModels\\AuthViewModel.cs",
               "RelativeDocumentMoniker": "LibraryManagement\\ViewModels\\AuthViewModel.cs",
-              "ToolTip": "C:\\Users\\Admin\\LibraryManagement\\LibraryManagement\\ViewModels\\AuthViewModel.cs",
+              "ToolTip": "C:\\Users\\Admin\\LibraryManagement1\\LibraryManagement\\ViewModels\\AuthViewModel.cs",
               "RelativeToolTip": "LibraryManagement\\ViewModels\\AuthViewModel.cs",
               "ViewState": "AgIAAEEAAAAAAAAAAAA1wAwAAAAxAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
@@ -243,22 +316,22 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 12,
+              "DocumentIndex": 17,
               "Title": "LoginView.xaml",
-              "DocumentMoniker": "C:\\Users\\Admin\\LibraryManagement\\LibraryManagement\\Views\\Auth\\LoginView.xaml",
+              "DocumentMoniker": "C:\\Users\\Admin\\LibraryManagement1\\LibraryManagement\\Views\\Auth\\LoginView.xaml",
               "RelativeDocumentMoniker": "LibraryManagement\\Views\\Auth\\LoginView.xaml",
-              "ToolTip": "C:\\Users\\Admin\\LibraryManagement\\LibraryManagement\\Views\\Auth\\LoginView.xaml",
+              "ToolTip": "C:\\Users\\Admin\\LibraryManagement1\\LibraryManagement\\Views\\Auth\\LoginView.xaml",
               "RelativeToolTip": "LibraryManagement\\Views\\Auth\\LoginView.xaml",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.003549|",
               "WhenOpened": "2026-09-14T03:15:41.428Z"
             },
             {
               "$type": "Document",
-              "DocumentIndex": 9,
+              "DocumentIndex": 14,
               "Title": "UserService.cs",
-              "DocumentMoniker": "C:\\Users\\Admin\\LibraryManagement\\LibraryManagement\\Services\\UserService.cs",
+              "DocumentMoniker": "C:\\Users\\Admin\\LibraryManagement1\\LibraryManagement\\Services\\UserService.cs",
               "RelativeDocumentMoniker": "LibraryManagement\\Services\\UserService.cs",
-              "ToolTip": "C:\\Users\\Admin\\LibraryManagement\\LibraryManagement\\Services\\UserService.cs",
+              "ToolTip": "C:\\Users\\Admin\\LibraryManagement1\\LibraryManagement\\Services\\UserService.cs",
               "RelativeToolTip": "LibraryManagement\\Services\\UserService.cs",
               "ViewState": "AgIAAAAAAAAAAAAAAAAAABQAAAAyAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
@@ -266,11 +339,11 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 10,
+              "DocumentIndex": 15,
               "Title": "AuthService.cs",
-              "DocumentMoniker": "C:\\Users\\Admin\\LibraryManagement\\LibraryManagement\\Services\\AuthService.cs",
+              "DocumentMoniker": "C:\\Users\\Admin\\LibraryManagement1\\LibraryManagement\\Services\\AuthService.cs",
               "RelativeDocumentMoniker": "LibraryManagement\\Services\\AuthService.cs",
-              "ToolTip": "C:\\Users\\Admin\\LibraryManagement\\LibraryManagement\\Services\\AuthService.cs",
+              "ToolTip": "C:\\Users\\Admin\\LibraryManagement1\\LibraryManagement\\Services\\AuthService.cs",
               "RelativeToolTip": "LibraryManagement\\Services\\AuthService.cs",
               "ViewState": "AgIAACUAAAAAAAAAAAAywEAAAAAlAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
@@ -278,33 +351,22 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 13,
-              "Title": "MyAccountView.xaml",
-              "DocumentMoniker": "C:\\Users\\Admin\\LibraryManagement\\LibraryManagement\\Views\\Accounts\\MyAccountView.xaml",
-              "RelativeDocumentMoniker": "LibraryManagement\\Views\\Accounts\\MyAccountView.xaml",
-              "ToolTip": "C:\\Users\\Admin\\LibraryManagement\\LibraryManagement\\Views\\Accounts\\MyAccountView.xaml",
-              "RelativeToolTip": "LibraryManagement\\Views\\Accounts\\MyAccountView.xaml",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.003549|",
-              "WhenOpened": "2026-09-14T03:16:42.189Z"
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 14,
+              "DocumentIndex": 18,
               "Title": "RegisterView.xaml",
-              "DocumentMoniker": "C:\\Users\\Admin\\LibraryManagement\\LibraryManagement\\Views\\Auth\\RegisterView.xaml",
+              "DocumentMoniker": "C:\\Users\\Admin\\LibraryManagement1\\LibraryManagement\\Views\\Auth\\RegisterView.xaml",
               "RelativeDocumentMoniker": "LibraryManagement\\Views\\Auth\\RegisterView.xaml",
-              "ToolTip": "C:\\Users\\Admin\\LibraryManagement\\LibraryManagement\\Views\\Auth\\RegisterView.xaml",
+              "ToolTip": "C:\\Users\\Admin\\LibraryManagement1\\LibraryManagement\\Views\\Auth\\RegisterView.xaml",
               "RelativeToolTip": "LibraryManagement\\Views\\Auth\\RegisterView.xaml",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.003549|",
               "WhenOpened": "2026-09-14T01:48:28.041Z"
             },
             {
               "$type": "Document",
-              "DocumentIndex": 15,
+              "DocumentIndex": 19,
               "Title": "LoginView.xaml.cs",
-              "DocumentMoniker": "C:\\Users\\Admin\\LibraryManagement\\LibraryManagement\\Views\\Auth\\LoginView.xaml.cs",
+              "DocumentMoniker": "C:\\Users\\Admin\\LibraryManagement1\\LibraryManagement\\Views\\Auth\\LoginView.xaml.cs",
               "RelativeDocumentMoniker": "LibraryManagement\\Views\\Auth\\LoginView.xaml.cs",
-              "ToolTip": "C:\\Users\\Admin\\LibraryManagement\\LibraryManagement\\Views\\Auth\\LoginView.xaml.cs",
+              "ToolTip": "C:\\Users\\Admin\\LibraryManagement1\\LibraryManagement\\Views\\Auth\\LoginView.xaml.cs",
               "RelativeToolTip": "LibraryManagement\\Views\\Auth\\LoginView.xaml.cs",
               "ViewState": "AgIAAEgAAAAAAAAAAAA7wAAAAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
@@ -312,11 +374,11 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 16,
+              "DocumentIndex": 20,
               "Title": "AuthWindow.xaml",
-              "DocumentMoniker": "C:\\Users\\Admin\\LibraryManagement\\LibraryManagement\\Views\\AuthWindow.xaml",
+              "DocumentMoniker": "C:\\Users\\Admin\\LibraryManagement1\\LibraryManagement\\Views\\AuthWindow.xaml",
               "RelativeDocumentMoniker": "LibraryManagement\\Views\\AuthWindow.xaml",
-              "ToolTip": "C:\\Users\\Admin\\LibraryManagement\\LibraryManagement\\Views\\AuthWindow.xaml",
+              "ToolTip": "C:\\Users\\Admin\\LibraryManagement1\\LibraryManagement\\Views\\AuthWindow.xaml",
               "RelativeToolTip": "LibraryManagement\\Views\\AuthWindow.xaml",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.003549|",
               "WhenOpened": "2026-09-14T01:56:23.724Z"
@@ -327,6 +389,10 @@
           "DockedWidth": 466,
           "SelectedChildIndex": -1,
           "Children": [
+            {
+              "$type": "Bookmark",
+              "Name": "ST:0:0:{34e76e81-ee4a-11d0-ae2e-00a0c90fffc3}"
+            },
             {
               "$type": "Bookmark",
               "Name": "ST:1:0:{d212f56b-c48a-434c-a121-1c5d80b59b9f}"

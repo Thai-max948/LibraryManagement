@@ -116,7 +116,7 @@ namespace LibraryManagement.Views.Accounts {
                 return;
             }
             _contentLoaded = true;
-            System.Uri resourceLocater = new System.Uri("/LibraryManagement;component/views/accounts/createaccountdialog.xaml", System.UriKind.Relative);
+            System.Uri resourceLocater = new System.Uri("/LibraryManagement;V1.0.0.0;component/views/accounts/createaccountdialog.xaml", System.UriKind.Relative);
             
             #line 1 "..\..\..\..\..\Views\Accounts\CreateAccountDialog.xaml"
             System.Windows.Application.LoadComponent(this, resourceLocater);

@@ -1,4 +1,4 @@
-﻿using LibraryManagement.Models;
+using LibraryManagement.Models;
 using System.Windows;
 
 namespace LibraryManagement.Views.Readers
@@ -22,6 +22,18 @@ namespace LibraryManagement.Views.Readers
             if (string.IsNullOrWhiteSpace(FullNameBox.Text))
             {
                 MessageBox.Show("Họ tên không được để trống.", "Thiếu thông tin");
+                return;
+            }
+
+            if (string.IsNullOrWhiteSpace(PhoneBox.Text))
+            {
+                MessageBox.Show("thiếu thông tin sđt", "Thiếu thông tin");
+                return;
+            }
+
+            if (string.IsNullOrWhiteSpace(EmailBox.Text))
+            {
+                MessageBox.Show("thiếu thông tin email", "Thiếu thông tin");
                 return;
             }
 

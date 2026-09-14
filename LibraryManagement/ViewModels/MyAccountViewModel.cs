@@ -1,4 +1,5 @@
 using System;
+using System.Windows;
 using System.Windows.Input;
 using LibraryManagement.Commands;
 using LibraryManagement.Models;
@@ -178,6 +179,7 @@ namespace LibraryManagement.ViewModels
                 IsProfileSuccess = true;
                 IsProfileError = false;
                 LoadUserData();
+                MessageBox.Show("changed succesfully", "Notification", MessageBoxButton.OK, MessageBoxImage.Information);
             }
             else
             {
@@ -205,6 +207,7 @@ namespace LibraryManagement.ViewModels
                 CurrentPassword = "";
                 NewPassword = "";
                 ConfirmPassword = "";
+                MessageBox.Show("changed succesfully", "Notification", MessageBoxButton.OK, MessageBoxImage.Information);
             }
             else
             {

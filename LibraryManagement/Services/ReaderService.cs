@@ -1,4 +1,4 @@
-﻿using LibraryManagement.Models;
+using LibraryManagement.Models;
 using LibraryManagement.Repositories;
 using System.Collections.Generic;
 using System.Linq;
@@ -53,6 +53,10 @@ namespace LibraryManagement.Services
         {
             if (string.IsNullOrWhiteSpace(reader.FullName))
                 throw new BusinessRuleException("Họ tên không được để trống.");
+            if (string.IsNullOrWhiteSpace(reader.Phone))
+                throw new BusinessRuleException("thiếu thông tin sđt");
+            if (string.IsNullOrWhiteSpace(reader.Email))
+                throw new BusinessRuleException("thiếu thông tin email");
             if (!string.IsNullOrWhiteSpace(reader.Email) && !Regex.IsMatch(reader.Email, @"^[^@\s]+@[^@\s]+\.[^@\s]+$"))
                 throw new BusinessRuleException("Email không hợp lệ.");
             if (!string.IsNullOrWhiteSpace(reader.Phone) && !Regex.IsMatch(reader.Phone, @"^[0-9]{9,11}$"))
