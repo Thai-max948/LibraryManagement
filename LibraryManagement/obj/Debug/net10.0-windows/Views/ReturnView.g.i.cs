@@ -53,7 +53,7 @@ namespace LibraryManagement.Views {
                 return;
             }
             _contentLoaded = true;
-            System.Uri resourceLocater = new System.Uri("/LibraryManagement;V1.0.0.0;component/views/returnview.xaml", System.UriKind.Relative);
+            System.Uri resourceLocater = new System.Uri("/LibraryManagement;component/views/returnview.xaml", System.UriKind.Relative);
             
             #line 1 "..\..\..\..\Views\ReturnView.xaml"
             System.Windows.Application.LoadComponent(this, resourceLocater);

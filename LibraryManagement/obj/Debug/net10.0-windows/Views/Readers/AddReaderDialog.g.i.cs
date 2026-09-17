@@ -76,7 +76,7 @@ namespace LibraryManagement.Views.Readers {
                 return;
             }
             _contentLoaded = true;
-            System.Uri resourceLocater = new System.Uri("/LibraryManagement;V1.0.0.0;component/views/readers/addreaderdialog.xaml", System.UriKind.Relative);
+            System.Uri resourceLocater = new System.Uri("/LibraryManagement;component/views/readers/addreaderdialog.xaml", System.UriKind.Relative);
             
             #line 1 "..\..\..\..\..\Views\Readers\AddReaderDialog.xaml"
             System.Windows.Application.LoadComponent(this, resourceLocater);

@@ -53,7 +53,7 @@ namespace LibraryManagement.Views.Readers {
                 return;
             }
             _contentLoaded = true;
-            System.Uri resourceLocater = new System.Uri("/LibraryManagement;V1.0.0.0;component/views/readers/readersview.xaml", System.UriKind.Relative);
+            System.Uri resourceLocater = new System.Uri("/LibraryManagement;component/views/readers/readersview.xaml", System.UriKind.Relative);
             
             #line 1 "..\..\..\..\..\Views\Readers\ReadersView.xaml"
             System.Windows.Application.LoadComponent(this, resourceLocater);
