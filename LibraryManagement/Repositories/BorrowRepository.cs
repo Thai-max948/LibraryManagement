@@ -1,4 +1,4 @@
-﻿using LibraryManagement.Data;
+using LibraryManagement.Data;
 using LibraryManagement.Models;
 using Microsoft.Data.SqlClient;
 using System;
@@ -161,6 +161,8 @@ namespace LibraryManagement.Repositories
                 if (!string.IsNullOrEmpty(status)) sql += " AND Status = @Status";
                 if (fromDate.HasValue) sql += " AND BorrowDate >= @FromDate";
                 if (toDate.HasValue) sql += " AND BorrowDate <= @ToDate";
+
+                sql += " ORDER BY ISNULL(ReturnDate, BorrowDate) DESC, BorrowId DESC";
 
                 using (var cmd = new SqlCommand(sql, conn))
                 {

@@ -55,6 +55,9 @@ namespace LibraryManagement.Views
             AnimateAuthMode(false);
         }
 
+        private const double FormSlideDistance = 280;
+        private const double OverlayContentSlideDistance = 220;
+
         private void AnimateAuthMode(bool isRegister)
         {
             _isAnimating = true;
@@ -66,27 +69,36 @@ namespace LibraryManagement.Views
             PanelRegister.IsHitTestVisible = false;
 
             var duration = new Duration(TimeSpan.FromMilliseconds(620));
-            var easing = new SineEase { EasingMode = EasingMode.EaseInOut };
+            var easing = new CubicEase { EasingMode = EasingMode.EaseInOut };
             var storyboard = new Storyboard();
 
+            // 1. Sliding Dark Overlay across card (520px)
             AddAnimation(storyboard, TransOverlay, TranslateTransform.XProperty,
                 wasRegister ? -65 : 455, isRegister ? -65 : 455, duration, easing);
-            AddAnimation(storyboard, PanelSignIn, UIElement.OpacityProperty,
-                wasRegister ? 0 : 1, isRegister ? 0 : 1, duration, easing);
+
+            // 2. Sign In Form: slides between 0 and -FormSlideDistance (to/from left)
             AddAnimation(storyboard, TransSignIn, TranslateTransform.XProperty,
-                wasRegister ? -24 : 0, isRegister ? -24 : 0, duration, easing);
-            AddAnimation(storyboard, PanelRegister, UIElement.OpacityProperty,
-                wasRegister ? 1 : 0, isRegister ? 1 : 0, duration, easing, 70);
+                wasRegister ? -FormSlideDistance : 0, isRegister ? -FormSlideDistance : 0, duration, easing);
+            AddAnimation(storyboard, PanelSignIn, UIElement.OpacityProperty,
+                wasRegister ? 0 : 1, isRegister ? 0 : 1, duration, easing, isRegister ? 0 : 60);
+
+            // 3. Register Form: slides between +FormSlideDistance and 0 (to/from right)
             AddAnimation(storyboard, TransRegister, TranslateTransform.XProperty,
-                wasRegister ? 0 : 24, isRegister ? 0 : 24, duration, easing, 55);
-            AddAnimation(storyboard, PanelWelcomeBack, UIElement.OpacityProperty,
-                wasRegister ? 0 : 1, isRegister ? 0 : 1, duration, easing);
+                wasRegister ? 0 : FormSlideDistance, isRegister ? 0 : FormSlideDistance, duration, easing);
+            AddAnimation(storyboard, PanelRegister, UIElement.OpacityProperty,
+                wasRegister ? 1 : 0, isRegister ? 1 : 0, duration, easing, isRegister ? 60 : 0);
+
+            // 4. Dark Overlay Content - "Welcome back."
             AddAnimation(storyboard, TransWelcomeBack, TranslateTransform.XProperty,
-                wasRegister ? -30 : 0, isRegister ? -30 : 0, duration, easing);
-            AddAnimation(storyboard, PanelStartPage, UIElement.OpacityProperty,
-                wasRegister ? 1 : 0, isRegister ? 1 : 0, duration, easing, 70);
+                wasRegister ? -OverlayContentSlideDistance : 0, isRegister ? -OverlayContentSlideDistance : 0, duration, easing);
+            AddAnimation(storyboard, PanelWelcomeBack, UIElement.OpacityProperty,
+                wasRegister ? 0 : 1, isRegister ? 0 : 1, duration, easing, isRegister ? 0 : 60);
+
+            // 5. Dark Overlay Content - "Start the first page."
             AddAnimation(storyboard, TransStartPage, TranslateTransform.XProperty,
-                wasRegister ? 0 : 24, isRegister ? 0 : 24, duration, easing, 55);
+                wasRegister ? 0 : OverlayContentSlideDistance, isRegister ? 0 : OverlayContentSlideDistance, duration, easing);
+            AddAnimation(storyboard, PanelStartPage, UIElement.OpacityProperty,
+                wasRegister ? 1 : 0, isRegister ? 1 : 0, duration, easing, isRegister ? 60 : 0);
 
             storyboard.Completed += (_, _) =>
             {
@@ -127,16 +139,17 @@ namespace LibraryManagement.Views
             TransOverlay.X = isRegister ? -65 : 455;
             PanelSignIn.Opacity = isRegister ? 0 : 1;
             PanelSignIn.IsHitTestVisible = !isRegister;
-            TransSignIn.X = isRegister ? -24 : 0;
+            TransSignIn.X = isRegister ? -FormSlideDistance : 0;
 
             PanelRegister.Opacity = isRegister ? 1 : 0;
             PanelRegister.IsHitTestVisible = isRegister;
-            TransRegister.X = isRegister ? 0 : 24;
+            TransRegister.X = isRegister ? 0 : FormSlideDistance;
 
             PanelWelcomeBack.Opacity = isRegister ? 0 : 1;
-            TransWelcomeBack.X = isRegister ? -30 : 0;
+            TransWelcomeBack.X = isRegister ? -OverlayContentSlideDistance : 0;
+
             PanelStartPage.Opacity = isRegister ? 1 : 0;
-            TransStartPage.X = isRegister ? 0 : 24;
+            TransStartPage.X = isRegister ? 0 : OverlayContentSlideDistance;
         }
 
         private void CardContainer_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)

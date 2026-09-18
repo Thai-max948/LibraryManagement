@@ -1,4 +1,4 @@
-﻿using LibraryManagement.Data;
+using LibraryManagement.Data;
 using LibraryManagement.Models;
 using LibraryManagement.Repositories;
 using System;
@@ -68,11 +68,15 @@ namespace LibraryManagement.Services
                         if (activeCount >= MaxActiveBorrowsPerReader)
                             throw new BusinessRuleException($"Độc giả đã mượn tối đa {MaxActiveBorrowsPerReader} sách.");
 
+                        var actualBorrowDate = (borrowDate.Date == DateTime.Today && borrowDate.TimeOfDay == TimeSpan.Zero)
+                            ? DateTime.Now
+                            : borrowDate;
+
                         var record = new BorrowRecord
                         {
                             BookId = bookId,
                             ReaderId = readerId,
-                            BorrowDate = borrowDate,
+                            BorrowDate = actualBorrowDate,
                             DueDate = dueDate,
                             ReturnDate = null,
                             Status = StatusBorrowing

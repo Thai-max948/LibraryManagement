@@ -1,4 +1,4 @@
-﻿using LibraryManagement.Models;
+using LibraryManagement.Models;
 using LibraryManagement.Services;
 using LibraryManagement.Commands;
 using System;
@@ -73,13 +73,16 @@ namespace LibraryManagement.ViewModels
                 {
                     var book = books.FirstOrDefault(b => b.BookId == r.BookId);
                     var reader = readers.FirstOrDefault(x => x.ReaderId == r.ReaderId);
+                    DateTime actionDate = r.ReturnDate ?? r.BorrowDate;
                     return new HistoryRow
                     {
                         ReaderName = reader?.FullName ?? "?",
                         BookTitle = book?.Title ?? "?",
                         BorrowDate = r.BorrowDate.ToString("dd/MM/yyyy"),
-                        ReturnDate = r.ReturnDate.HasValue ? r.ReturnDate.Value.ToString("dd/MM/yyyy") : "—",
-                        Status = r.Status
+                        ReturnDate = r.DueDate.ToString("dd/MM/yyyy"),
+                        Status = r.Status,
+                        BorrowId = r.BorrowId,
+                        ActionDate = actionDate
                     };
                 });
 
@@ -92,7 +95,7 @@ namespace LibraryManagement.ViewModels
                 }
 
                 Records.Clear();
-                foreach (var row in rows.OrderByDescending(x => x.BorrowDate))
+                foreach (var row in rows.OrderByDescending(x => x.ActionDate).ThenByDescending(x => x.BorrowId))
                     Records.Add(row);
             }
             catch (Exception ex)
@@ -109,5 +112,7 @@ namespace LibraryManagement.ViewModels
         public string BorrowDate { get; set; }
         public string ReturnDate { get; set; }
         public string Status { get; set; }
+        public int BorrowId { get; set; }
+        public DateTime ActionDate { get; set; }
     }
 }
