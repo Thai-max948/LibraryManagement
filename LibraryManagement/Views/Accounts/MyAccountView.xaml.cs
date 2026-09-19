@@ -46,7 +46,11 @@ namespace LibraryManagement.Views.Accounts
                     SyncPasswordsToVm();
                 });
 
-            if (DataContext is MyAccountViewModel vm)
+            if (!System.ComponentModel.DesignerProperties.GetIsInDesignMode(this))
+            {
+                DataContext = new MyAccountViewModel();
+            }
+            else if (DataContext is MyAccountViewModel vm)
             {
                 HookViewModel(vm);
             }

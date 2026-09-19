@@ -1,11 +1,7 @@
-﻿<UserControl x:Class="LibraryManagement.Views.BorrowView"
+<UserControl x:Class="LibraryManagement.Views.BorrowView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="clr-namespace:LibraryManagement.ViewModels">
-
-    <UserControl.DataContext>
-        <vm:BorrowViewModel/>
-    </UserControl.DataContext>
 
     <StackPanel Margin="10">
         <TextBlock Text="📖 Borrow Book" FontSize="22" FontWeight="Bold" Foreground="{StaticResource TextBrush}" Margin="0,0,0,16"/>

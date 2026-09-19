@@ -76,12 +76,11 @@ namespace LibraryManagement.Services
             string trimmedUsername = username.Trim().ToLowerInvariant();
             string trimmedEmail = email.Trim().ToLowerInvariant();
 
-            var allUsers = _userRepository.GetAll();
-            if (allUsers.Any(u => string.Equals(u.Email, trimmedEmail, StringComparison.OrdinalIgnoreCase)))
+            if (_userRepository.ExistsByEmail(trimmedEmail))
             {
                 return (false, "email này đã được sử dụng!", null);
             }
-            if (allUsers.Any(u => string.Equals(u.Username, trimmedUsername, StringComparison.OrdinalIgnoreCase)))
+            if (_userRepository.ExistsByUsername(trimmedUsername))
             {
                 return (false, "Username này đã được sử dụng!", null);
             }
@@ -133,13 +132,12 @@ namespace LibraryManagement.Services
                 return (false, "New password must be at least 6 characters.");
             }
 
-            var allUsers = _userRepository.GetAll();
-            if (allUsers.Any(u => u.Id != id && string.Equals(u.Email, email.Trim(), StringComparison.OrdinalIgnoreCase)))
+            if (_userRepository.ExistsByEmail(email, id))
             {
                 return (false, "email này đã được sử dụng!");
             }
 
-            if (allUsers.Any(u => u.Id != id && string.Equals(u.Username, username.Trim(), StringComparison.OrdinalIgnoreCase)))
+            if (_userRepository.ExistsByUsername(username, id))
             {
                 return (false, "An account with this username already exists.");
             }
@@ -154,7 +152,7 @@ namespace LibraryManagement.Services
                 && !string.Equals(role, "Administrator", StringComparison.OrdinalIgnoreCase);
             if (demotingFromAdmin)
             {
-                int adminCount = allUsers.Count(u => string.Equals(u.Role, "Administrator", StringComparison.OrdinalIgnoreCase));
+                int adminCount = _userRepository.GetAll().Count(u => string.Equals(u.Role, "Administrator", StringComparison.OrdinalIgnoreCase));
                 if (adminCount <= 1)
                 {
                     return (false, "Không thể hạ quyền Administrator cuối cùng trong hệ thống.");
@@ -224,13 +222,12 @@ namespace LibraryManagement.Services
                 return (false, "Please enter a valid email address.");
             }
 
-            var allUsers = _userRepository.GetAll();
-            if (allUsers.Any(u => u.Id != userId && string.Equals(u.Email, email.Trim(), StringComparison.OrdinalIgnoreCase)))
+            if (_userRepository.ExistsByEmail(email, userId))
             {
                 return (false, "email này đã được sử dụng!");
             }
 
-            if (allUsers.Any(u => u.Id != userId && string.Equals(u.Username, username.Trim(), StringComparison.OrdinalIgnoreCase)))
+            if (_userRepository.ExistsByUsername(username, userId))
             {
                 return (false, "An account with this username already exists.");
             }

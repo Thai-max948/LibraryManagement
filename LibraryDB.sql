@@ -85,13 +85,13 @@ GO
 IF NOT EXISTS (SELECT 1 FROM Users WHERE Username = 'admin')
 BEGIN
     INSERT INTO Users (Username, Email, FullName, PasswordHash, Role, CreatedAt)
-    VALUES ('admin', 'admin@library.com', N'Quản Trị Viên', 'admin123', 'Administrator', GETDATE());
+    VALUES ('admin', 'admin@library.com', N'Quản Trị Viên', '$2a$11$cNARD6DZjrzznOAzgdld/uPZlQclE0gYgWuksm0vhQ58LkLG39KPO', 'Administrator', GETDATE());
 END
 
 IF NOT EXISTS (SELECT 1 FROM Users WHERE Username = 'librarian')
 BEGIN
     INSERT INTO Users (Username, Email, FullName, PasswordHash, Role, CreatedAt)
-    VALUES ('librarian', 'librarian@library.com', N'Thủ Thư Mẫu', 'librarian123', 'Librarian', GETDATE());
+    VALUES ('librarian', 'librarian@library.com', N'Thủ Thư Mẫu', '$2a$11$.z9Gd4uVHXS3IcbDNtyy3uOGhiRFxgkqOhNoMIMUUdtSnFW5vOB8a', 'Librarian', GETDATE());
 END
 GO
 
@@ -129,7 +129,7 @@ BEGIN
     INSERT INTO BorrowRecords (BorrowId, BookId, ReaderId, BorrowDate, DueDate, ReturnDate, Status) VALUES
     (1, 1, 1, '2026-09-01', '2026-09-08', '2026-09-10 21:12:20', 'Returned'),
     (2, 2, 2, '2026-09-02', '2026-09-09', '2026-09-10 21:17:16', 'Returned'),
-    (3, 4, 1, '2026-08-20', '2026-08-27', NULL, 'Returned'),
+    (3, 4, 1, '2026-08-20', '2026-08-27', '2026-08-26 15:30:00', 'Returned'),
     (4, 1, 1, '2026-09-10', '2026-09-17', '2026-09-10 21:06:00', 'Returned'),
     (5, 5, 3, '2026-09-11', '2026-09-20', '2026-09-10 21:24:10', 'Returned'),
     (6, 2, 3, '2026-09-10', '2026-09-17', '2026-09-10 21:12:29', 'Returned'),

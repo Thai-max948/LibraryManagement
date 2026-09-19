@@ -8,17 +8,10 @@ namespace LibraryManagement.Repositories
 {
     public class ReaderRepository
     {
-        private readonly Database _db;
-
-        public ReaderRepository()
-        {
-            _db = new Database();
-        }
-
         public List<Reader> GetAll()
         {
             var readers = new List<Reader>();
-            using (var conn = _db.GetConnection())
+            using (var conn = Database.GetConnection())
             {
                 conn.Open();
                 string sql = "SELECT ReaderId, FullName, Phone, Email FROM Readers";
@@ -36,7 +29,7 @@ namespace LibraryManagement.Repositories
 
         public Reader? GetById(int id)
         {
-            using (var conn = _db.GetConnection())
+            using (var conn = Database.GetConnection())
             {
                 conn.Open();
                 string sql = "SELECT ReaderId, FullName, Phone, Email FROM Readers WHERE ReaderId = @ReaderId";
@@ -57,7 +50,7 @@ namespace LibraryManagement.Repositories
 
         public int Add(Reader reader)
         {
-            using (var conn = _db.GetConnection())
+            using (var conn = Database.GetConnection())
             {
                 conn.Open();
                 string sql = @"INSERT INTO Readers (FullName, Phone, Email)
@@ -75,7 +68,7 @@ namespace LibraryManagement.Repositories
 
         public bool Update(Reader reader)
         {
-            using (var conn = _db.GetConnection())
+            using (var conn = Database.GetConnection())
             {
                 conn.Open();
                 string sql = @"UPDATE Readers SET
@@ -96,7 +89,7 @@ namespace LibraryManagement.Repositories
 
         public bool Delete(int id)
         {
-            using (var conn = _db.GetConnection())
+            using (var conn = Database.GetConnection())
             {
                 conn.Open();
                 string sql = "DELETE FROM Readers WHERE ReaderId = @ReaderId";
@@ -111,7 +104,7 @@ namespace LibraryManagement.Repositories
         public List<Reader> Search(string keyword)
         {
             var readers = new List<Reader>();
-            using (var conn = _db.GetConnection())
+            using (var conn = Database.GetConnection())
             {
                 conn.Open();
                 string sql = @"SELECT ReaderId, FullName, Phone, Email

@@ -4,10 +4,6 @@
              xmlns:vm="clr-namespace:LibraryManagement.ViewModels"
              Background="Transparent">
 
-    <UserControl.DataContext>
-        <vm:MyAccountViewModel/>
-    </UserControl.DataContext>
-
     <UserControl.Resources>
         <!-- Avatar Border Style: Light Blue for Admin, Light Green for Librarian -->
         <Style x:Key="AvatarBorderStyle" TargetType="Border">

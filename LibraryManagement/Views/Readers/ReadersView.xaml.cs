@@ -1,4 +1,6 @@
+using System.ComponentModel;
 using System.Windows.Controls;
+using LibraryManagement.ViewModels;
 
 namespace LibraryManagement.Views.Readers
 {
@@ -7,6 +9,10 @@ namespace LibraryManagement.Views.Readers
         public ReadersView()
         {
             InitializeComponent();
+            if (!DesignerProperties.GetIsInDesignMode(this))
+            {
+                DataContext = new ReadersViewModel();
+            }
         }
     }
 }

@@ -69,7 +69,8 @@ namespace LibraryManagement.ViewModels
                         ReaderName = reader?.FullName ?? "?",
                         BookTitle = book?.Title ?? "?",
                         BorrowDate = r.BorrowDate.ToString("dd/MM/yyyy"),
-                        DueDate = r.DueDate.ToString("dd/MM/yyyy")
+                        DueDate = r.DueDate.ToString("dd/MM/yyyy"),
+                        BorrowDateValue = r.BorrowDate
                     };
                 });
 
@@ -81,7 +82,7 @@ namespace LibraryManagement.ViewModels
                         x.BookTitle.Contains(kw, StringComparison.OrdinalIgnoreCase));
                 }
 
-                foreach (var row in rows.OrderByDescending(x => x.BorrowDate))
+                foreach (var row in rows.OrderByDescending(x => x.BorrowDateValue).ThenByDescending(x => x.BorrowId))
                 {
                     ActiveBorrowings.Add(row);
                 }
@@ -138,5 +139,6 @@ namespace LibraryManagement.ViewModels
         public string BookTitle { get; set; } = string.Empty;
         public string BorrowDate { get; set; } = string.Empty;
         public string DueDate { get; set; } = string.Empty;
+        public DateTime BorrowDateValue { get; set; }
     }
 }

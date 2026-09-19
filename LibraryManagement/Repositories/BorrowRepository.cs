@@ -8,17 +8,10 @@ namespace LibraryManagement.Repositories
 {
     public class BorrowRepository
     {
-        private readonly Database _db;
-
-        public BorrowRepository()
-        {
-            _db = new Database();
-        }
-
         public List<BorrowRecord> GetAll()
         {
             var records = new List<BorrowRecord>();
-            using (var conn = _db.GetConnection())
+            using (var conn = Database.GetConnection())
             {
                 conn.Open();
                 string sql = @"SELECT BorrowId, BookId, ReaderId, BorrowDate, DueDate, ReturnDate, Status
@@ -37,7 +30,7 @@ namespace LibraryManagement.Repositories
 
         public BorrowRecord? GetById(int borrowId)
         {
-            using (var conn = _db.GetConnection())
+            using (var conn = Database.GetConnection())
             {
                 conn.Open();
                 return GetById(conn, null, borrowId);
@@ -64,7 +57,7 @@ namespace LibraryManagement.Repositories
 
         public int Add(BorrowRecord record)
         {
-            using (var conn = _db.GetConnection())
+            using (var conn = Database.GetConnection())
             {
                 conn.Open();
                 return Add(conn, null, record);
@@ -90,7 +83,7 @@ namespace LibraryManagement.Repositories
 
         public bool Update(BorrowRecord record)
         {
-            using (var conn = _db.GetConnection())
+            using (var conn = Database.GetConnection())
             {
                 conn.Open();
                 return Update(conn, null, record);
@@ -123,7 +116,7 @@ namespace LibraryManagement.Repositories
         public List<BorrowRecord> GetBorrowingRecords()
         {
             var records = new List<BorrowRecord>();
-            using (var conn = _db.GetConnection())
+            using (var conn = Database.GetConnection())
             {
                 conn.Open();
                 string sql = @"SELECT BorrowId, BookId, ReaderId, BorrowDate, DueDate, ReturnDate, Status
@@ -152,7 +145,7 @@ namespace LibraryManagement.Repositories
             DateTime? toDate = null)
         {
             var records = new List<BorrowRecord>();
-            using (var conn = _db.GetConnection())
+            using (var conn = Database.GetConnection())
             {
                 conn.Open();
                 string sql = @"SELECT BorrowId, BookId, ReaderId, BorrowDate, DueDate, ReturnDate, Status

@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics;
 using System.IO;
 using System.Text.Json;
 using Microsoft.Data.SqlClient;
@@ -37,9 +38,9 @@ namespace LibraryManagement.Data
                         }
                     }
                 }
-                catch
+                catch (Exception ex)
                 {
-                    // Fallback on error reading config
+                    Debug.WriteLine($"Failed to load connection string from appsettings.json: {ex.Message}");
                 }
 
                 // Default fallback: works on any machine with local SQL Express
@@ -48,7 +49,7 @@ namespace LibraryManagement.Data
             }
         }
 
-        public SqlConnection GetConnection()
+        public static SqlConnection GetConnection()
         {
             return new SqlConnection(ConnectionString);
         }

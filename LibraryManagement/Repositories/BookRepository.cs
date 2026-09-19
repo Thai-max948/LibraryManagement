@@ -8,17 +8,10 @@ namespace LibraryManagement.Repositories
 {
     public class BookRepository
     {
-        private readonly Database _db;
-
-        public BookRepository()
-        {
-            _db = new Database();
-        }
-
         public List<Book> GetAll()
         {
             var books = new List<Book>();
-            using (var conn = _db.GetConnection())
+            using (var conn = Database.GetConnection())
             {
                 conn.Open();
                 string sql = "SELECT BookId, Title, Author, Category, PublishYear, Quantity, AvailableQuantity FROM Books";
@@ -36,7 +29,7 @@ namespace LibraryManagement.Repositories
 
         public Book? GetById(int id)
         {
-            using (var conn = _db.GetConnection())
+            using (var conn = Database.GetConnection())
             {
                 conn.Open();
                 return GetById(conn, null, id);
@@ -62,7 +55,7 @@ namespace LibraryManagement.Repositories
 
         public int Add(Book book)
         {
-            using (var conn = _db.GetConnection())
+            using (var conn = Database.GetConnection())
             {
                 conn.Open();
                 return Add(conn, null, book);
@@ -88,7 +81,7 @@ namespace LibraryManagement.Repositories
 
         public bool Update(Book book)
         {
-            using (var conn = _db.GetConnection())
+            using (var conn = Database.GetConnection())
             {
                 conn.Open();
                 return Update(conn, null, book);
@@ -132,7 +125,7 @@ namespace LibraryManagement.Repositories
 
         public bool Delete(int id)
         {
-            using (var conn = _db.GetConnection())
+            using (var conn = Database.GetConnection())
             {
                 conn.Open();
                 string sql = "DELETE FROM Books WHERE BookId = @BookId";
@@ -147,7 +140,7 @@ namespace LibraryManagement.Repositories
         public List<Book> Search(string keyword)
         {
             var books = new List<Book>();
-            using (var conn = _db.GetConnection())
+            using (var conn = Database.GetConnection())
             {
                 conn.Open();
                 string sql = @"SELECT BookId, Title, Author, Category, PublishYear, Quantity, AvailableQuantity

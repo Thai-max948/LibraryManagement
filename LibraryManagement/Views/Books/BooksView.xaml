@@ -1,11 +1,7 @@
-﻿<UserControl x:Class="LibraryManagement.Views.Books.BooksView"
+<UserControl x:Class="LibraryManagement.Views.Books.BooksView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="clr-namespace:LibraryManagement.ViewModels">
-
-    <UserControl.DataContext>
-        <vm:BooksViewModel/>
-    </UserControl.DataContext>
 
     <StackPanel Margin="10">
         <TextBlock Text="📚 Books Management" FontSize="22" FontWeight="Bold" Foreground="{StaticResource TextBrush}"/>

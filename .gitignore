@@ -1,0 +1,33 @@
+## Build results
+[Bb]in/
+[Oo]bj/
+_buildcheck/
+_objcheck/
+
+## Visual Studio
+.vs/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+*.userprefs
+
+## Visual Studio Code
+.vscode/
+
+## Packages
+*.nupkg
+packages/
+
+## OS generated
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+.DS_Store
+
+## Others
+.agents/
+*.log
+*.tmp
+*.bak

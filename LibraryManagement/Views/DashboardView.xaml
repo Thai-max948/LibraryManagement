@@ -3,10 +3,6 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="clr-namespace:LibraryManagement.ViewModels">
 
-    <UserControl.DataContext>
-        <vm:DashboardViewModel/>
-    </UserControl.DataContext>
-
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/> <!-- Header -->

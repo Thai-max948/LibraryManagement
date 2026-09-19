@@ -56,17 +56,15 @@ namespace LibraryManagement.Services
             string trimmedEmail = email.Trim().ToLowerInvariant();
             string trimmedName = fullName.Trim();
 
-            var allUsers = _userRepository.GetAll();
-
-            if (allUsers.Any(u => string.Equals(u.Email, trimmedEmail, StringComparison.OrdinalIgnoreCase)))
+            if (_userRepository.ExistsByEmail(trimmedEmail))
             {
                 return (false, "email này đã được sử dụng!", null);
             }
 
             string baseUsername = trimmedEmail.Split('@')[0];
             string username = baseUsername;
-            int suffix = 1;
-            while (allUsers.Any(u => string.Equals(u.Username, username, StringComparison.OrdinalIgnoreCase)))
+            int suffix = 0;
+            while (_userRepository.ExistsByUsername(username))
             {
                 suffix++;
                 username = $"{baseUsername}{suffix}";

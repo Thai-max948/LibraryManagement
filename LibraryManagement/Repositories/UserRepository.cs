@@ -8,41 +8,14 @@ namespace LibraryManagement.Repositories
 {
     public class UserRepository
     {
-        private readonly Database _db;
-
         public UserRepository()
         {
-            _db = new Database();
-            EnsureTableExists();
-        }
-
-        private void EnsureTableExists()
-        {
-            using var conn = _db.GetConnection();
-            conn.Open();
-            string sql = @"
-                IF NOT EXISTS (SELECT * FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 'Users')
-                BEGIN
-                    CREATE TABLE Users (
-                        Id INT IDENTITY(1,1) PRIMARY KEY,
-                        Username NVARCHAR(100) NOT NULL,
-                        Email NVARCHAR(150) NOT NULL,
-                        FullName NVARCHAR(150) NOT NULL,
-                        PasswordHash NVARCHAR(255) NOT NULL,
-                        Role NVARCHAR(50) NOT NULL DEFAULT 'Librarian',
-                        CreatedAt DATETIME DEFAULT GETDATE(),
-                        CONSTRAINT UQ_Users_Email UNIQUE (Email),
-                        CONSTRAINT UQ_Users_Username UNIQUE (Username)
-                    );
-                END";
-            using var cmd = new SqlCommand(sql, conn);
-            cmd.ExecuteNonQuery();
         }
 
         public List<User> GetAll()
         {
             var list = new List<User>();
-            using var conn = _db.GetConnection();
+            using var conn = Database.GetConnection();
             conn.Open();
             string sql = "SELECT Id, Username, Email, FullName, Role, CreatedAt FROM Users ORDER BY Id DESC";
             using var cmd = new SqlCommand(sql, conn);
@@ -56,7 +29,7 @@ namespace LibraryManagement.Repositories
 
         public User? GetById(int id)
         {
-            using var conn = _db.GetConnection();
+            using var conn = Database.GetConnection();
             conn.Open();
             string sql = "SELECT Id, Username, Email, FullName, Role, CreatedAt FROM Users WHERE Id = @Id";
             using var cmd = new SqlCommand(sql, conn);
@@ -65,11 +38,39 @@ namespace LibraryManagement.Repositories
             return reader.Read() ? MapToUser(reader) : null;
         }
 
+        public bool ExistsByEmail(string email, int excludeUserId = 0)
+        {
+            using var conn = Database.GetConnection();
+            conn.Open();
+            string sql = "SELECT 1 FROM Users WHERE LOWER(Email) = LOWER(@Email)" + (excludeUserId > 0 ? " AND Id <> @ExcludeId" : "");
+            using var cmd = new SqlCommand(sql, conn);
+            cmd.Parameters.AddWithValue("@Email", email.Trim());
+            if (excludeUserId > 0)
+            {
+                cmd.Parameters.AddWithValue("@ExcludeId", excludeUserId);
+            }
+            return cmd.ExecuteScalar() != null;
+        }
+
+        public bool ExistsByUsername(string username, int excludeUserId = 0)
+        {
+            using var conn = Database.GetConnection();
+            conn.Open();
+            string sql = "SELECT 1 FROM Users WHERE LOWER(Username) = LOWER(@Username)" + (excludeUserId > 0 ? " AND Id <> @ExcludeId" : "");
+            using var cmd = new SqlCommand(sql, conn);
+            cmd.Parameters.AddWithValue("@Username", username.Trim());
+            if (excludeUserId > 0)
+            {
+                cmd.Parameters.AddWithValue("@ExcludeId", excludeUserId);
+            }
+            return cmd.ExecuteScalar() != null;
+        }
+
         public (bool Success, string Message, User? User) Add(User user, string password)
         {
             string hashedPassword = BCrypt.Net.BCrypt.HashPassword(password);
 
-            using var conn = _db.GetConnection();
+            using var conn = Database.GetConnection();
             conn.Open();
             string sql = @"
                 INSERT INTO Users (Username, Email, FullName, PasswordHash, Role, CreatedAt)
@@ -95,11 +96,11 @@ namespace LibraryManagement.Repositories
             }
             catch (SqlException ex) when (ex.Number == 2601 || ex.Number == 2627)
             {
-                if (ex.Message.Contains("UQ_Users_Email"))
+                if (ex.Message.Contains("UQ_Users_Email", StringComparison.OrdinalIgnoreCase))
                 {
                     return (false, "email này đã được sử dụng!", null);
                 }
-                if (ex.Message.Contains("UQ_Users_Username"))
+                if (ex.Message.Contains("UQ_Users_Username", StringComparison.OrdinalIgnoreCase))
                 {
                     return (false, "Username này đã được sử dụng!", null);
                 }
@@ -109,7 +110,7 @@ namespace LibraryManagement.Repositories
 
         public bool Update(User user, string? newPassword = null)
         {
-            using var conn = _db.GetConnection();
+            using var conn = Database.GetConnection();
             conn.Open();
             string sql = string.IsNullOrWhiteSpace(newPassword)
                 ? @"UPDATE Users SET Username = @Username, Email = @Email, FullName = @FullName, Role = @Role WHERE Id = @Id"
@@ -131,7 +132,7 @@ namespace LibraryManagement.Repositories
 
         public bool Delete(int id)
         {
-            using var conn = _db.GetConnection();
+            using var conn = Database.GetConnection();
             conn.Open();
             string sql = "DELETE FROM Users WHERE Id = @Id";
             using var cmd = new SqlCommand(sql, conn);
@@ -143,10 +144,10 @@ namespace LibraryManagement.Repositories
         {
             string trimmed = usernameOrEmail.Trim();
 
-            using var conn = _db.GetConnection();
+            using var conn = Database.GetConnection();
             conn.Open();
             string sql = @"SELECT TOP 1 Id, Username, Email, FullName, Role, PasswordHash, CreatedAt
-                           FROM Users WHERE Email = @Input OR Username = @Input";
+                           FROM Users WHERE LOWER(Email) = LOWER(@Input) OR LOWER(Username) = LOWER(@Input)";
             using var cmd = new SqlCommand(sql, conn);
             cmd.Parameters.AddWithValue("@Input", trimmed);
             using var reader = cmd.ExecuteReader();
@@ -169,20 +170,14 @@ namespace LibraryManagement.Repositories
             };
             reader.Close();
 
-            bool passwordMatches;
-            bool isLegacyPlainText = !IsBCryptHash(storedHash);
-
-            if (isLegacyPlainText)
-            {
-                passwordMatches = storedHash == password;
-                if (passwordMatches)
-                {
-                    UpgradeToHashedPassword(userId, password, conn);
-                }
-            }
-            else
+            bool passwordMatches = false;
+            try
             {
                 passwordMatches = BCrypt.Net.BCrypt.Verify(password, storedHash);
+            }
+            catch
+            {
+                passwordMatches = false;
             }
 
             return passwordMatches
@@ -192,52 +187,36 @@ namespace LibraryManagement.Repositories
 
         public bool VerifyPassword(int userId, string password)
         {
-            using var conn = _db.GetConnection();
+            using var conn = Database.GetConnection();
             conn.Open();
             string sql = "SELECT TOP 1 PasswordHash FROM Users WHERE Id = @Id";
             using var cmd = new SqlCommand(sql, conn);
             cmd.Parameters.AddWithValue("@Id", userId);
             var stored = cmd.ExecuteScalar()?.ToString();
-            if (stored == null)
+            if (string.IsNullOrEmpty(stored))
             {
                 return false;
             }
 
-            if (IsBCryptHash(stored))
+            try
             {
                 return BCrypt.Net.BCrypt.Verify(password, stored);
             }
-
-            bool matches = stored == password;
-            if (matches)
+            catch
             {
-                UpgradeToHashedPassword(userId, password, conn);
+                return false;
             }
-            return matches;
         }
 
         public bool ChangePassword(int userId, string newPassword)
         {
-            using var conn = _db.GetConnection();
+            using var conn = Database.GetConnection();
             conn.Open();
             string sql = "UPDATE Users SET PasswordHash = @PasswordHash WHERE Id = @Id";
             using var cmd = new SqlCommand(sql, conn);
             cmd.Parameters.AddWithValue("@Id", userId);
             cmd.Parameters.AddWithValue("@PasswordHash", BCrypt.Net.BCrypt.HashPassword(newPassword));
             return cmd.ExecuteNonQuery() > 0;
-        }
-
-        private static bool IsBCryptHash(string value)
-            => value.StartsWith("$2a$") || value.StartsWith("$2b$") || value.StartsWith("$2y$");
-
-        private static void UpgradeToHashedPassword(int userId, string plainPassword, SqlConnection conn)
-        {
-            string newHash = BCrypt.Net.BCrypt.HashPassword(plainPassword);
-            string sql = "UPDATE Users SET PasswordHash = @Hash WHERE Id = @Id";
-            using var cmd = new SqlCommand(sql, conn);
-            cmd.Parameters.AddWithValue("@Id", userId);
-            cmd.Parameters.AddWithValue("@Hash", newHash);
-            cmd.ExecuteNonQuery();
         }
 
         private static User MapToUser(SqlDataReader reader) => new User

@@ -11,13 +11,11 @@ namespace LibraryManagement.Services
         private const int MaxActiveBorrowsPerReader = 3;
         private const string StatusBorrowing = "Borrowing";
 
-        private readonly Database _db;
         private readonly BookRepository _bookRepo;
         private readonly BorrowRepository _borrowRepo;
 
         public BorrowService()
         {
-            _db = new Database();
             _bookRepo = new BookRepository();
             _borrowRepo = new BorrowRepository();
         }
@@ -62,7 +60,7 @@ namespace LibraryManagement.Services
                 throw new BusinessRuleException("Ngày hẹn trả phải sau ngày mượn.");
             }
 
-            using var conn = _db.GetConnection();
+            using var conn = Database.GetConnection();
             conn.Open();
             using var tran = conn.BeginTransaction();
             try
@@ -115,7 +113,7 @@ namespace LibraryManagement.Services
 
         public void ReturnBook(int borrowId, DateTime returnDate)
         {
-            using var conn = _db.GetConnection();
+            using var conn = Database.GetConnection();
             conn.Open();
             using var tran = conn.BeginTransaction();
             try

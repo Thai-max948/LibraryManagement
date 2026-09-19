@@ -95,7 +95,8 @@ namespace LibraryManagement.ViewModels
                         ReaderName = reader?.FullName ?? "?",
                         BookTitle = book?.Title ?? "?",
                         BorrowDate = r.BorrowDate.ToString("dd/MM/yyyy"),
-                        ReturnDate = r.DueDate.ToString("dd/MM/yyyy"),
+                        DueDate = r.DueDate.ToString("dd/MM/yyyy"),
+                        ReturnDate = r.ReturnDate?.ToString("dd/MM/yyyy") ?? "—",
                         Status = r.Status,
                         BorrowId = r.BorrowId,
                         ActionDate = actionDate
@@ -128,6 +129,7 @@ namespace LibraryManagement.ViewModels
         public string ReaderName { get; set; } = string.Empty;
         public string BookTitle { get; set; } = string.Empty;
         public string BorrowDate { get; set; } = string.Empty;
+        public string DueDate { get; set; } = string.Empty;
         public string ReturnDate { get; set; } = string.Empty;
         public string Status { get; set; } = string.Empty;
         public int BorrowId { get; set; }
