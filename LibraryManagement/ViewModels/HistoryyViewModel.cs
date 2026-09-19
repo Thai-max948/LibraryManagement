@@ -1,11 +1,11 @@
-using LibraryManagement.Models;
-using LibraryManagement.Services;
-using LibraryManagement.Commands;
 using System;
 using System.Collections.ObjectModel;
 using System.Linq;
 using System.Windows;
 using System.Windows.Input;
+using LibraryManagement.Commands;
+using LibraryManagement.Models;
+using LibraryManagement.Services;
 
 namespace LibraryManagement.ViewModels
 {
@@ -19,32 +19,48 @@ namespace LibraryManagement.ViewModels
         public ObservableCollection<string> StatusOptions { get; set; } =
             new ObservableCollection<string> { "All", "Borrowing", "Returned" };
 
-        private string _searchText;
+        private string _searchText = string.Empty;
         public string SearchText
         {
             get => _searchText;
-            set { SetProperty(ref _searchText, value); Load(); }
+            set
+            {
+                SetProperty(ref _searchText, value);
+                Load();
+            }
         }
 
         private string _selectedStatus = "All";
         public string SelectedStatus
         {
             get => _selectedStatus;
-            set { SetProperty(ref _selectedStatus, value); Load(); }
+            set
+            {
+                SetProperty(ref _selectedStatus, value);
+                Load();
+            }
         }
 
         private DateTime? _fromDate;
         public DateTime? FromDate
         {
             get => _fromDate;
-            set { SetProperty(ref _fromDate, value); Load(); }
+            set
+            {
+                SetProperty(ref _fromDate, value);
+                Load();
+            }
         }
 
         private DateTime? _toDate;
         public DateTime? ToDate
         {
             get => _toDate;
-            set { SetProperty(ref _toDate, value); Load(); }
+            set
+            {
+                SetProperty(ref _toDate, value);
+                Load();
+            }
         }
 
         public ICommand RefreshCommand { get; }
@@ -59,7 +75,7 @@ namespace LibraryManagement.ViewModels
         {
             try
             {
-                string statusFilter = SelectedStatus == "All" ? null : SelectedStatus;
+                string? statusFilter = SelectedStatus == "All" ? null : SelectedStatus;
 
                 var records = _borrowService.GetHistory(
                     status: statusFilter,
@@ -96,7 +112,9 @@ namespace LibraryManagement.ViewModels
 
                 Records.Clear();
                 foreach (var row in rows.OrderByDescending(x => x.ActionDate).ThenByDescending(x => x.BorrowId))
+                {
                     Records.Add(row);
+                }
             }
             catch (Exception ex)
             {
@@ -107,11 +125,11 @@ namespace LibraryManagement.ViewModels
 
     public class HistoryRow
     {
-        public string ReaderName { get; set; }
-        public string BookTitle { get; set; }
-        public string BorrowDate { get; set; }
-        public string ReturnDate { get; set; }
-        public string Status { get; set; }
+        public string ReaderName { get; set; } = string.Empty;
+        public string BookTitle { get; set; } = string.Empty;
+        public string BorrowDate { get; set; } = string.Empty;
+        public string ReturnDate { get; set; } = string.Empty;
+        public string Status { get; set; } = string.Empty;
         public int BorrowId { get; set; }
         public DateTime ActionDate { get; set; }
     }

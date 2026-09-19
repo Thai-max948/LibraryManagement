@@ -17,6 +17,20 @@ namespace LibraryManagement.Views.Accounts
 
         private void Window_Loaded(object sender, RoutedEventArgs e)
         {
+            LibraryManagement.Helpers.PasswordBoxHelper.SetupPasswordToggle(
+                TxtPassword,
+                TxtPasswordVisible,
+                BtnTogglePassword,
+                IconPasswordToggle,
+                _ => InputChanged(null!, null!));
+
+            LibraryManagement.Helpers.PasswordBoxHelper.SetupPasswordToggle(
+                TxtConfirmPassword,
+                TxtConfirmPasswordVisible,
+                BtnToggleConfirmPassword,
+                IconConfirmPasswordToggle,
+                _ => InputChanged(null!, null!));
+
             TxtFullName.Focus();
         }
 

@@ -1,14 +1,12 @@
-using LibraryManagement.Commands;
-using System.Windows.Input;
-using LibraryManagement.Views;
-using System.Linq.Expressions;
-using LibraryManagement.Views.Books;
-using LibraryManagement.Views.Readers;
-using LibraryManagement.Views.Accounts;
-
 using System;
 using System.Windows;
+using System.Windows.Input;
+using LibraryManagement.Commands;
 using LibraryManagement.Services;
+using LibraryManagement.Views;
+using LibraryManagement.Views.Accounts;
+using LibraryManagement.Views.Books;
+using LibraryManagement.Views.Readers;
 
 namespace LibraryManagement.ViewModels
 {
@@ -33,14 +31,14 @@ namespace LibraryManagement.ViewModels
             ? $"{AuthService.CurrentUser.Role} • Active Node"
             : "v2.4 • Active Node";
 
-        private object _currentView;
-        public object CurrentView
+        private object? _currentView;
+        public object? CurrentView
         {
             get => _currentView;
             set => SetProperty(ref _currentView, value);
         }
 
-        private string _currentViewName;
+        private string _currentViewName = string.Empty;
         public string CurrentViewName
         {
             get => _currentViewName;
@@ -67,25 +65,59 @@ namespace LibraryManagement.ViewModels
             ShowMyAccountCommand = new RelayCommand(ShowMyAccount);
             ShowAccountsCommand = new RelayCommand(_ => ShowAccounts(), _ => IsAccountsVisible);
 
-            ShowDashboard(); // view mặc định khi mở app
+            ShowDashboard();
         }
 
-        private void ShowDashboard() { CurrentViewName = "Dashboard"; CurrentView = new DashboardView(); }
-        private void ShowBooks() { CurrentViewName = "Books"; CurrentView = new BooksView(); }
-        private void ShowReaders() { CurrentViewName = "Readers"; CurrentView = new ReadersView(); }
-        private void ShowBorrow() { CurrentViewName = "Borrow"; CurrentView = new BorrowView(); }
-        private void ShowReturn() { CurrentViewName = "Return"; CurrentView = new ReturnView(); }
-        private void ShowHistory() { CurrentViewName = "History"; CurrentView = new HistoryView(); }
-        private void ShowMyAccount() 
-        { 
-            CurrentViewName = "MyAccount"; 
-            CurrentView = new MyAccountView(); 
+        private void ShowDashboard()
+        {
+            CurrentViewName = "Dashboard";
+            CurrentView = new DashboardView();
+        }
+
+        private void ShowBooks()
+        {
+            CurrentViewName = "Books";
+            CurrentView = new BooksView();
+        }
+
+        private void ShowReaders()
+        {
+            CurrentViewName = "Readers";
+            CurrentView = new ReadersView();
+        }
+
+        private void ShowBorrow()
+        {
+            CurrentViewName = "Borrow";
+            CurrentView = new BorrowView();
+        }
+
+        private void ShowReturn()
+        {
+            CurrentViewName = "Return";
+            CurrentView = new ReturnView();
+        }
+
+        private void ShowHistory()
+        {
+            CurrentViewName = "History";
+            CurrentView = new HistoryView();
+        }
+
+        private void ShowMyAccount()
+        {
+            CurrentViewName = "MyAccount";
+            CurrentView = new MyAccountView();
             OnPropertyChanged(nameof(CurrentUserName));
             OnPropertyChanged(nameof(CurrentUserRole));
         }
+
         private void ShowAccounts()
         {
-            if (!IsAccountsVisible) return;
+            if (!IsAccountsVisible)
+            {
+                return;
+            }
             CurrentViewName = "Accounts";
             CurrentView = new AccountsView();
         }

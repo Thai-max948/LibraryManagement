@@ -29,6 +29,18 @@ namespace LibraryManagement.Views.Accounts
             {
                 CmbRole.SelectedIndex = 0;
             }
+
+            LibraryManagement.Helpers.PasswordBoxHelper.SetupPasswordToggle(
+                TxtNewPassword,
+                TxtNewPasswordVisible,
+                BtnToggleNewPassword,
+                IconNewPasswordToggle);
+
+            LibraryManagement.Helpers.PasswordBoxHelper.SetupPasswordToggle(
+                TxtConfirmPassword,
+                TxtConfirmPasswordVisible,
+                BtnToggleConfirmPassword,
+                IconConfirmPasswordToggle);
         }
 
         private void BtnSave_Click(object sender, RoutedEventArgs e)

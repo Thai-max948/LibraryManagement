@@ -1,19 +1,56 @@
-﻿using Microsoft.Data.SqlClient;
 using System;
-using System.Collections.Generic;
-using System.Text; 
-namespace LibraryManagement.Data
-    {
-    public class Database
-        {
-            private const string ConnectionString =
-                "Server=DESKTOP-LTBFBRM\\SQLEXPRESS;Database=LibraryDB;Trusted_Connection=True;TrustServerCertificate=True;";
+using System.IO;
+using System.Text.Json;
+using Microsoft.Data.SqlClient;
 
-            public SqlConnection GetConnection()
+namespace LibraryManagement.Data
+{
+    public class Database
+    {
+        private static string? _connectionString;
+
+        public static string ConnectionString
+        {
+            get
             {
-                return new SqlConnection(ConnectionString);
+                if (!string.IsNullOrEmpty(_connectionString))
+                {
+                    return _connectionString;
+                }
+
+                try
+                {
+                    string configPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "appsettings.json");
+                    if (File.Exists(configPath))
+                    {
+                        string json = File.ReadAllText(configPath);
+                        using var doc = JsonDocument.Parse(json);
+                        if (doc.RootElement.TryGetProperty("ConnectionStrings", out var connStrings) &&
+                            connStrings.TryGetProperty("DefaultConnection", out var defaultConn))
+                        {
+                            string? val = defaultConn.GetString();
+                            if (!string.IsNullOrWhiteSpace(val))
+                            {
+                                _connectionString = val;
+                                return _connectionString;
+                            }
+                        }
+                    }
+                }
+                catch
+                {
+                    // Fallback on error reading config
+                }
+
+                // Default fallback: works on any machine with local SQL Express
+                _connectionString = "Server=.\\SQLEXPRESS;Database=LibraryDB;Trusted_Connection=True;TrustServerCertificate=True;";
+                return _connectionString;
             }
         }
+
+        public SqlConnection GetConnection()
+        {
+            return new SqlConnection(ConnectionString);
+        }
     }
-
-
+}

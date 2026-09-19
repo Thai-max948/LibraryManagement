@@ -1,12 +1,12 @@
-using LibraryManagement.Models;
 using System.Windows;
+using LibraryManagement.Models;
 
 namespace LibraryManagement.Views.Readers
 {
     public partial class EditReaderDialog : Window
     {
         private readonly int _readerId;
-        public Reader ResultReader { get; private set; }
+        public Reader ResultReader { get; private set; } = new();
 
         public EditReaderDialog(Reader existing)
         {
@@ -41,12 +41,15 @@ namespace LibraryManagement.Views.Readers
             {
                 ReaderId = _readerId,
                 FullName = FullNameBox.Text.Trim(),
-                Phone = string.IsNullOrWhiteSpace(PhoneBox.Text) ? null : PhoneBox.Text.Trim(),
-                Email = string.IsNullOrWhiteSpace(EmailBox.Text) ? null : EmailBox.Text.Trim()
+                Phone = PhoneBox.Text.Trim(),
+                Email = EmailBox.Text.Trim()
             };
             DialogResult = true;
         }
 
-        private void Cancel_Click(object sender, RoutedEventArgs e) => DialogResult = false;
+        private void Cancel_Click(object sender, RoutedEventArgs e)
+        {
+            DialogResult = false;
+        }
     }
 }

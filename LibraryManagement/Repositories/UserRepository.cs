@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using LibraryManagement.Data;
 using LibraryManagement.Models;
 using Microsoft.Data.SqlClient;
-using BCrypt.Net;
 
 namespace LibraryManagement.Repositories
 {
@@ -22,20 +21,20 @@ namespace LibraryManagement.Repositories
             using var conn = _db.GetConnection();
             conn.Open();
             string sql = @"
-        IF NOT EXISTS (SELECT * FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 'Users')
-        BEGIN
-            CREATE TABLE Users (
-                Id INT IDENTITY(1,1) PRIMARY KEY,
-                Username NVARCHAR(100) NOT NULL,
-                Email NVARCHAR(150) NOT NULL,
-                FullName NVARCHAR(150) NOT NULL,
-                PasswordHash NVARCHAR(255) NOT NULL,
-                Role NVARCHAR(50) NOT NULL DEFAULT 'Librarian',
-                CreatedAt DATETIME DEFAULT GETDATE(),
-                CONSTRAINT UQ_Users_Email UNIQUE (Email),
-                CONSTRAINT UQ_Users_Username UNIQUE (Username)
-            );
-        END";
+                IF NOT EXISTS (SELECT * FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 'Users')
+                BEGIN
+                    CREATE TABLE Users (
+                        Id INT IDENTITY(1,1) PRIMARY KEY,
+                        Username NVARCHAR(100) NOT NULL,
+                        Email NVARCHAR(150) NOT NULL,
+                        FullName NVARCHAR(150) NOT NULL,
+                        PasswordHash NVARCHAR(255) NOT NULL,
+                        Role NVARCHAR(50) NOT NULL DEFAULT 'Librarian',
+                        CreatedAt DATETIME DEFAULT GETDATE(),
+                        CONSTRAINT UQ_Users_Email UNIQUE (Email),
+                        CONSTRAINT UQ_Users_Username UNIQUE (Username)
+                    );
+                END";
             using var cmd = new SqlCommand(sql, conn);
             cmd.ExecuteNonQuery();
         }
@@ -49,7 +48,9 @@ namespace LibraryManagement.Repositories
             using var cmd = new SqlCommand(sql, conn);
             using var reader = cmd.ExecuteReader();
             while (reader.Read())
+            {
                 list.Add(MapToUser(reader));
+            }
             return list;
         }
 
@@ -64,7 +65,6 @@ namespace LibraryManagement.Repositories
             return reader.Read() ? MapToUser(reader) : null;
         }
 
-        // Password được hash bằng BCrypt trước khi lưu — KHÔNG bao giờ lưu plain text.
         public (bool Success, string Message, User? User) Add(User user, string password)
         {
             string hashedPassword = BCrypt.Net.BCrypt.HashPassword(password);
@@ -72,9 +72,9 @@ namespace LibraryManagement.Repositories
             using var conn = _db.GetConnection();
             conn.Open();
             string sql = @"
-        INSERT INTO Users (Username, Email, FullName, PasswordHash, Role, CreatedAt)
-        OUTPUT INSERTED.Id
-        VALUES (@Username, @Email, @FullName, @PasswordHash, @Role, @CreatedAt)";
+                INSERT INTO Users (Username, Email, FullName, PasswordHash, Role, CreatedAt)
+                OUTPUT INSERTED.Id
+                VALUES (@Username, @Email, @FullName, @PasswordHash, @Role, @CreatedAt)";
             using var cmd = new SqlCommand(sql, conn);
             cmd.Parameters.AddWithValue("@Username", user.Username);
             cmd.Parameters.AddWithValue("@Email", user.Email);
@@ -87,17 +87,22 @@ namespace LibraryManagement.Repositories
             {
                 object? newId = cmd.ExecuteScalar();
                 if (newId != null && int.TryParse(newId.ToString(), out int id))
+                {
                     user.Id = id;
+                }
 
                 return (true, "Account created successfully.", user);
             }
             catch (SqlException ex) when (ex.Number == 2601 || ex.Number == 2627)
             {
-                // Dùng tên constraint để biết chính xác trường nào bị trùng.
                 if (ex.Message.Contains("UQ_Users_Email"))
+                {
                     return (false, "email này đã được sử dụng!", null);
+                }
                 if (ex.Message.Contains("UQ_Users_Username"))
+                {
                     return (false, "Username này đã được sử dụng!", null);
+                }
                 return (false, "Tài khoản đã tồn tại.", null);
             }
         }
@@ -117,7 +122,9 @@ namespace LibraryManagement.Repositories
             cmd.Parameters.AddWithValue("@FullName", user.FullName);
             cmd.Parameters.AddWithValue("@Role", user.Role);
             if (!string.IsNullOrWhiteSpace(newPassword))
+            {
                 cmd.Parameters.AddWithValue("@PasswordHash", BCrypt.Net.BCrypt.HashPassword(newPassword));
+            }
 
             return cmd.ExecuteNonQuery() > 0;
         }
@@ -145,7 +152,9 @@ namespace LibraryManagement.Repositories
             using var reader = cmd.ExecuteReader();
 
             if (!reader.Read())
+            {
                 return (false, "Invalid username/email or password.", null);
+            }
 
             string storedHash = reader["PasswordHash"]?.ToString() ?? "";
             int userId = Convert.ToInt32(reader["Id"]);
@@ -165,11 +174,9 @@ namespace LibraryManagement.Repositories
 
             if (isLegacyPlainText)
             {
-                // Migration path: tài khoản tạo trước khi có BCrypt, password đang lưu plain text.
                 passwordMatches = storedHash == password;
                 if (passwordMatches)
                 {
-                    // Tự động nâng cấp sang hash ngay khi đăng nhập thành công lần đầu sau migration.
                     UpgradeToHashedPassword(userId, password, conn);
                 }
             }
@@ -191,14 +198,21 @@ namespace LibraryManagement.Repositories
             using var cmd = new SqlCommand(sql, conn);
             cmd.Parameters.AddWithValue("@Id", userId);
             var stored = cmd.ExecuteScalar()?.ToString();
-            if (stored == null) return false;
+            if (stored == null)
+            {
+                return false;
+            }
 
             if (IsBCryptHash(stored))
+            {
                 return BCrypt.Net.BCrypt.Verify(password, stored);
+            }
 
             bool matches = stored == password;
             if (matches)
+            {
                 UpgradeToHashedPassword(userId, password, conn);
+            }
             return matches;
         }
 
@@ -213,11 +227,10 @@ namespace LibraryManagement.Repositories
             return cmd.ExecuteNonQuery() > 0;
         }
 
-        // BCrypt hash luôn bắt đầu bằng $2a$/$2b$/$2y$ — dùng để phân biệt hash cũ (plain text) và mới.
-        private bool IsBCryptHash(string value)
+        private static bool IsBCryptHash(string value)
             => value.StartsWith("$2a$") || value.StartsWith("$2b$") || value.StartsWith("$2y$");
 
-        private void UpgradeToHashedPassword(int userId, string plainPassword, SqlConnection conn)
+        private static void UpgradeToHashedPassword(int userId, string plainPassword, SqlConnection conn)
         {
             string newHash = BCrypt.Net.BCrypt.HashPassword(plainPassword);
             string sql = "UPDATE Users SET PasswordHash = @Hash WHERE Id = @Id";
@@ -227,7 +240,7 @@ namespace LibraryManagement.Repositories
             cmd.ExecuteNonQuery();
         }
 
-        private User MapToUser(SqlDataReader reader) => new User
+        private static User MapToUser(SqlDataReader reader) => new User
         {
             Id = Convert.ToInt32(reader["Id"]),
             Username = reader["Username"]?.ToString() ?? "",

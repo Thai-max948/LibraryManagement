@@ -1,12 +1,12 @@
-﻿using LibraryManagement.Models;
 using System.Windows;
+using LibraryManagement.Models;
 
 namespace LibraryManagement.Views.Books
 {
     public partial class EditBookDialog : Window
     {
         private readonly int _bookId;
-        public Book ResultBook { get; private set; }
+        public Book ResultBook { get; private set; } = new();
 
         public EditBookDialog(Book existing)
         {
@@ -42,13 +42,16 @@ namespace LibraryManagement.Views.Books
                 BookId = _bookId,
                 Title = TitleBox.Text.Trim(),
                 Author = AuthorBox.Text.Trim(),
-                Category = string.IsNullOrWhiteSpace(CategoryBox.Text) ? null : CategoryBox.Text.Trim(),
+                Category = CategoryBox.Text.Trim(),
                 PublishYear = year,
                 Quantity = qty
             };
             DialogResult = true;
         }
 
-        private void Cancel_Click(object sender, RoutedEventArgs e) => DialogResult = false;
+        private void Cancel_Click(object sender, RoutedEventArgs e)
+        {
+            DialogResult = false;
+        }
     }
 }

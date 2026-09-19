@@ -1,11 +1,11 @@
-﻿using LibraryManagement.Models;
-using LibraryManagement.Services;
-using LibraryManagement.Commands;
-using LibraryManagement.Views.Readers;
 using System;
 using System.Collections.ObjectModel;
 using System.Windows;
 using System.Windows.Input;
+using LibraryManagement.Commands;
+using LibraryManagement.Models;
+using LibraryManagement.Services;
+using LibraryManagement.Views.Readers;
 
 namespace LibraryManagement.ViewModels
 {
@@ -15,15 +15,19 @@ namespace LibraryManagement.ViewModels
 
         public ObservableCollection<Reader> Readers { get; set; } = new ObservableCollection<Reader>();
 
-        private string _searchText;
+        private string _searchText = string.Empty;
         public string SearchText
         {
             get => _searchText;
-            set { SetProperty(ref _searchText, value); Search(); }
+            set
+            {
+                SetProperty(ref _searchText, value);
+                Search();
+            }
         }
 
-        private Reader _selectedReader;
-        public Reader SelectedReader
+        private Reader? _selectedReader;
+        public Reader? SelectedReader
         {
             get => _selectedReader;
             set => SetProperty(ref _selectedReader, value);
@@ -49,7 +53,9 @@ namespace LibraryManagement.ViewModels
             {
                 Readers.Clear();
                 foreach (var r in _readerService.GetAllReaders())
+                {
                     Readers.Add(r);
+                }
                 OnPropertyChanged(nameof(TotalReaders));
             }
             catch (Exception ex)
@@ -64,7 +70,9 @@ namespace LibraryManagement.ViewModels
             {
                 Readers.Clear();
                 foreach (var r in _readerService.SearchReader(SearchText))
+                {
                     Readers.Add(r);
+                }
                 OnPropertyChanged(nameof(TotalReaders));
             }
             catch (Exception ex)
@@ -96,6 +104,11 @@ namespace LibraryManagement.ViewModels
 
         private void EditReader()
         {
+            if (SelectedReader == null)
+            {
+                return;
+            }
+
             var dialog = new EditReaderDialog(SelectedReader);
             if (dialog.ShowDialog() == true)
             {
@@ -117,8 +130,16 @@ namespace LibraryManagement.ViewModels
 
         private void DeleteReader()
         {
+            if (SelectedReader == null)
+            {
+                return;
+            }
+
             var confirm = MessageBox.Show($"Xóa độc giả \"{SelectedReader.FullName}\"?", "Xác nhận", MessageBoxButton.YesNo);
-            if (confirm != MessageBoxResult.Yes) return;
+            if (confirm != MessageBoxResult.Yes)
+            {
+                return;
+            }
 
             try
             {

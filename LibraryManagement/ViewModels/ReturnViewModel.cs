@@ -1,11 +1,11 @@
-﻿using LibraryManagement.Models;
-using LibraryManagement.Services;
-using LibraryManagement.Commands;
 using System;
 using System.Collections.ObjectModel;
 using System.Linq;
 using System.Windows;
 using System.Windows.Input;
+using LibraryManagement.Commands;
+using LibraryManagement.Models;
+using LibraryManagement.Services;
 
 namespace LibraryManagement.ViewModels
 {
@@ -17,15 +17,19 @@ namespace LibraryManagement.ViewModels
 
         public ObservableCollection<ActiveBorrowRow> ActiveBorrowings { get; set; } = new ObservableCollection<ActiveBorrowRow>();
 
-        private string _searchText;
+        private string _searchText = string.Empty;
         public string SearchText
         {
             get => _searchText;
-            set { SetProperty(ref _searchText, value); Load(); }
+            set
+            {
+                SetProperty(ref _searchText, value);
+                Load();
+            }
         }
 
-        private ActiveBorrowRow _selectedRow;
-        public ActiveBorrowRow SelectedRow
+        private ActiveBorrowRow? _selectedRow;
+        public ActiveBorrowRow? SelectedRow
         {
             get => _selectedRow;
             set => SetProperty(ref _selectedRow, value);
@@ -78,7 +82,9 @@ namespace LibraryManagement.ViewModels
                 }
 
                 foreach (var row in rows.OrderByDescending(x => x.BorrowDate))
+                {
                     ActiveBorrowings.Add(row);
+                }
             }
             catch (Exception ex)
             {
@@ -88,12 +94,18 @@ namespace LibraryManagement.ViewModels
 
         private void DoReturn()
         {
-            if (SelectedRow == null) return;
+            if (SelectedRow == null)
+            {
+                return;
+            }
 
             var confirm = MessageBox.Show(
                 $"Xác nhận trả sách \"{SelectedRow.BookTitle}\" của {SelectedRow.ReaderName}?",
                 "Xác nhận trả sách", MessageBoxButton.YesNo);
-            if (confirm != MessageBoxResult.Yes) return;
+            if (confirm != MessageBoxResult.Yes)
+            {
+                return;
+            }
 
             IsBusy = true;
             try
@@ -122,9 +134,9 @@ namespace LibraryManagement.ViewModels
     public class ActiveBorrowRow
     {
         public int BorrowId { get; set; }
-        public string ReaderName { get; set; }
-        public string BookTitle { get; set; }
-        public string BorrowDate { get; set; }
-        public string DueDate { get; set; }
+        public string ReaderName { get; set; } = string.Empty;
+        public string BookTitle { get; set; } = string.Empty;
+        public string BorrowDate { get; set; } = string.Empty;
+        public string DueDate { get; set; } = string.Empty;
     }
 }

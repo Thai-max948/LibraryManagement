@@ -1,290 +1,778 @@
 <UserControl x:Class="LibraryManagement.Views.Accounts.MyAccountView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:vm="clr-namespace:LibraryManagement.ViewModels">
+             xmlns:vm="clr-namespace:LibraryManagement.ViewModels"
+             Background="Transparent">
 
     <UserControl.DataContext>
         <vm:MyAccountViewModel/>
     </UserControl.DataContext>
 
-    <ScrollViewer VerticalScrollBarVisibility="Auto">
-        <StackPanel Margin="10">
-            <!-- Title & Subtitle -->
-            <TextBlock Text="👤 My Account" FontSize="22" FontWeight="Bold" Foreground="{StaticResource TextBrush}"/>
-            <TextBlock Text="Manage your profile, project assignment, and credentials" Foreground="{StaticResource SecondaryTextBrush}" Margin="0,0,0,16"/>
+    <UserControl.Resources>
+        <!-- Avatar Border Style: Light Blue for Admin, Light Green for Librarian -->
+        <Style x:Key="AvatarBorderStyle" TargetType="Border">
+            <Setter Property="Width" Value="52"/>
+            <Setter Property="Height" Value="52"/>
+            <Setter Property="CornerRadius" Value="26"/>
+            <Setter Property="Background" Value="#DCFCE7"/>
+            <Setter Property="BorderBrush" Value="#BBF7D0"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding Role}" Value="Administrator">
+                    <Setter Property="Background" Value="#E0F2FE"/>
+                    <Setter Property="BorderBrush" Value="#BAE6FD"/>
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
 
-            <!-- Tab Buttons Bar -->
-            <StackPanel Orientation="Horizontal" Margin="0,0,0,16">
-                <RadioButton x:Name="TabBtnProject" Content="📌 My Project" IsChecked="True" 
-                             Checked="Tab_Checked" Tag="0"
-                             Style="{StaticResource {x:Type ToggleButton}}"
-                             Height="34" Padding="14,0" Margin="0,0,8,0" Cursor="Hand"
-                             Background="#0284C7" Foreground="White" FontWeight="SemiBold" BorderThickness="0"/>
-                
-                <RadioButton x:Name="TabBtnProfile" Content="✏️ Edit Profile" 
-                             Checked="Tab_Checked" Tag="1"
-                             Style="{StaticResource {x:Type ToggleButton}}"
-                             Height="34" Padding="14,0" Margin="0,0,8,0" Cursor="Hand"
-                             Background="#E2E8F0" Foreground="{StaticResource TextBrush}" FontWeight="SemiBold" BorderThickness="0"/>
-                
-                <RadioButton x:Name="TabBtnPassword" Content="🔑 Change Password" 
-                             Checked="Tab_Checked" Tag="2"
-                             Style="{StaticResource {x:Type ToggleButton}}"
-                             Height="34" Padding="14,0" Cursor="Hand"
-                             Background="#E2E8F0" Foreground="{StaticResource TextBrush}" FontWeight="SemiBold" BorderThickness="0"/>
-            </StackPanel>
+        <!-- Avatar Text Style: Tech Cyan for Admin, Green for Librarian -->
+        <Style x:Key="AvatarTextStyle" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="17"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="HorizontalAlignment" Value="Center"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="Foreground" Value="#15803D"/>
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding Role}" Value="Administrator">
+                    <Setter Property="Foreground" Value="#0284C7"/>
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
 
-            <!-- TAB 1: MY PROJECT -->
-            <StackPanel x:Name="PanelProject" Visibility="Visible">
-                <Grid Margin="0,0,0,16">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="16"/>
-                        <ColumnDefinition Width="*"/>
-                    </Grid.ColumnDefinitions>
+        <!-- Role Badge Border Style -->
+        <Style x:Key="RoleBadgeBorderStyle" TargetType="Border">
+            <Setter Property="CornerRadius" Value="12"/>
+            <Setter Property="Padding" Value="12,3"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="Background" Value="#DCFCE7"/>
+            <Setter Property="BorderBrush" Value="#BBF7D0"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding Role}" Value="Administrator">
+                    <Setter Property="Background" Value="#E0F2FE"/>
+                    <Setter Property="BorderBrush" Value="#BAE6FD"/>
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
 
-                    <!-- User Identity Card -->
-                    <Border Grid.Column="0" Style="{StaticResource CardStyle}">
-                        <StackPanel>
-                            <DockPanel Margin="0,0,0,14">
-                                <Border Width="38" Height="38" Background="#E0F2FE" CornerRadius="8" Margin="0,0,12,0">
-                                    <TextBlock Text="👤" FontSize="18" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                                </Border>
-                                <StackPanel VerticalAlignment="Center">
-                                    <TextBlock Text="{Binding FullName}" FontSize="17" FontWeight="Bold" Foreground="{StaticResource TextBrush}"/>
-                                    <TextBlock Text="{Binding Email}" FontSize="12" Foreground="{StaticResource SecondaryTextBrush}"/>
-                                </StackPanel>
-                                <Border HorizontalAlignment="Right" Background="#F1F5F9" CornerRadius="6" Padding="10,4" VerticalAlignment="Center">
-                                    <TextBlock Text="{Binding Role}" FontWeight="Bold" FontSize="12" Foreground="{StaticResource TechAccentCyan}"/>
-                                </Border>
-                            </DockPanel>
+        <!-- Role Badge Text Style -->
+        <Style x:Key="RoleBadgeTextStyle" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Foreground" Value="#15803D"/>
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding Role}" Value="Administrator">
+                    <Setter Property="Foreground" Value="#0284C7"/>
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
 
-                            <Separator Background="{StaticResource TechBorderBrush}" Margin="0,4,0,14"/>
+        <!-- Crisp White Card Style -->
+        <Style x:Key="WhiteCardStyle" TargetType="Border">
+            <Setter Property="Background" Value="#FFFFFF"/>
+            <Setter Property="BorderBrush" Value="#E2E8F0"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="10"/>
+            <Setter Property="Padding" Value="22"/>
+            <Setter Property="Effect">
+                <Setter.Value>
+                    <DropShadowEffect Color="#0F172A" Opacity="0.05" BlurRadius="12" ShadowDepth="2"/>
+                </Setter.Value>
+            </Setter>
+        </Style>
 
-                            <Grid Margin="0,0,0,8">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="130"/>
-                                    <ColumnDefinition Width="*"/>
-                                </Grid.ColumnDefinitions>
-                                <TextBlock Text="Username:" Foreground="{StaticResource SecondaryTextBrush}" FontSize="12"/>
-                                <TextBlock Grid.Column="1" Text="{Binding Username}" FontWeight="SemiBold" Foreground="{StaticResource TextBrush}" FontSize="12"/>
-                            </Grid>
+        <!-- Light Outline Button Style (Edit profile, Change password, Cancel) -->
+        <Style x:Key="LightCardOutlineButtonStyle" TargetType="Button">
+            <Setter Property="Background" Value="#FFFFFF"/>
+            <Setter Property="Foreground" Value="#1E293B"/>
+            <Setter Property="BorderBrush" Value="#CBD5E1"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="14,7"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Bd"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="7"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#F8FAFC"/>
+                                <Setter TargetName="Bd" Property="BorderBrush" Value="#94A3B8"/>
+                                <Setter Property="Foreground" Value="#0F172A"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#F1F5F9"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
 
-                            <Grid Margin="0,0,0,8">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="130"/>
-                                    <ColumnDefinition Width="*"/>
-                                </Grid.ColumnDefinitions>
-                                <TextBlock Text="Account ID:" Foreground="{StaticResource SecondaryTextBrush}" FontSize="12"/>
-                                <TextBlock Grid.Column="1" Text="{Binding UserId}" FontWeight="SemiBold" Foreground="{StaticResource TextBrush}" FontSize="12"/>
-                            </Grid>
+        <!-- Light Primary Button Style (Save) -->
+        <Style x:Key="LightPrimaryActionButtonStyle" TargetType="Button">
+            <Setter Property="Background" Value="#0284C7"/>
+            <Setter Property="Foreground" Value="#FFFFFF"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="18,7"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Bd"
+                                Background="{TemplateBinding Background}"
+                                CornerRadius="7"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#0369A1"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#075985"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
 
-                            <Grid Margin="0,0,0,8">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="130"/>
-                                    <ColumnDefinition Width="*"/>
-                                </Grid.ColumnDefinitions>
-                                <TextBlock Text="Member Since:" Foreground="{StaticResource SecondaryTextBrush}" FontSize="12"/>
-                                <TextBlock Grid.Column="1" Text="{Binding CreatedAtFormatted}" FontWeight="SemiBold" Foreground="{StaticResource TextBrush}" FontSize="12"/>
-                            </Grid>
-
+        <!-- Light Input Styles -->
+        <Style x:Key="LightFieldTextBoxStyle" TargetType="TextBox">
+            <Setter Property="Height" Value="36"/>
+            <Setter Property="Padding" Value="10,6"/>
+            <Setter Property="Background" Value="#FFFFFF"/>
+            <Setter Property="Foreground" Value="#0F172A"/>
+            <Setter Property="CaretBrush" Value="#0284C7"/>
+            <Setter Property="BorderBrush" Value="#CBD5E1"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="TextBox">
+                        <Border x:Name="Bd"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="6">
                             <Grid>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="130"/>
-                                    <ColumnDefinition Width="*"/>
-                                </Grid.ColumnDefinitions>
-                                <TextBlock Text="Session Status:" Foreground="{StaticResource SecondaryTextBrush}" FontSize="12"/>
-                                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-                                    <Ellipse Width="6" Height="6" Fill="{StaticResource TechAccentGreen}" Margin="0,0,6,0"/>
-                                    <TextBlock Text="Active &amp; Authenticated" FontWeight="SemiBold" Foreground="{StaticResource TechAccentGreen}" FontSize="12"/>
-                                </StackPanel>
+                                <TextBlock x:Name="Placeholder"
+                                           Text="{TemplateBinding Tag}"
+                                           Foreground="#94A3B8"
+                                           Margin="{TemplateBinding Padding}"
+                                           VerticalAlignment="Center"
+                                           IsHitTestVisible="False"
+                                           Visibility="Collapsed"/>
+                                <ScrollViewer x:Name="PART_ContentHost"
+                                              Margin="{TemplateBinding Padding}"
+                                              VerticalAlignment="Center"/>
                             </Grid>
-                        </StackPanel>
-                    </Border>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="Text" Value="">
+                                <Setter TargetName="Placeholder" Property="Visibility" Value="Visible"/>
+                            </Trigger>
+                            <Trigger Property="IsKeyboardFocused" Value="True">
+                                <Setter TargetName="Bd" Property="BorderBrush" Value="#0284C7"/>
+                                <Setter TargetName="Bd" Property="BorderThickness" Value="1.4"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
 
-                    <!-- Project Info Card -->
-                    <Border Grid.Column="2" Style="{StaticResource CardStyle}">
-                        <StackPanel>
-                            <DockPanel Margin="0,0,0,14">
-                                <Border Width="38" Height="38" Background="#EDE9FE" CornerRadius="8" Margin="0,0,12,0">
-                                    <TextBlock Text="⚡" FontSize="18" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                                </Border>
-                                <StackPanel VerticalAlignment="Center">
-                                    <TextBlock Text="Library OS Core" FontSize="17" FontWeight="Bold" Foreground="{StaticResource TextBrush}"/>
-                                    <TextBlock Text="Circulation &amp; Catalog Node" FontSize="12" Foreground="{StaticResource SecondaryTextBrush}"/>
-                                </StackPanel>
-                                <Border HorizontalAlignment="Right" Background="#F5F3FF" CornerRadius="6" Padding="10,4" VerticalAlignment="Center">
-                                    <TextBlock Text="v2.4" FontWeight="Bold" FontSize="12" Foreground="{StaticResource TechAccentPurple}"/>
-                                </Border>
-                            </DockPanel>
+        <Style x:Key="LightFieldPasswordBoxStyle" TargetType="PasswordBox">
+            <Setter Property="Height" Value="36"/>
+            <Setter Property="Padding" Value="10,6,34,6"/>
+            <Setter Property="Background" Value="#FFFFFF"/>
+            <Setter Property="Foreground" Value="#0F172A"/>
+            <Setter Property="CaretBrush" Value="#0284C7"/>
+            <Setter Property="BorderBrush" Value="#CBD5E1"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="PasswordChar" Value="●"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="PasswordBox">
+                        <Border x:Name="Bd"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="6">
+                            <ScrollViewer x:Name="PART_ContentHost"
+                                          Margin="{TemplateBinding Padding}"
+                                          VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsKeyboardFocused" Value="True">
+                                <Setter TargetName="Bd" Property="BorderBrush" Value="#0284C7"/>
+                                <Setter TargetName="Bd" Property="BorderThickness" Value="1.4"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
 
-                            <Separator Background="{StaticResource TechBorderBrush}" Margin="0,4,0,14"/>
+        <Style x:Key="LightFieldPasswordVisibleTextBoxStyle" TargetType="TextBox" BasedOn="{StaticResource LightFieldTextBoxStyle}">
+            <Setter Property="Padding" Value="10,6,34,6"/>
+        </Style>
 
-                            <Grid Margin="0,0,0,8">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="130"/>
-                                    <ColumnDefinition Width="*"/>
-                                </Grid.ColumnDefinitions>
-                                <TextBlock Text="System Name:" Foreground="{StaticResource SecondaryTextBrush}" FontSize="12"/>
-                                <TextBlock Grid.Column="1" Text="{Binding ProjectName}" FontWeight="SemiBold" Foreground="{StaticResource TextBrush}" FontSize="12"/>
-                            </Grid>
+        <Style x:Key="LightPasswordEyeToggleButtonStyle" TargetType="Button">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="#64748B"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="4"/>
+            <Setter Property="Width" Value="28"/>
+            <Setter Property="Height" Value="28"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="IsTabStop" Value="False"/>
+            <Setter Property="Focusable" Value="False"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Bd"
+                                Background="{TemplateBinding Background}"
+                                CornerRadius="14"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#F1F5F9"/>
+                                <Setter Property="Foreground" Value="#0284C7"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#E2E8F0"/>
+                                <Setter Property="Foreground" Value="#0369A1"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </UserControl.Resources>
 
-                            <Grid Margin="0,0,0,8">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="130"/>
-                                    <ColumnDefinition Width="*"/>
-                                </Grid.ColumnDefinitions>
-                                <TextBlock Text="Node Version:" Foreground="{StaticResource SecondaryTextBrush}" FontSize="12"/>
-                                <TextBlock Grid.Column="1" Text="{Binding ProjectVersion}" FontWeight="SemiBold" Foreground="{StaticResource TextBrush}" FontSize="12"/>
-                            </Grid>
+    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
+        <StackPanel Margin="6,4,6,12">
+            <!-- Top Header & Role Subtitle -->
+            <Grid Margin="0,0,0,12">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <StackPanel Grid.Column="0">
+                    <TextBlock Text="👤  My Account"
+                               FontSize="20"
+                               FontWeight="Bold"
+                               Foreground="#0F172A"/>
+                    <TextBlock Text="{Binding RoleHeader}"
+                               FontSize="13"
+                               FontWeight="Medium"
+                               Foreground="#64748B"
+                               Margin="0,3,0,0"/>
+                </StackPanel>
+            </Grid>
 
-                            <Grid Margin="0,0,0,8">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="130"/>
-                                    <ColumnDefinition Width="*"/>
-                                </Grid.ColumnDefinitions>
-                                <TextBlock Text="Database Node:" Foreground="{StaticResource SecondaryTextBrush}" FontSize="12"/>
-                                <TextBlock Grid.Column="1" Text="{Binding DatabaseStatus}" FontWeight="SemiBold" Foreground="{StaticResource TechAccentCyan}" FontSize="12"/>
-                            </Grid>
+            <!-- Side-by-side Cards Container -->
+            <Grid HorizontalAlignment="Left">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
 
-                            <Grid>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="130"/>
-                                    <ColumnDefinition Width="*"/>
-                                </Grid.ColumnDefinitions>
-                                <TextBlock Text="Security Clearance:" Foreground="{StaticResource SecondaryTextBrush}" FontSize="12"/>
-                                <TextBlock Grid.Column="1" Text="{Binding Role}" FontWeight="SemiBold" Foreground="{StaticResource TechAccentPurple}" FontSize="12"/>
-                            </Grid>
-                        </StackPanel>
-                    </Border>
-                </Grid>
-
-                <!-- Project Scope & Permissions -->
-                <Border Style="{StaticResource CardStyle}">
+                <!-- 1. LEFT CARD: USER PROFILE (White Theme Card matching mockup) -->
+                <Border Grid.Column="0"
+                        Width="440"
+                        MinHeight="460"
+                        Style="{StaticResource WhiteCardStyle}">
                     <StackPanel>
-                        <TextBlock Text="📋 Project Scope &amp; Role Permissions" FontSize="14" FontWeight="Bold" Foreground="{StaticResource TextBrush}" Margin="0,0,0,6"/>
-                        <TextBlock Text="{Binding PermissionsSummary}" FontSize="12.5" Foreground="{StaticResource SecondaryTextBrush}" TextWrapping="Wrap" Margin="0,0,0,14"/>
+                        <!-- Header Row: Avatar + Name/Email + Role Badge -->
+                        <Grid Margin="0,0,0,16">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
 
-                        <UniformGrid Columns="3" Margin="0,4,0,0">
-                            <!-- Books Module -->
-                            <Border Background="#F8FAFC" BorderBrush="{StaticResource TechBorderBrush}" BorderThickness="1" CornerRadius="6" Padding="12" Margin="0,0,8,0">
-                                <StackPanel>
-                                    <TextBlock Text="📚 Book Catalog" FontWeight="Bold" FontSize="13" Foreground="{StaticResource TextBrush}" Margin="0,0,0,4"/>
-                                    <TextBlock Text="Search titles, authors, update inventory stock, and add books." FontSize="11.5" Foreground="{StaticResource SecondaryTextBrush}" TextWrapping="Wrap"/>
-                                </StackPanel>
+                            <!-- Avatar (TH for Admin, LA for Librarian) -->
+                            <Border Grid.Column="0"
+                                    Style="{StaticResource AvatarBorderStyle}"
+                                    Margin="0,0,14,0">
+                                <TextBlock Text="{Binding Initials}"
+                                           Style="{StaticResource AvatarTextStyle}"/>
                             </Border>
 
-                            <!-- Readers Module -->
-                            <Border Background="#F8FAFC" BorderBrush="{StaticResource TechBorderBrush}" BorderThickness="1" CornerRadius="6" Padding="12" Margin="4,0,4,0">
-                                <StackPanel>
-                                    <TextBlock Text="👥 Readers &amp; Members" FontWeight="Bold" FontSize="13" Foreground="{StaticResource TextBrush}" Margin="0,0,0,4"/>
-                                    <TextBlock Text="Manage library member registry, contact phone, and emails." FontSize="11.5" Foreground="{StaticResource SecondaryTextBrush}" TextWrapping="Wrap"/>
-                                </StackPanel>
-                            </Border>
+                            <!-- Name & Email -->
+                            <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                <TextBlock Text="{Binding FullName}"
+                                           Foreground="#0F172A"
+                                           FontSize="16"
+                                           FontWeight="Bold"/>
+                                <TextBlock Text="{Binding Email}"
+                                           Foreground="#64748B"
+                                           FontSize="12.5"
+                                           Margin="0,3,0,0"/>
+                            </StackPanel>
 
-                            <!-- Circulation Module -->
-                            <Border Background="#F8FAFC" BorderBrush="{StaticResource TechBorderBrush}" BorderThickness="1" CornerRadius="6" Padding="12" Margin="8,0,0,0">
-                                <StackPanel>
-                                    <TextBlock Text="📖 Loan &amp; Return Services" FontWeight="Bold" FontSize="13" Foreground="{StaticResource TextBrush}" Margin="0,0,0,4"/>
-                                    <TextBlock Text="Process book borrowings, manage returns, and track history." FontSize="11.5" Foreground="{StaticResource SecondaryTextBrush}" TextWrapping="Wrap"/>
-                                </StackPanel>
+                            <!-- Role Badge Pill -->
+                            <Border Grid.Column="2"
+                                    Style="{StaticResource RoleBadgeBorderStyle}">
+                                <TextBlock Text="{Binding Role}"
+                                           Style="{StaticResource RoleBadgeTextStyle}"/>
                             </Border>
-                        </UniformGrid>
+                        </Grid>
+
+                        <!-- Horizontal Divider -->
+                        <Border Height="1" Background="#F1F5F9" Margin="0,0,0,16"/>
+
+                        <!-- Details Grid -->
+                        <Grid Margin="0,0,0,4">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="120"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+
+                            <!-- Full Name -->
+                            <TextBlock Grid.Row="0" Grid.Column="0" Text="Full name" Foreground="#64748B" FontSize="13.5" Margin="0,0,0,14"/>
+                            <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding FullName}" Foreground="#0F172A" FontWeight="SemiBold" FontSize="13.5" Margin="0,0,0,14"/>
+
+                            <!-- Username -->
+                            <TextBlock Grid.Row="1" Grid.Column="0" Text="Username" Foreground="#64748B" FontSize="13.5" Margin="0,0,0,14"/>
+                            <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding Username}" Foreground="#0F172A" FontWeight="SemiBold" FontSize="13.5" Margin="0,0,0,14"/>
+
+                            <!-- Email -->
+                            <TextBlock Grid.Row="2" Grid.Column="0" Text="Email" Foreground="#64748B" FontSize="13.5" Margin="0,0,0,14"/>
+                            <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding Email}" Foreground="#0F172A" FontWeight="SemiBold" FontSize="13.5" Margin="0,0,0,14"/>
+
+                            <!-- Member since -->
+                            <TextBlock Grid.Row="3" Grid.Column="0" Text="Member since" Foreground="#64748B" FontSize="13.5" Margin="0,0,0,6"/>
+                            <TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding MemberSinceFormatted}" Foreground="#0F172A" FontWeight="SemiBold" FontSize="13.5" Margin="0,0,0,6"/>
+                        </Grid>
+
+                        <!-- Horizontal Divider -->
+                        <Border Height="1" Background="#F1F5F9" Margin="0,16,0,16"/>
+
+                        <!-- Footer Actions -->
+                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                            <!-- Edit profile button -->
+                            <Button Command="{Binding ToggleEditProfileCommand}"
+                                    Style="{StaticResource LightCardOutlineButtonStyle}">
+                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                    <Path Data="M 12.8,2.2 L 14.8,4.2 L 5.2,13.8 L 3,14 L 3.2,11.8 Z"
+                                          Stroke="#334155" StrokeThickness="1.3" Fill="Transparent"
+                                          Width="14" Height="14" Stretch="Uniform" Margin="0,0,8,0"/>
+                                    <TextBlock Text="Edit profile" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </Button>
+
+                            <!-- Change password button (Visible for Librarian) -->
+                            <Button Command="{Binding ToggleChangePasswordCommand}"
+                                    Style="{StaticResource LightCardOutlineButtonStyle}"
+                                    Margin="10,0,0,0"
+                                    Visibility="{Binding ChangePasswordButtonVisibility}">
+                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                    <Path Data="M 13.5,6.5 A 3.5,3.5 0 1 0 10,10 L 10,12 L 12,12 L 12,14 L 14,14 L 14,12 L 15,11 L 14.5,10 A 3.5,3.5 0 0 0 13.5,6.5 Z"
+                                          Stroke="#334155" StrokeThickness="1.3" Fill="Transparent"
+                                          Width="14" Height="14" Stretch="Uniform" Margin="0,0,8,0"/>
+                                    <TextBlock Text="Change password" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </Button>
+
+                            <!-- Administrator Password Changes note -->
+                            <Button Command="{Binding ToggleChangePasswordCommand}"
+                                    Background="Transparent"
+                                    BorderThickness="0"
+                                    Cursor="Hand"
+                                    Visibility="{Binding AdminPasswordNoteVisibility}"
+                                    Margin="12,0,0,0">
+                                <Button.Template>
+                                    <ControlTemplate TargetType="Button">
+                                        <TextBlock Text="Password changes: User accounts"
+                                                   Foreground="#64748B"
+                                                   FontSize="12.5"
+                                                   VerticalAlignment="Center">
+                                            <TextBlock.Style>
+                                                <Style TargetType="TextBlock">
+                                                    <Style.Triggers>
+                                                        <Trigger Property="IsMouseOver" Value="True">
+                                                            <Setter Property="Foreground" Value="#0284C7"/>
+                                                            <Setter Property="TextDecorations" Value="Underline"/>
+                                                        </Trigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </TextBlock.Style>
+                                        </TextBlock>
+                                    </ControlTemplate>
+                                </Button.Template>
+                            </Button>
+                        </StackPanel>
                     </StackPanel>
                 </Border>
-            </StackPanel>
 
-            <!-- TAB 2: EDIT PROFILE -->
-            <StackPanel x:Name="PanelProfile" Visibility="Collapsed">
-                <Border Style="{StaticResource CardStyle}" MaxWidth="560" HorizontalAlignment="Left">
-                    <StackPanel>
-                        <StackPanel Orientation="Horizontal" Margin="0,0,0,14">
-                            <Border Width="34" Height="34" Background="#E0F2FE" CornerRadius="8" Margin="0,0,10,0">
-                                <TextBlock Text="✏️" FontSize="16" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                <!-- 2. RIGHT COMPANION CARD: ACCESS / CHANGE PASSWORD / EDIT PROFILE -->
+                <Border Grid.Column="1"
+                        Width="410"
+                        MinHeight="460"
+                        Margin="14,0,0,0"
+                        Style="{StaticResource WhiteCardStyle}">
+                    <Grid>
+                        <!-- PANEL 1: ACCESS MODULES (Exact Match with Mockup: Modules your role can use) -->
+                        <StackPanel Visibility="{Binding OverviewVisibility}">
+                            <!-- Header -->
+                            <TextBlock Text="Access"
+                                       Foreground="#0F172A"
+                                       FontSize="18"
+                                       FontWeight="Bold"/>
+                            <TextBlock Text="Modules your role can use"
+                                       Foreground="#64748B"
+                                       FontSize="13"
+                                       Margin="0,3,0,16"/>
+
+                            <!-- 1. Books -->
+                            <Grid Margin="0,0,0,4">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <Path Grid.Column="0"
+                                      Data="M 2,4 C 6,3 10,4 12,5 C 14,4 18,3 22,4 L 22,18 C 18,17 14,18 12,19 C 10,18 6,17 2,18 Z M 12,5 L 12,19"
+                                      Stroke="#334155" StrokeThickness="1.4"
+                                      Width="18" Height="18" Stretch="Uniform"
+                                      VerticalAlignment="Center" Margin="0,0,14,0"/>
+                                <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                    <TextBlock Text="Books" FontSize="13.5" FontWeight="SemiBold" Foreground="#0F172A"/>
+                                    <TextBlock Text="Manage catalog and stock" FontSize="12" Foreground="#64748B" Margin="0,1.5,0,0"/>
+                                </StackPanel>
+                                <Path Grid.Column="2"
+                                      Data="M 3,8.5 L 7,12.5 L 15,3.5"
+                                      Stroke="#16A34A" StrokeThickness="2"
+                                      StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round"
+                                      Width="15" Height="13" Stretch="Uniform"
+                                      VerticalAlignment="Center"/>
+                            </Grid>
+
+                            <Border Height="1" Background="#F1F5F9" Margin="0,10"/>
+
+                            <!-- 2. Readers -->
+                            <Grid Margin="0,0,0,4">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <Path Grid.Column="0"
+                                      Data="M 16,19 C 16,16.5 13.5,15 10,15 C 6.5,15 4,16.5 4,19 M 10,11 C 7.8,11 6,9.2 6,7 C 6,4.8 7.8,3 10,3 C 12.2,3 14,4.8 14,7 C 14,9.2 12.2,11 10,11 Z M 16,11 C 17.5,11 19,9.5 19,8 C 19,6.5 17.5,5 16,5 M 20,19 C 20,17 18.5,15.5 16,15"
+                                      Stroke="#334155" StrokeThickness="1.4"
+                                      Width="18" Height="18" Stretch="Uniform"
+                                      VerticalAlignment="Center" Margin="0,0,14,0"/>
+                                <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                    <TextBlock Text="Readers" FontSize="13.5" FontWeight="SemiBold" Foreground="#0F172A"/>
+                                    <TextBlock Text="Manage library members" FontSize="12" Foreground="#64748B" Margin="0,1.5,0,0"/>
+                                </StackPanel>
+                                <Path Grid.Column="2"
+                                      Data="M 3,8.5 L 7,12.5 L 15,3.5"
+                                      Stroke="#16A34A" StrokeThickness="2"
+                                      StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round"
+                                      Width="15" Height="13" Stretch="Uniform"
+                                      VerticalAlignment="Center"/>
+                            </Grid>
+
+                            <Border Height="1" Background="#F1F5F9" Margin="0,10"/>
+
+                            <!-- 3. Borrow -->
+                            <Grid Margin="0,0,0,4">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <Path Grid.Column="0"
+                                      Data="M 3,4 C 3,3 4,2 5,2 L 19,2 C 20,2 21,3 21,4 L 21,20 C 21,21 20,22 19,22 L 5,22 C 4,22 3,21 3,20 Z M 7,6 L 17,6 M 7,10 L 17,10 M 7,14 L 13,14"
+                                      Stroke="#334155" StrokeThickness="1.4"
+                                      Width="18" Height="18" Stretch="Uniform"
+                                      VerticalAlignment="Center" Margin="0,0,14,0"/>
+                                <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                    <TextBlock Text="Borrow" FontSize="13.5" FontWeight="SemiBold" Foreground="#0F172A"/>
+                                    <TextBlock Text="Process loans" FontSize="12" Foreground="#64748B" Margin="0,1.5,0,0"/>
+                                </StackPanel>
+                                <Path Grid.Column="2"
+                                      Data="M 3,8.5 L 7,12.5 L 15,3.5"
+                                      Stroke="#16A34A" StrokeThickness="2"
+                                      StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round"
+                                      Width="15" Height="13" Stretch="Uniform"
+                                      VerticalAlignment="Center"/>
+                            </Grid>
+
+                            <Border Height="1" Background="#F1F5F9" Margin="0,10"/>
+
+                            <!-- 4. Return -->
+                            <Grid Margin="0,0,0,4">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <Path Grid.Column="0"
+                                      Data="M 3,9 L 7,5 M 3,9 L 7,13 M 3,9 L 14,9 C 17.5,9 20,11.5 20,15 C 20,18.5 17.5,21 14,21 L 10,21"
+                                      Stroke="#334155" StrokeThickness="1.4"
+                                      Width="18" Height="18" Stretch="Uniform"
+                                      VerticalAlignment="Center" Margin="0,0,14,0"/>
+                                <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                    <TextBlock Text="Return" FontSize="13.5" FontWeight="SemiBold" Foreground="#0F172A"/>
+                                    <TextBlock Text="Process returns" FontSize="12" Foreground="#64748B" Margin="0,1.5,0,0"/>
+                                </StackPanel>
+                                <Path Grid.Column="2"
+                                      Data="M 3,8.5 L 7,12.5 L 15,3.5"
+                                      Stroke="#16A34A" StrokeThickness="2"
+                                      StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round"
+                                      Width="15" Height="13" Stretch="Uniform"
+                                      VerticalAlignment="Center"/>
+                            </Grid>
+
+                            <Border Height="1" Background="#F1F5F9" Margin="0,10"/>
+
+                            <!-- 5. History -->
+                            <Grid Margin="0,0,0,4">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <Path Grid.Column="0"
+                                      Data="M 12,2 A 10,10 0 1 0 22,12 A 10,10 0 0 0 12,2 Z M 12,6 L 12,12 L 16,14"
+                                      Stroke="#334155" StrokeThickness="1.4"
+                                      Width="18" Height="18" Stretch="Uniform"
+                                      VerticalAlignment="Center" Margin="0,0,14,0"/>
+                                <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                    <TextBlock Text="History" FontSize="13.5" FontWeight="SemiBold" Foreground="#0F172A"/>
+                                    <TextBlock Text="View loan history" FontSize="12" Foreground="#64748B" Margin="0,1.5,0,0"/>
+                                </StackPanel>
+                                <Path Grid.Column="2"
+                                      Data="M 3,8.5 L 7,12.5 L 15,3.5"
+                                      Stroke="#16A34A" StrokeThickness="2"
+                                      StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round"
+                                      Width="15" Height="13" Stretch="Uniform"
+                                      VerticalAlignment="Center"/>
+                            </Grid>
+
+                            <Border Height="1" Background="#F1F5F9" Margin="0,10"/>
+
+                            <!-- 6. User accounts (Checkmark for Admin, Lock icon for Librarian) -->
+                            <Grid Margin="0,0,0,4" Opacity="{Binding UserAccountsOpacity}">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <Path Grid.Column="0"
+                                      Data="M 12,15 A 3,3 0 1 0 12,9 A 3,3 0 0 0 12,15 Z M 19.4,15 A 1.65,1.65 0 0 0 19.7,16.8 L 20,17.2 A 2,2 0 0 1 17.2,20 L 16.8,19.7 A 1.65,1.65 0 0 0 15,19.4 A 1.65,1.65 0 0 0 14,21 L 14,21.5 A 2,2 0 0 1 10,21.5 L 10,21 A 1.65,1.65 0 0 0 9,19.4 A 1.65,1.65 0 0 0 7.2,19.7 L 6.8,20 A 2,2 0 0 1 4,17.2 L 4.3,16.8 A 1.65,1.65 0 0 0 4.6,15 A 1.65,1.65 0 0 0 3,14 L 2.5,14 A 2,2 0 0 1 2.5,10 L 3,10 A 1.65,1.65 0 0 0 4.6,9 A 1.65,1.65 0 0 0 4.3,7.2 L 4,6.8 A 2,2 0 0 1 6.8,4 L 7.2,4.3 A 1.65,1.65 0 0 0 9,4.6 A 1.65,1.65 0 0 0 10,3 L 10,2.5 A 2,2 0 0 1 14,2.5 L 14,3 A 1.65,1.65 0 0 0 15,4.6 A 1.65,1.65 0 0 0 16.8,4.3 L 17.2,4 A 2,2 0 0 1 20,6.8 L 19.7,7.2 A 1.65,1.65 0 0 0 19.4,9 A 1.65,1.65 0 0 0 21,10 L 21.5,10 A 2,2 0 0 1 21.5,14 L 21,14 A 1.65,1.65 0 0 0 19.4,15 Z"
+                                      Stroke="#334155" StrokeThickness="1.4"
+                                      Width="18" Height="18" Stretch="Uniform"
+                                      VerticalAlignment="Center" Margin="0,0,14,0"/>
+                                <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                    <TextBlock Text="User accounts" FontSize="13.5" FontWeight="SemiBold" Foreground="#0F172A"/>
+                                    <TextBlock Text="Create and manage staff accounts" FontSize="12" Foreground="#64748B" Margin="0,1.5,0,0"/>
+                                </StackPanel>
+                                <!-- Green checkmark for Admin -->
+                                <Path Grid.Column="2"
+                                      Data="M 3,8.5 L 7,12.5 L 15,3.5"
+                                      Stroke="#16A34A" StrokeThickness="2"
+                                      StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round"
+                                      Width="15" Height="13" Stretch="Uniform"
+                                      VerticalAlignment="Center"
+                                      Visibility="{Binding UserAccountsCheckVisibility}"/>
+                                <!-- Gray lock icon for Librarian -->
+                                <Path Grid.Column="2"
+                                      Data="M 3,8 L 13,8 L 13,15 L 3,15 Z M 5,8 L 5,5 C 5,3.3 6.3,2 8,2 C 9.7,2 11,3.3 11,5 L 11,8"
+                                      Stroke="#94A3B8" StrokeThickness="1.5"
+                                      StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round"
+                                      Width="15" Height="15" Stretch="Uniform"
+                                      VerticalAlignment="Center"
+                                      Visibility="{Binding UserAccountsLockVisibility}"/>
+                            </Grid>
+                        </StackPanel>
+
+                        <!-- PANEL 2: CHANGE PASSWORD (Opens when clicking Change password) -->
+                        <StackPanel Visibility="{Binding ChangePasswordVisibility}">
+                            <TextBlock Text="Change password"
+                                       Foreground="#0F172A"
+                                       FontSize="16"
+                                       FontWeight="Bold"/>
+                            <TextBlock Text="Enter your current password to set a new one."
+                                       Foreground="#64748B"
+                                       FontSize="12"
+                                       Margin="0,2,0,14"/>
+
+                            <!-- Current password -->
+                            <TextBlock Text="Current password" Foreground="#64748B" FontSize="12.5" Margin="0,0,0,6"/>
+                            <Grid Margin="0,0,0,14">
+                                <PasswordBox x:Name="PwdCurrent" Style="{StaticResource LightFieldPasswordBoxStyle}"/>
+                                <TextBox x:Name="PwdCurrentVisible" Style="{StaticResource LightFieldPasswordVisibleTextBoxStyle}" Visibility="Collapsed"/>
+                                <TextBlock x:Name="PlaceholderPwdCurrent"
+                                           Text="Current password"
+                                           Foreground="#94A3B8"
+                                           FontSize="13"
+                                           Margin="10,0,34,0"
+                                           VerticalAlignment="Center"
+                                           IsHitTestVisible="False"/>
+                                <Button x:Name="BtnTogglePwdCurrent"
+                                        HorizontalAlignment="Right"
+                                        VerticalAlignment="Center"
+                                        Margin="0,0,4,0"
+                                        Style="{StaticResource LightPasswordEyeToggleButtonStyle}"
+                                        ToolTip="Show password">
+                                    <Path x:Name="IconPwdCurrentToggle"
+                                          Data="M 2,12 C 6,5 18,5 22,12 C 18,19 6,19 2,12 Z M 12,8.5 C 10.07,8.5 8.5,10.07 8.5,12 C 8.5,13.93 10.07,15.5 12,15.5 C 13.93,15.5 15.5,13.93 15.5,12 C 15.5,10.07 13.93,8.5 12,8.5 Z"
+                                          Stroke="{Binding Path=Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                                          StrokeThickness="1.6" StrokeLineJoin="Round" StrokeStartLineCap="Round" StrokeEndLineCap="Round"
+                                          Fill="Transparent" Width="17" Height="13" Stretch="Uniform"/>
+                                </Button>
+                            </Grid>
+
+                            <!-- New password -->
+                            <TextBlock Text="New password" Foreground="#64748B" FontSize="12.5" Margin="0,0,0,6"/>
+                            <Grid Margin="0,0,0,14">
+                                <PasswordBox x:Name="PwdNew" Style="{StaticResource LightFieldPasswordBoxStyle}"/>
+                                <TextBox x:Name="PwdNewVisible" Style="{StaticResource LightFieldPasswordVisibleTextBoxStyle}" Visibility="Collapsed"/>
+                                <TextBlock x:Name="PlaceholderPwdNew"
+                                           Text="New password"
+                                           Foreground="#94A3B8"
+                                           FontSize="13"
+                                           Margin="10,0,34,0"
+                                           VerticalAlignment="Center"
+                                           IsHitTestVisible="False"/>
+                                <Button x:Name="BtnTogglePwdNew"
+                                        HorizontalAlignment="Right"
+                                        VerticalAlignment="Center"
+                                        Margin="0,0,4,0"
+                                        Style="{StaticResource LightPasswordEyeToggleButtonStyle}"
+                                        ToolTip="Show password">
+                                    <Path x:Name="IconPwdNewToggle"
+                                          Data="M 2,12 C 6,5 18,5 22,12 C 18,19 6,19 2,12 Z M 12,8.5 C 10.07,8.5 8.5,10.07 8.5,12 C 8.5,13.93 10.07,15.5 12,15.5 C 13.93,15.5 15.5,13.93 15.5,12 C 15.5,10.07 13.93,8.5 12,8.5 Z"
+                                          Stroke="{Binding Path=Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                                          StrokeThickness="1.6" StrokeLineJoin="Round" StrokeStartLineCap="Round" StrokeEndLineCap="Round"
+                                          Fill="Transparent" Width="17" Height="13" Stretch="Uniform"/>
+                                </Button>
+                            </Grid>
+
+                            <!-- Confirm new password -->
+                            <TextBlock Text="Confirm new password" Foreground="#64748B" FontSize="12.5" Margin="0,0,0,6"/>
+                            <Grid Margin="0,0,0,16">
+                                <PasswordBox x:Name="PwdConfirm" Style="{StaticResource LightFieldPasswordBoxStyle}"/>
+                                <TextBox x:Name="PwdConfirmVisible" Style="{StaticResource LightFieldPasswordVisibleTextBoxStyle}" Visibility="Collapsed"/>
+                                <TextBlock x:Name="PlaceholderPwdConfirm"
+                                           Text="Confirm new password"
+                                           Foreground="#94A3B8"
+                                           FontSize="13"
+                                           Margin="10,0,34,0"
+                                           VerticalAlignment="Center"
+                                           IsHitTestVisible="False"/>
+                                <Button x:Name="BtnTogglePwdConfirm"
+                                        HorizontalAlignment="Right"
+                                        VerticalAlignment="Center"
+                                        Margin="0,0,4,0"
+                                        Style="{StaticResource LightPasswordEyeToggleButtonStyle}"
+                                        ToolTip="Show password">
+                                    <Path x:Name="IconPwdConfirmToggle"
+                                          Data="M 2,12 C 6,5 18,5 22,12 C 18,19 6,19 2,12 Z M 12,8.5 C 10.07,8.5 8.5,10.07 8.5,12 C 8.5,13.93 10.07,15.5 12,15.5 C 13.93,15.5 15.5,13.93 15.5,12 C 15.5,10.07 13.93,8.5 12,8.5 Z"
+                                          Stroke="{Binding Path=Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                                          StrokeThickness="1.6" StrokeLineJoin="Round" StrokeStartLineCap="Round" StrokeEndLineCap="Round"
+                                          Fill="Transparent" Width="17" Height="13" Stretch="Uniform"/>
+                                </Button>
+                            </Grid>
+
+                            <!-- Feedback Banner -->
+                            <Border x:Name="PasswordAlertBox" Padding="10,6" CornerRadius="6" Margin="0,0,0,12" Visibility="Collapsed">
+                                <TextBlock x:Name="TxtPasswordAlert" Text="{Binding PasswordMessage}" FontSize="12" TextWrapping="Wrap"/>
                             </Border>
-                            <StackPanel VerticalAlignment="Center">
-                                <TextBlock Text="Edit Profile Information" FontSize="16" FontWeight="Bold" Foreground="{StaticResource TextBrush}"/>
-                                <TextBlock Text="Update your personal identification and contact email" FontSize="12" Foreground="{StaticResource SecondaryTextBrush}"/>
+
+                            <!-- Action Buttons -->
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,8,0,0">
+                                <Button Content="Cancel"
+                                        Click="BtnCancelPassword_Click"
+                                        Style="{StaticResource LightCardOutlineButtonStyle}"
+                                        Margin="0,0,10,0"
+                                        Padding="16,7"/>
+                                <Button Content="Save"
+                                        Click="BtnChangePassword_Click"
+                                        Style="{StaticResource LightPrimaryActionButtonStyle}"/>
                             </StackPanel>
                         </StackPanel>
 
-                        <Separator Background="{StaticResource TechBorderBrush}" Margin="0,0,0,16"/>
+                        <!-- PANEL 3: EDIT PROFILE (Opens when clicking Edit profile) -->
+                        <StackPanel Visibility="{Binding EditProfileVisibility}">
+                            <TextBlock Text="Edit profile"
+                                       Foreground="#0F172A"
+                                       FontSize="16"
+                                       FontWeight="Bold"/>
+                            <TextBlock Text="Update your display name, username, and email."
+                                       Foreground="#64748B"
+                                       FontSize="12"
+                                       Margin="0,2,0,14"/>
 
-                        <!-- Full Name -->
-                        <TextBlock Text="Full Name *" FontWeight="SemiBold" FontSize="12" Foreground="{StaticResource TextBrush}" Margin="0,0,0,4"/>
-                        <TextBox Text="{Binding EditFullName, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource PlaceholderTextBoxStyle}" Margin="0,0,0,12"/>
+                            <!-- Full Name -->
+                            <TextBlock Text="Full name" Foreground="#64748B" FontSize="12.5" Margin="0,0,0,6"/>
+                            <TextBox Text="{Binding EditFullName, UpdateSourceTrigger=PropertyChanged}"
+                                     Tag="Full name"
+                                     Style="{StaticResource LightFieldTextBoxStyle}"
+                                     Margin="0,0,0,14"/>
 
-                        <!-- Username -->
-                        <TextBlock Text="Username *" FontWeight="SemiBold" FontSize="12" Foreground="{StaticResource TextBrush}" Margin="0,0,0,4"/>
-                        <TextBox Text="{Binding EditUsername, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource PlaceholderTextBoxStyle}" Margin="0,0,0,12"/>
+                            <!-- Username -->
+                            <TextBlock Text="Username" Foreground="#64748B" FontSize="12.5" Margin="0,0,0,6"/>
+                            <TextBox Text="{Binding EditUsername, UpdateSourceTrigger=PropertyChanged}"
+                                     Tag="Username"
+                                     Style="{StaticResource LightFieldTextBoxStyle}"
+                                     Margin="0,0,0,14"/>
 
-                        <!-- Email -->
-                        <TextBlock Text="Email Address *" FontWeight="SemiBold" FontSize="12" Foreground="{StaticResource TextBrush}" Margin="0,0,0,4"/>
-                        <TextBox Text="{Binding EditEmail, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource PlaceholderTextBoxStyle}" Margin="0,0,0,12"/>
+                            <!-- Email -->
+                            <TextBlock Text="Email" Foreground="#64748B" FontSize="12.5" Margin="0,0,0,6"/>
+                            <TextBox Text="{Binding EditEmail, UpdateSourceTrigger=PropertyChanged}"
+                                     Tag="Email"
+                                     Style="{StaticResource LightFieldTextBoxStyle}"
+                                     Margin="0,0,0,16"/>
 
-                        <!-- Role (Read-only notice) -->
-                        <TextBlock Text="System Role" FontWeight="SemiBold" FontSize="12" Foreground="{StaticResource TextBrush}" Margin="0,0,0,4"/>
-                        <Border Background="#F1F5F9" BorderBrush="{StaticResource TechBorderBrush}" BorderThickness="1" CornerRadius="6" Padding="10,8" Margin="0,0,0,16">
-                            <DockPanel>
-                                <TextBlock Text="{Binding Role}" FontWeight="Bold" Foreground="{StaticResource TechAccentCyan}" FontSize="12.5"/>
-                                <TextBlock Text="(Role assigned by administrator)" HorizontalAlignment="Right" Foreground="{StaticResource SecondaryTextBrush}" FontSize="11"/>
-                            </DockPanel>
-                        </Border>
-
-                        <!-- Feedback Banner -->
-                        <Border x:Name="ProfileAlertBox" Padding="12,8" CornerRadius="6" Margin="0,0,0,12" Visibility="Collapsed">
-                            <TextBlock x:Name="TxtProfileAlert" Text="{Binding ProfileMessage}" FontSize="12" TextWrapping="Wrap"/>
-                        </Border>
-
-                        <!-- Buttons -->
-                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                            <Button Content="↩ Reset" Command="{Binding ResetProfileFieldsCommand}" Style="{StaticResource SecondaryButtonStyle}" Width="90" Margin="0,0,8,0"/>
-                            <Button Content="💾 Save Profile" Command="{Binding SaveProfileCommand}" Style="{StaticResource PrimaryButtonStyle}" Width="130"/>
-                        </StackPanel>
-                    </StackPanel>
-                </Border>
-            </StackPanel>
-
-            <!-- TAB 3: CHANGE PASSWORD -->
-            <StackPanel x:Name="PanelPassword" Visibility="Collapsed">
-                <Border Style="{StaticResource CardStyle}" MaxWidth="560" HorizontalAlignment="Left">
-                    <StackPanel>
-                        <StackPanel Orientation="Horizontal" Margin="0,0,0,14">
-                            <Border Width="34" Height="34" Background="#FEF3C7" CornerRadius="8" Margin="0,0,10,0">
-                                <TextBlock Text="🔒" FontSize="16" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            <!-- Feedback Banner -->
+                            <Border x:Name="ProfileAlertBox" Padding="10,6" CornerRadius="6" Margin="0,0,0,12" Visibility="Collapsed">
+                                <TextBlock x:Name="TxtProfileAlert" Text="{Binding ProfileMessage}" FontSize="12" TextWrapping="Wrap"/>
                             </Border>
-                            <StackPanel VerticalAlignment="Center">
-                                <TextBlock Text="Change Password" FontSize="16" FontWeight="Bold" Foreground="{StaticResource TextBrush}"/>
-                                <TextBlock Text="Update your password credentials securely" FontSize="12" Foreground="{StaticResource SecondaryTextBrush}"/>
+
+                            <!-- Action Buttons -->
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,8,0,0">
+                                <Button Content="Cancel"
+                                        Command="{Binding CloseSidePanelCommand}"
+                                        Style="{StaticResource LightCardOutlineButtonStyle}"
+                                        Margin="0,0,10,0"
+                                        Padding="16,7"/>
+                                <Button Content="Save"
+                                        Command="{Binding SaveProfileCommand}"
+                                        Style="{StaticResource LightPrimaryActionButtonStyle}"/>
                             </StackPanel>
                         </StackPanel>
-
-                        <Separator Background="{StaticResource TechBorderBrush}" Margin="0,0,0,16"/>
-
-                        <!-- Current Password -->
-                        <TextBlock Text="Current Password *" FontWeight="SemiBold" FontSize="12" Foreground="{StaticResource TextBrush}" Margin="0,0,0,4"/>
-                        <PasswordBox x:Name="PwdCurrent" Height="34" VerticalContentAlignment="Center" Margin="0,0,0,12" PasswordChanged="PwdBox_PasswordChanged"/>
-
-                        <!-- New Password -->
-                        <TextBlock Text="New Password (min 6 characters) *" FontWeight="SemiBold" FontSize="12" Foreground="{StaticResource TextBrush}" Margin="0,0,0,4"/>
-                        <PasswordBox x:Name="PwdNew" Height="34" VerticalContentAlignment="Center" Margin="0,0,0,12" PasswordChanged="PwdBox_PasswordChanged"/>
-
-                        <!-- Confirm Password -->
-                        <TextBlock Text="Confirm New Password *" FontWeight="SemiBold" FontSize="12" Foreground="{StaticResource TextBrush}" Margin="0,0,0,4"/>
-                        <PasswordBox x:Name="PwdConfirm" Height="34" VerticalContentAlignment="Center" Margin="0,0,0,16" PasswordChanged="PwdBox_PasswordChanged"/>
-
-                        <!-- Feedback Banner -->
-                        <Border x:Name="PasswordAlertBox" Padding="12,8" CornerRadius="6" Margin="0,0,0,12" Visibility="Collapsed">
-                            <TextBlock x:Name="TxtPasswordAlert" Text="{Binding PasswordMessage}" FontSize="12" TextWrapping="Wrap"/>
-                        </Border>
-
-                        <!-- Button -->
-                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                            <Button Content="🔒 Update Password" Click="BtnChangePassword_Click" Style="{StaticResource PrimaryButtonStyle}" Width="150"/>
-                        </StackPanel>
-                    </StackPanel>
+                    </Grid>
                 </Border>
-            </StackPanel>
+            </Grid>
         </StackPanel>
     </ScrollViewer>
 </UserControl>

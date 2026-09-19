@@ -45,13 +45,19 @@ namespace LibraryManagement.Views
 
         public void SwipeToRegister()
         {
-            if (_isRegisterMode || _isAnimating) return;
+            if (_isRegisterMode || _isAnimating)
+            {
+                return;
+            }
             AnimateAuthMode(true);
         }
 
         public void SwipeToSignIn()
         {
-            if (!_isRegisterMode || _isAnimating) return;
+            if (!_isRegisterMode || _isAnimating)
+            {
+                return;
+            }
             AnimateAuthMode(false);
         }
 

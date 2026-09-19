@@ -1,8 +1,8 @@
-﻿using LibraryManagement.Data;
-using LibraryManagement.Models;
-using Microsoft.Data.SqlClient;
 using System;
 using System.Collections.Generic;
+using LibraryManagement.Data;
+using LibraryManagement.Models;
+using Microsoft.Data.SqlClient;
 
 namespace LibraryManagement.Repositories
 {
@@ -26,13 +26,15 @@ namespace LibraryManagement.Repositories
                 using (var reader = cmd.ExecuteReader())
                 {
                     while (reader.Read())
+                    {
                         books.Add(MapToBook(reader));
+                    }
                 }
             }
             return books;
         }
 
-        public Book GetById(int id)
+        public Book? GetById(int id)
         {
             using (var conn = _db.GetConnection())
             {
@@ -41,8 +43,7 @@ namespace LibraryManagement.Repositories
             }
         }
 
-        // Overload dùng trong transaction (BorrowService Bước 4). Không tự mở/đóng connection.
-        public Book GetById(SqlConnection conn, SqlTransaction tran, int id)
+        public Book? GetById(SqlConnection conn, SqlTransaction? tran, int id)
         {
             string sql = "SELECT BookId, Title, Author, Category, PublishYear, Quantity, AvailableQuantity FROM Books WHERE BookId = @BookId";
             using (var cmd = new SqlCommand(sql, conn, tran))
@@ -51,13 +52,14 @@ namespace LibraryManagement.Repositories
                 using (var reader = cmd.ExecuteReader())
                 {
                     if (reader.Read())
+                    {
                         return MapToBook(reader);
+                    }
                 }
             }
             return null;
         }
 
-        // Trả về BookId vừa insert.
         public int Add(Book book)
         {
             using (var conn = _db.GetConnection())
@@ -67,7 +69,7 @@ namespace LibraryManagement.Repositories
             }
         }
 
-        public int Add(SqlConnection conn, SqlTransaction tran, Book book)
+        public int Add(SqlConnection conn, SqlTransaction? tran, Book book)
         {
             string sql = @"INSERT INTO Books (Title, Author, Category, PublishYear, Quantity, AvailableQuantity)
                            OUTPUT INSERTED.BookId
@@ -84,8 +86,6 @@ namespace LibraryManagement.Repositories
             }
         }
 
-        // Update toàn bộ field. KHÔNG dùng cho mượn/trả (dùng UpdateAvailableQuantity bên dưới).
-        // Trả về false nếu BookId không tồn tại.
         public bool Update(Book book)
         {
             using (var conn = _db.GetConnection())
@@ -95,7 +95,7 @@ namespace LibraryManagement.Repositories
             }
         }
 
-        public bool Update(SqlConnection conn, SqlTransaction tran, Book book)
+        public bool Update(SqlConnection conn, SqlTransaction? tran, Book book)
         {
             string sql = @"UPDATE Books SET
                                Title = @Title,
@@ -118,10 +118,7 @@ namespace LibraryManagement.Repositories
             }
         }
 
-        // Tăng/giảm AvailableQuantity nguyên tử — dùng riêng cho BorrowBook()/ReturnBook() trong transaction.
-        // delta = -1 khi mượn, +1 khi trả. Điều kiện ">= 0" trong WHERE là lớp chặn cuối chống race condition ở tầng DB.
-        // Trả về false nếu update thất bại (BookId sai hoặc sẽ âm) -> Service phải rollback.
-        public bool UpdateAvailableQuantity(SqlConnection conn, SqlTransaction tran, int bookId, int delta)
+        public bool UpdateAvailableQuantity(SqlConnection conn, SqlTransaction? tran, int bookId, int delta)
         {
             string sql = @"UPDATE Books SET AvailableQuantity = AvailableQuantity + @Delta
                            WHERE BookId = @BookId AND AvailableQuantity + @Delta >= 0";
@@ -133,8 +130,6 @@ namespace LibraryManagement.Repositories
             }
         }
 
-        // Chỉ xóa thẳng. Chặn xóa khi đang mượn -> BookService.DeleteBook() (Bước 4).
-        // Trả về false nếu BookId không tồn tại.
         public bool Delete(int id)
         {
             using (var conn = _db.GetConnection())
@@ -164,14 +159,16 @@ namespace LibraryManagement.Repositories
                     using (var reader = cmd.ExecuteReader())
                     {
                         while (reader.Read())
+                        {
                             books.Add(MapToBook(reader));
+                        }
                     }
                 }
             }
             return books;
         }
 
-        private Book MapToBook(SqlDataReader reader)
+        private static Book MapToBook(SqlDataReader reader)
         {
             int categoryOrdinal = reader.GetOrdinal("Category");
             return new Book
@@ -179,7 +176,7 @@ namespace LibraryManagement.Repositories
                 BookId = reader.GetInt32(reader.GetOrdinal("BookId")),
                 Title = reader.GetString(reader.GetOrdinal("Title")),
                 Author = reader.GetString(reader.GetOrdinal("Author")),
-                Category = reader.IsDBNull(categoryOrdinal) ? null : reader.GetString(categoryOrdinal),
+                Category = reader.IsDBNull(categoryOrdinal) ? string.Empty : reader.GetString(categoryOrdinal),
                 PublishYear = reader.GetInt32(reader.GetOrdinal("PublishYear")),
                 Quantity = reader.GetInt32(reader.GetOrdinal("Quantity")),
                 AvailableQuantity = reader.GetInt32(reader.GetOrdinal("AvailableQuantity"))

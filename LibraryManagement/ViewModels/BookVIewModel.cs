@@ -1,30 +1,34 @@
-﻿using LibraryManagement.Models;
-using LibraryManagement.Services;
-using LibraryManagement.Commands;
-using LibraryManagement.Views.Books;
 using System;
 using System.Collections.ObjectModel;
 using System.Linq;
 using System.Windows;
 using System.Windows.Input;
+using LibraryManagement.Commands;
+using LibraryManagement.Models;
+using LibraryManagement.Services;
+using LibraryManagement.Views.Books;
 
 namespace LibraryManagement.ViewModels
 {
     public class BooksViewModel : BaseViewModel
     {
-        private readonly BookService _bookService = new BookService();
+        private readonly BookService _bookService = new();
 
-        public ObservableCollection<Book> Books { get; set; } = new ObservableCollection<Book>();
+        public ObservableCollection<Book> Books { get; set; } = new();
 
-        private string _searchText;
+        private string _searchText = string.Empty;
         public string SearchText
         {
             get => _searchText;
-            set { SetProperty(ref _searchText, value); Search(); }
+            set
+            {
+                SetProperty(ref _searchText, value);
+                Search();
+            }
         }
 
-        private Book _selectedBook;
-        public Book SelectedBook
+        private Book? _selectedBook;
+        public Book? SelectedBook
         {
             get => _selectedBook;
             set => SetProperty(ref _selectedBook, value);
@@ -52,7 +56,9 @@ namespace LibraryManagement.ViewModels
             {
                 Books.Clear();
                 foreach (var b in _bookService.GetAllBooks())
+                {
                     Books.Add(b);
+                }
                 RaiseStats();
             }
             catch (Exception ex)
@@ -67,7 +73,9 @@ namespace LibraryManagement.ViewModels
             {
                 Books.Clear();
                 foreach (var b in _bookService.SearchBook(SearchText))
+                {
                     Books.Add(b);
+                }
                 RaiseStats();
             }
             catch (Exception ex)
@@ -99,6 +107,11 @@ namespace LibraryManagement.ViewModels
 
         private void EditBook()
         {
+            if (SelectedBook == null)
+            {
+                return;
+            }
+
             var dialog = new EditBookDialog(SelectedBook);
             if (dialog.ShowDialog() == true)
             {
@@ -120,8 +133,16 @@ namespace LibraryManagement.ViewModels
 
         private void DeleteBook()
         {
+            if (SelectedBook == null)
+            {
+                return;
+            }
+
             var confirm = MessageBox.Show($"Xóa sách \"{SelectedBook.Title}\"?", "Xác nhận", MessageBoxButton.YesNo);
-            if (confirm != MessageBoxResult.Yes) return;
+            if (confirm != MessageBoxResult.Yes)
+            {
+                return;
+            }
 
             try
             {
@@ -144,6 +165,5 @@ namespace LibraryManagement.ViewModels
             OnPropertyChanged(nameof(TotalAvailable));
             OnPropertyChanged(nameof(TotalBorrowed));
         }
-
     }
 }

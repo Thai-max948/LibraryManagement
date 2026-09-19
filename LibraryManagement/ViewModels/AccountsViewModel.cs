@@ -132,7 +132,10 @@ namespace LibraryManagement.ViewModels
 
         private void ShowEditAccountDialog()
         {
-            if (SelectedUser == null) return;
+            if (SelectedUser == null)
+            {
+                return;
+            }
 
             var dialog = new EditAccountDialog(SelectedUser);
             if (Application.Current.MainWindow != null && Application.Current.MainWindow.IsVisible)
@@ -175,7 +178,10 @@ namespace LibraryManagement.ViewModels
 
         private void DeleteAccount()
         {
-            if (SelectedUser == null) return;
+            if (SelectedUser == null)
+            {
+                return;
+            }
 
             var confirm = MessageBox.Show(
                 $"Are you sure you want to delete account '{SelectedUser.Username}' ({SelectedUser.FullName})?",

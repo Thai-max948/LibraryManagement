@@ -3,6 +3,10 @@
   "WorkspaceRootPath": "C:\\Users\\Admin\\LibraryManagement1\\",
   "Documents": [
     {
+      "AbsoluteMoniker": "D:0:0:{7E2B733A-DBF8-FDB5-F770-1327FBD7B25A}|LibraryManagement\\LibraryManagement.csproj|c:\\users\\admin\\librarymanagement1\\librarymanagement\\services\\userservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{7E2B733A-DBF8-FDB5-F770-1327FBD7B25A}|LibraryManagement\\LibraryManagement.csproj|solutionrelative:librarymanagement\\services\\userservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
       "AbsoluteMoniker": "D:0:0:{7E2B733A-DBF8-FDB5-F770-1327FBD7B25A}|LibraryManagement\\LibraryManagement.csproj|c:\\users\\admin\\librarymanagement1\\librarymanagement\\views\\readers\\addreaderdialog.xaml||{F11ACC28-31D1-4C80-A34B-F4E09D3D753C}",
       "RelativeMoniker": "D:0:0:{7E2B733A-DBF8-FDB5-F770-1327FBD7B25A}|LibraryManagement\\LibraryManagement.csproj|solutionrelative:librarymanagement\\views\\readers\\addreaderdialog.xaml||{F11ACC28-31D1-4C80-A34B-F4E09D3D753C}"
     },
@@ -59,10 +63,6 @@
       "RelativeMoniker": "D:0:0:{7E2B733A-DBF8-FDB5-F770-1327FBD7B25A}|LibraryManagement\\LibraryManagement.csproj|solutionrelative:librarymanagement\\views\\accounts\\accountsview.xaml||{F11ACC28-31D1-4C80-A34B-F4E09D3D753C}"
     },
     {
-      "AbsoluteMoniker": "D:0:0:{7E2B733A-DBF8-FDB5-F770-1327FBD7B25A}|LibraryManagement\\LibraryManagement.csproj|c:\\users\\admin\\librarymanagement1\\librarymanagement\\services\\userservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{7E2B733A-DBF8-FDB5-F770-1327FBD7B25A}|LibraryManagement\\LibraryManagement.csproj|solutionrelative:librarymanagement\\services\\userservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
-    },
-    {
       "AbsoluteMoniker": "D:0:0:{7E2B733A-DBF8-FDB5-F770-1327FBD7B25A}|LibraryManagement\\LibraryManagement.csproj|c:\\users\\admin\\librarymanagement1\\librarymanagement\\services\\authservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
       "RelativeMoniker": "D:0:0:{7E2B733A-DBF8-FDB5-F770-1327FBD7B25A}|LibraryManagement\\LibraryManagement.csproj|solutionrelative:librarymanagement\\services\\authservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     },
@@ -94,7 +94,7 @@
       "DocumentGroups": [
         {
           "DockedWidth": 200,
-          "SelectedChildIndex": 11,
+          "SelectedChildIndex": 16,
           "Children": [
             {
               "$type": "Bookmark",
@@ -142,7 +142,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 0,
+              "DocumentIndex": 1,
               "Title": "AddReaderDialog.xaml",
               "DocumentMoniker": "C:\\Users\\Admin\\LibraryManagement1\\LibraryManagement\\Views\\Readers\\AddReaderDialog.xaml",
               "RelativeDocumentMoniker": "LibraryManagement\\Views\\Readers\\AddReaderDialog.xaml",
@@ -154,7 +154,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 1,
+              "DocumentIndex": 2,
               "Title": "EditReaderDialog.xaml",
               "DocumentMoniker": "C:\\Users\\Admin\\LibraryManagement1\\LibraryManagement\\Views\\Readers\\EditReaderDialog.xaml",
               "RelativeDocumentMoniker": "LibraryManagement\\Views\\Readers\\EditReaderDialog.xaml",
@@ -165,7 +165,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 2,
+              "DocumentIndex": 3,
               "Title": "ReadersView.xaml",
               "DocumentMoniker": "C:\\Users\\Admin\\LibraryManagement1\\LibraryManagement\\Views\\Readers\\ReadersView.xaml",
               "RelativeDocumentMoniker": "LibraryManagement\\Views\\Readers\\ReadersView.xaml",
@@ -176,7 +176,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 3,
+              "DocumentIndex": 4,
               "Title": "MyAccountViewModel.cs",
               "DocumentMoniker": "C:\\Users\\Admin\\LibraryManagement1\\LibraryManagement\\ViewModels\\MyAccountViewModel.cs",
               "RelativeDocumentMoniker": "LibraryManagement\\ViewModels\\MyAccountViewModel.cs",
@@ -188,7 +188,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 4,
+              "DocumentIndex": 5,
               "Title": "MyAccountView.xaml",
               "DocumentMoniker": "C:\\Users\\Admin\\LibraryManagement1\\LibraryManagement\\Views\\Accounts\\MyAccountView.xaml",
               "RelativeDocumentMoniker": "LibraryManagement\\Views\\Accounts\\MyAccountView.xaml",
@@ -199,7 +199,20 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 5,
+              "DocumentIndex": 0,
+              "Title": "UserService.cs",
+              "DocumentMoniker": "C:\\Users\\Admin\\LibraryManagement1\\LibraryManagement\\Services\\UserService.cs",
+              "RelativeDocumentMoniker": "LibraryManagement\\Services\\UserService.cs",
+              "ToolTip": "C:\\Users\\Admin\\LibraryManagement1\\LibraryManagement\\Services\\UserService.cs",
+              "RelativeToolTip": "LibraryManagement\\Services\\UserService.cs",
+              "ViewState": "AgIAAAYAAAAAAAAAAAAAABQAAAAyAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-09-14T02:17:00.66Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 6,
               "Title": "AccountsViewModel.cs",
               "DocumentMoniker": "C:\\Users\\Admin\\LibraryManagement1\\LibraryManagement\\ViewModels\\AccountsViewModel.cs",
               "RelativeDocumentMoniker": "LibraryManagement\\ViewModels\\AccountsViewModel.cs",
@@ -211,7 +224,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 6,
+              "DocumentIndex": 7,
               "Title": "CreateAccountDialog.xaml.cs",
               "DocumentMoniker": "C:\\Users\\Admin\\LibraryManagement1\\LibraryManagement\\Views\\Accounts\\CreateAccountDialog.xaml.cs",
               "RelativeDocumentMoniker": "LibraryManagement\\Views\\Accounts\\CreateAccountDialog.xaml.cs",
@@ -223,7 +236,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 8,
+              "DocumentIndex": 9,
               "Title": "MyAccountView.xaml.cs",
               "DocumentMoniker": "C:\\Users\\Admin\\LibraryManagement1\\LibraryManagement\\Views\\Accounts\\MyAccountView.xaml.cs",
               "RelativeDocumentMoniker": "LibraryManagement\\Views\\Accounts\\MyAccountView.xaml.cs",
@@ -235,7 +248,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 7,
+              "DocumentIndex": 8,
               "Title": "EditAccountDialog.xaml.cs",
               "DocumentMoniker": "C:\\Users\\Admin\\LibraryManagement1\\LibraryManagement\\Views\\Accounts\\EditAccountDialog.xaml.cs",
               "RelativeDocumentMoniker": "LibraryManagement\\Views\\Accounts\\EditAccountDialog.xaml.cs",
@@ -247,7 +260,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 10,
+              "DocumentIndex": 11,
               "Title": "App.xaml.cs",
               "DocumentMoniker": "C:\\Users\\Admin\\LibraryManagement1\\LibraryManagement\\App.xaml.cs",
               "RelativeDocumentMoniker": "LibraryManagement\\App.xaml.cs",
@@ -259,7 +272,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 9,
+              "DocumentIndex": 10,
               "Title": "CreateAccountDialog.xaml",
               "DocumentMoniker": "C:\\Users\\Admin\\LibraryManagement1\\LibraryManagement\\Views\\Accounts\\CreateAccountDialog.xaml",
               "RelativeDocumentMoniker": "LibraryManagement\\Views\\Accounts\\CreateAccountDialog.xaml",
@@ -270,7 +283,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 11,
+              "DocumentIndex": 12,
               "Title": "App.xaml",
               "DocumentMoniker": "C:\\Users\\Admin\\LibraryManagement1\\LibraryManagement\\App.xaml",
               "RelativeDocumentMoniker": "LibraryManagement\\App.xaml",
@@ -282,7 +295,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 13,
+              "DocumentIndex": 14,
               "Title": "AccountsView.xaml",
               "DocumentMoniker": "C:\\Users\\Admin\\LibraryManagement1\\LibraryManagement\\Views\\Accounts\\AccountsView.xaml",
               "RelativeDocumentMoniker": "LibraryManagement\\Views\\Accounts\\AccountsView.xaml",
@@ -293,7 +306,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 12,
+              "DocumentIndex": 13,
               "Title": "EditAccountDialog.xaml",
               "DocumentMoniker": "C:\\Users\\Admin\\LibraryManagement1\\LibraryManagement\\Views\\Accounts\\EditAccountDialog.xaml",
               "RelativeDocumentMoniker": "LibraryManagement\\Views\\Accounts\\EditAccountDialog.xaml",
@@ -324,18 +337,6 @@
               "RelativeToolTip": "LibraryManagement\\Views\\Auth\\LoginView.xaml",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.003549|",
               "WhenOpened": "2026-09-14T03:15:41.428Z"
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 14,
-              "Title": "UserService.cs",
-              "DocumentMoniker": "C:\\Users\\Admin\\LibraryManagement1\\LibraryManagement\\Services\\UserService.cs",
-              "RelativeDocumentMoniker": "LibraryManagement\\Services\\UserService.cs",
-              "ToolTip": "C:\\Users\\Admin\\LibraryManagement1\\LibraryManagement\\Services\\UserService.cs",
-              "RelativeToolTip": "LibraryManagement\\Services\\UserService.cs",
-              "ViewState": "AgIAAAAAAAAAAAAAAAAAABQAAAAyAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2026-09-14T02:17:00.66Z"
             },
             {
               "$type": "Document",
@@ -389,10 +390,6 @@
           "DockedWidth": 466,
           "SelectedChildIndex": -1,
           "Children": [
-            {
-              "$type": "Bookmark",
-              "Name": "ST:0:0:{34e76e81-ee4a-11d0-ae2e-00a0c90fffc3}"
-            },
             {
               "$type": "Bookmark",
               "Name": "ST:1:0:{d212f56b-c48a-434c-a121-1c5d80b59b9f}"

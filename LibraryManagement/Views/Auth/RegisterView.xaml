@@ -68,7 +68,7 @@
             <Setter Property="PasswordChar" Value="●"/>
             <Setter Property="BorderThickness" Value="0,0,0,1"/>
             <Setter Property="BorderBrush" Value="#E2E8F0"/>
-            <Setter Property="Padding" Value="0,6,28,8"/>
+            <Setter Property="Padding" Value="0,6,36,8"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="PasswordBox">
@@ -81,17 +81,70 @@
                                               Margin="{TemplateBinding Padding}"
                                               VerticalAlignment="Center"/>
                             </Border>
-
-                            <!-- Right Circle Glyph -->
-                            <Ellipse Width="12" Height="12"
-                                     Stroke="#CBD5E1" StrokeThickness="1.5"
-                                     HorizontalAlignment="Right" VerticalAlignment="Center"
-                                     Margin="0,0,6,0" IsHitTestVisible="False"/>
                         </Grid>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsKeyboardFocused" Value="True">
                                 <Setter TargetName="BottomLine" Property="BorderBrush" Value="#6366F1"/>
                                 <Setter TargetName="BottomLine" Property="BorderThickness" Value="0,0,0,1.8"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Underline Password Visible TextBox Style -->
+        <Style x:Key="ModernUnderlinePasswordVisibleTextBoxStyle" TargetType="TextBox">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="#1E293B"/>
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="CaretBrush" Value="#6366F1"/>
+            <Setter Property="BorderThickness" Value="0,0,0,1"/>
+            <Setter Property="BorderBrush" Value="#E2E8F0"/>
+            <Setter Property="Padding" Value="0,6,36,8"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="TextBox">
+                        <Grid>
+                            <Border x:Name="BottomLine"
+                                    BorderBrush="{TemplateBinding BorderBrush}"
+                                    BorderThickness="{TemplateBinding BorderThickness}"
+                                    Background="{TemplateBinding Background}">
+                                <ScrollViewer x:Name="PART_ContentHost"
+                                              Margin="{TemplateBinding Padding}"
+                                              VerticalAlignment="Center"/>
+                            </Border>
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsKeyboardFocused" Value="True">
+                                <Setter TargetName="BottomLine" Property="BorderBrush" Value="#6366F1"/>
+                                <Setter TargetName="BottomLine" Property="BorderThickness" Value="0,0,0,1.8"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Auth Eye Toggle Button Style -->
+        <Style x:Key="ModernAuthEyeToggleButtonStyle" TargetType="Button" BasedOn="{StaticResource PasswordEyeToggleButtonStyle}">
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Bd"
+                                Background="{TemplateBinding Background}"
+                                CornerRadius="14"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#EEF2FF"/>
+                                <Setter Property="Foreground" Value="#6366F1"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#E0E7FF"/>
+                                <Setter Property="Foreground" Value="#4F46E5"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -189,16 +242,30 @@
                            Margin="0,0,0,4"/>
                 <Grid>
                     <PasswordBox x:Name="TxtRegPassword"
-                                 PasswordChanged="TxtRegPassword_PasswordChanged"
                                  Style="{StaticResource ModernUnderlinePasswordBoxStyle}"/>
+                    <TextBox x:Name="TxtRegPasswordVisible"
+                             Visibility="Collapsed"
+                             Style="{StaticResource ModernUnderlinePasswordVisibleTextBoxStyle}"/>
                     <TextBlock x:Name="PlaceholderPassword"
                                Text="At least 6 characters or more"
                                Foreground="#94A3B8"
                                FontSize="14"
-                               Margin="0,6,28,8"
+                               Margin="0,6,36,8"
                                VerticalAlignment="Center"
                                IsHitTestVisible="False"
                                Visibility="Visible"/>
+                    <Button x:Name="BtnToggleRegPassword"
+                            HorizontalAlignment="Right"
+                            VerticalAlignment="Center"
+                            Margin="0,0,0,4"
+                            Style="{StaticResource ModernAuthEyeToggleButtonStyle}"
+                            ToolTip="Show password">
+                        <Path x:Name="IconRegPasswordToggle"
+                              Data="M 2,12 C 6,5 18,5 22,12 C 18,19 6,19 2,12 Z M 12,8.5 C 10.07,8.5 8.5,10.07 8.5,12 C 8.5,13.93 10.07,15.5 12,15.5 C 13.93,15.5 15.5,13.93 15.5,12 C 15.5,10.07 13.93,8.5 12,8.5 Z"
+                              Stroke="{Binding Path=Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                              StrokeThickness="1.6" StrokeLineJoin="Round" StrokeStartLineCap="Round" StrokeEndLineCap="Round"
+                              Fill="Transparent" Width="17" Height="13" Stretch="Uniform"/>
+                    </Button>
                 </Grid>
             </StackPanel>
 

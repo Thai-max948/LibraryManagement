@@ -14,7 +14,22 @@
         </Style>
         <Style x:Key="FormPasswordBoxStyle" TargetType="PasswordBox">
             <Setter Property="Height" Value="38"/>
-            <Setter Property="Padding" Value="10,7"/>
+            <Setter Property="Padding" Value="10,7,36,7"/>
+            <Setter Property="Background" Value="White"/>
+            <Setter Property="Foreground" Value="{StaticResource TextBrush}"/>
+            <Setter Property="BorderBrush" Value="#CBD5E1"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Style.Triggers>
+                <Trigger Property="IsKeyboardFocused" Value="True">
+                    <Setter Property="BorderBrush" Value="{StaticResource PrimaryBrush}"/>
+                    <Setter Property="BorderThickness" Value="2"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+        <Style x:Key="FormTextBoxStyle" TargetType="TextBox">
+            <Setter Property="Height" Value="38"/>
+            <Setter Property="Padding" Value="10,7,36,7"/>
             <Setter Property="Background" Value="White"/>
             <Setter Property="Foreground" Value="{StaticResource TextBrush}"/>
             <Setter Property="BorderBrush" Value="#CBD5E1"/>
@@ -84,14 +99,42 @@
                              TextChanged="InputChanged" Margin="0,5,0,16"/>
 
                     <TextBlock Text="Password *" Style="{StaticResource FormLabelStyle}"/>
-                    <PasswordBox x:Name="TxtPassword" Style="{StaticResource FormPasswordBoxStyle}"
-                                 PasswordChanged="InputChanged" Margin="0,5,0,4"/>
+                    <Grid Margin="0,5,0,4">
+                        <PasswordBox x:Name="TxtPassword" Style="{StaticResource FormPasswordBoxStyle}"/>
+                        <TextBox x:Name="TxtPasswordVisible" Style="{StaticResource FormTextBoxStyle}" Visibility="Collapsed"/>
+                        <Button x:Name="BtnTogglePassword"
+                                HorizontalAlignment="Right"
+                                VerticalAlignment="Center"
+                                Margin="0,0,5,0"
+                                Style="{StaticResource PasswordEyeToggleButtonStyle}"
+                                ToolTip="Show password">
+                            <Path x:Name="IconPasswordToggle"
+                                  Data="M 2,12 C 6,5 18,5 22,12 C 18,19 6,19 2,12 Z M 12,8.5 C 10.07,8.5 8.5,10.07 8.5,12 C 8.5,13.93 10.07,15.5 12,15.5 C 13.93,15.5 15.5,13.93 15.5,12 C 15.5,10.07 13.93,8.5 12,8.5 Z"
+                                  Stroke="{Binding Path=Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                                  StrokeThickness="1.6" StrokeLineJoin="Round" StrokeStartLineCap="Round" StrokeEndLineCap="Round"
+                                  Fill="Transparent" Width="17" Height="13" Stretch="Uniform"/>
+                        </Button>
+                    </Grid>
                     <TextBlock Text="Use at least 6 characters." FontSize="12"
                                Foreground="{StaticResource SecondaryTextBrush}" Margin="0,0,0,16"/>
 
                     <TextBlock Text="Confirm password *" Style="{StaticResource FormLabelStyle}"/>
-                    <PasswordBox x:Name="TxtConfirmPassword" Style="{StaticResource FormPasswordBoxStyle}"
-                                 PasswordChanged="InputChanged" Margin="0,5,0,12"/>
+                    <Grid Margin="0,5,0,12">
+                        <PasswordBox x:Name="TxtConfirmPassword" Style="{StaticResource FormPasswordBoxStyle}"/>
+                        <TextBox x:Name="TxtConfirmPasswordVisible" Style="{StaticResource FormTextBoxStyle}" Visibility="Collapsed"/>
+                        <Button x:Name="BtnToggleConfirmPassword"
+                                HorizontalAlignment="Right"
+                                VerticalAlignment="Center"
+                                Margin="0,0,5,0"
+                                Style="{StaticResource PasswordEyeToggleButtonStyle}"
+                                ToolTip="Show password">
+                            <Path x:Name="IconConfirmPasswordToggle"
+                                  Data="M 2,12 C 6,5 18,5 22,12 C 18,19 6,19 2,12 Z M 12,8.5 C 10.07,8.5 8.5,10.07 8.5,12 C 8.5,13.93 10.07,15.5 12,15.5 C 13.93,15.5 15.5,13.93 15.5,12 C 15.5,10.07 13.93,8.5 12,8.5 Z"
+                                  Stroke="{Binding Path=Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                                  StrokeThickness="1.6" StrokeLineJoin="Round" StrokeStartLineCap="Round" StrokeEndLineCap="Round"
+                                  Fill="Transparent" Width="17" Height="13" Stretch="Uniform"/>
+                        </Button>
+                    </Grid>
 
                     <Border x:Name="ErrorPanel" Background="#FFF1F2" BorderBrush="#FECDD3"
                             BorderThickness="1" CornerRadius="6" Padding="10" Visibility="Collapsed">

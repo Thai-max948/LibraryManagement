@@ -1,8 +1,8 @@
-﻿using LibraryManagement.Data;
-using LibraryManagement.Models;
-using Microsoft.Data.SqlClient;
 using System;
 using System.Collections.Generic;
+using LibraryManagement.Data;
+using LibraryManagement.Models;
+using Microsoft.Data.SqlClient;
 
 namespace LibraryManagement.Repositories
 {
@@ -26,13 +26,15 @@ namespace LibraryManagement.Repositories
                 using (var reader = cmd.ExecuteReader())
                 {
                     while (reader.Read())
+                    {
                         readers.Add(MapToReader(reader));
+                    }
                 }
             }
             return readers;
         }
 
-        public Reader GetById(int id)
+        public Reader? GetById(int id)
         {
             using (var conn = _db.GetConnection())
             {
@@ -44,15 +46,16 @@ namespace LibraryManagement.Repositories
                     using (var reader = cmd.ExecuteReader())
                     {
                         if (reader.Read())
+                        {
                             return MapToReader(reader);
+                        }
                     }
                 }
             }
             return null;
         }
 
-        // Trả về ReaderId vừa insert.
-        public int Add(Reader r)
+        public int Add(Reader reader)
         {
             using (var conn = _db.GetConnection())
             {
@@ -62,16 +65,15 @@ namespace LibraryManagement.Repositories
                                VALUES (@FullName, @Phone, @Email)";
                 using (var cmd = new SqlCommand(sql, conn))
                 {
-                    cmd.Parameters.AddWithValue("@FullName", r.FullName);
-                    cmd.Parameters.AddWithValue("@Phone", (object)r.Phone ?? DBNull.Value);
-                    cmd.Parameters.AddWithValue("@Email", (object)r.Email ?? DBNull.Value);
+                    cmd.Parameters.AddWithValue("@FullName", reader.FullName);
+                    cmd.Parameters.AddWithValue("@Phone", (object)reader.Phone ?? DBNull.Value);
+                    cmd.Parameters.AddWithValue("@Email", (object)reader.Email ?? DBNull.Value);
                     return (int)cmd.ExecuteScalar();
                 }
             }
         }
 
-        // Trả về false nếu ReaderId không tồn tại.
-        public bool Update(Reader r)
+        public bool Update(Reader reader)
         {
             using (var conn = _db.GetConnection())
             {
@@ -83,17 +85,15 @@ namespace LibraryManagement.Repositories
                                WHERE ReaderId = @ReaderId";
                 using (var cmd = new SqlCommand(sql, conn))
                 {
-                    cmd.Parameters.AddWithValue("@ReaderId", r.ReaderId);
-                    cmd.Parameters.AddWithValue("@FullName", r.FullName);
-                    cmd.Parameters.AddWithValue("@Phone", (object)r.Phone ?? DBNull.Value);
-                    cmd.Parameters.AddWithValue("@Email", (object)r.Email ?? DBNull.Value);
+                    cmd.Parameters.AddWithValue("@ReaderId", reader.ReaderId);
+                    cmd.Parameters.AddWithValue("@FullName", reader.FullName);
+                    cmd.Parameters.AddWithValue("@Phone", (object)reader.Phone ?? DBNull.Value);
+                    cmd.Parameters.AddWithValue("@Email", (object)reader.Email ?? DBNull.Value);
                     return cmd.ExecuteNonQuery() > 0;
                 }
             }
         }
 
-        // Chỉ xóa thẳng. Chặn xóa khi còn sách chưa trả -> ReaderService.DeleteReader() (Bước 4).
-        // Trả về false nếu ReaderId không tồn tại.
         public bool Delete(int id)
         {
             using (var conn = _db.GetConnection())
@@ -123,14 +123,16 @@ namespace LibraryManagement.Repositories
                     using (var reader = cmd.ExecuteReader())
                     {
                         while (reader.Read())
+                        {
                             readers.Add(MapToReader(reader));
+                        }
                     }
                 }
             }
             return readers;
         }
 
-        private Reader MapToReader(SqlDataReader reader)
+        private static Reader MapToReader(SqlDataReader reader)
         {
             int phoneOrdinal = reader.GetOrdinal("Phone");
             int emailOrdinal = reader.GetOrdinal("Email");
@@ -138,8 +140,8 @@ namespace LibraryManagement.Repositories
             {
                 ReaderId = reader.GetInt32(reader.GetOrdinal("ReaderId")),
                 FullName = reader.GetString(reader.GetOrdinal("FullName")),
-                Phone = reader.IsDBNull(phoneOrdinal) ? null : reader.GetString(phoneOrdinal),
-                Email = reader.IsDBNull(emailOrdinal) ? null : reader.GetString(emailOrdinal)
+                Phone = reader.IsDBNull(phoneOrdinal) ? string.Empty : reader.GetString(phoneOrdinal),
+                Email = reader.IsDBNull(emailOrdinal) ? string.Empty : reader.GetString(emailOrdinal)
             };
         }
     }

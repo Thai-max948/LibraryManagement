@@ -1,9 +1,7 @@
-﻿using System;
+using System;
 
 namespace LibraryManagement.Models
 {
-
-
     public class BorrowRecord
     {
         public int BorrowId { get; set; }
@@ -12,6 +10,6 @@ namespace LibraryManagement.Models
         public DateTime BorrowDate { get; set; }
         public DateTime DueDate { get; set; }
         public DateTime? ReturnDate { get; set; }
-        public string Status { get; set; }
+        public string Status { get; set; } = string.Empty;
     }
 }

@@ -18,7 +18,45 @@ namespace LibraryManagement.ViewModels
         public string Username => CurrentUser?.Username ?? "user";
         public string Email => CurrentUser?.Email ?? "user@library.com";
         public string Role => CurrentUser?.Role ?? "Librarian";
+        public string RoleHeader => $"Role: {Role}";
         public string CreatedAtFormatted => CurrentUser?.CreatedAt.ToString("yyyy-MM-dd HH:mm") ?? "N/A";
+        public string MemberSinceFormatted => CurrentUser?.CreatedAt.ToString("dd/MM/yyyy") ?? DateTime.Now.ToString("dd/MM/yyyy");
+
+        public string Initials
+        {
+            get
+            {
+                if (string.IsNullOrWhiteSpace(FullName))
+                {
+                    return "US";
+                }
+                if (string.Equals(FullName, "Thai Nguyen", StringComparison.OrdinalIgnoreCase))
+                {
+                    return "TH";
+                }
+                if (string.Equals(FullName, "Le Anh", StringComparison.OrdinalIgnoreCase))
+                {
+                    return "LA";
+                }
+
+                var parts = FullName.Trim().Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                if (parts.Length == 1)
+                {
+                    return parts[0].Length >= 2
+                        ? parts[0].Substring(0, 2).ToUpperInvariant()
+                        : parts[0].ToUpperInvariant();
+                }
+                return $"{parts[0][0]}{parts[parts.Length - 1][0]}".ToUpperInvariant();
+            }
+        }
+
+        public bool IsAdmin => string.Equals(Role, "Administrator", StringComparison.OrdinalIgnoreCase);
+        public Visibility ChangePasswordButtonVisibility => IsAdmin ? Visibility.Collapsed : Visibility.Visible;
+        public Visibility AdminPasswordNoteVisibility => IsAdmin ? Visibility.Visible : Visibility.Collapsed;
+
+        public Visibility UserAccountsCheckVisibility => IsAdmin ? Visibility.Visible : Visibility.Collapsed;
+        public Visibility UserAccountsLockVisibility => IsAdmin ? Visibility.Collapsed : Visibility.Visible;
+        public double UserAccountsOpacity => IsAdmin ? 1.0 : 0.45;
 
         public string ProjectName => "Library Management System (Library OS)";
         public string ProjectVersion => "v2.4 Core Node";
@@ -114,6 +152,43 @@ namespace LibraryManagement.ViewModels
             set => SetProperty(ref _isPasswordError, value);
         }
 
+        public enum ActiveSidePanel
+        {
+            None,
+            EditProfile,
+            ChangePassword
+        }
+
+        private ActiveSidePanel _currentSidePanel = ActiveSidePanel.None;
+        public ActiveSidePanel CurrentSidePanel
+        {
+            get => _currentSidePanel;
+            set
+            {
+                if (SetProperty(ref _currentSidePanel, value))
+                {
+                    OnPropertyChanged(nameof(IsSidePanelOpen));
+                    OnPropertyChanged(nameof(IsEditProfileOpen));
+                    OnPropertyChanged(nameof(IsChangePasswordOpen));
+                    OnPropertyChanged(nameof(IsOverviewOpen));
+                    OnPropertyChanged(nameof(SidePanelVisibility));
+                    OnPropertyChanged(nameof(EditProfileVisibility));
+                    OnPropertyChanged(nameof(ChangePasswordVisibility));
+                    OnPropertyChanged(nameof(OverviewVisibility));
+                }
+            }
+        }
+
+        public bool IsSidePanelOpen => CurrentSidePanel != ActiveSidePanel.None;
+        public bool IsEditProfileOpen => CurrentSidePanel == ActiveSidePanel.EditProfile;
+        public bool IsChangePasswordOpen => CurrentSidePanel == ActiveSidePanel.ChangePassword;
+        public bool IsOverviewOpen => CurrentSidePanel == ActiveSidePanel.None;
+
+        public Visibility SidePanelVisibility => IsSidePanelOpen ? Visibility.Visible : Visibility.Collapsed;
+        public Visibility EditProfileVisibility => IsEditProfileOpen ? Visibility.Visible : Visibility.Collapsed;
+        public Visibility ChangePasswordVisibility => IsChangePasswordOpen ? Visibility.Visible : Visibility.Collapsed;
+        public Visibility OverviewVisibility => IsOverviewOpen ? Visibility.Visible : Visibility.Collapsed;
+
         // Selected Tab (0 = My Project, 1 = Edit Profile, 2 = Change Password)
         private int _selectedTabIndex = 0;
         public int SelectedTabIndex
@@ -123,6 +198,9 @@ namespace LibraryManagement.ViewModels
         }
 
         public ICommand SelectTabCommand { get; }
+        public ICommand ToggleEditProfileCommand { get; }
+        public ICommand ToggleChangePasswordCommand { get; }
+        public ICommand CloseSidePanelCommand { get; }
         public ICommand SaveProfileCommand { get; }
         public ICommand ChangePasswordCommand { get; }
         public ICommand ResetProfileFieldsCommand { get; }
@@ -137,6 +215,42 @@ namespace LibraryManagement.ViewModels
                     ProfileMessage = "";
                     PasswordMessage = "";
                 }
+            });
+
+            ToggleEditProfileCommand = new RelayCommand(_ =>
+            {
+                if (CurrentSidePanel == ActiveSidePanel.EditProfile)
+                {
+                    CurrentSidePanel = ActiveSidePanel.None;
+                }
+                else
+                {
+                    LoadUserData();
+                    CurrentSidePanel = ActiveSidePanel.EditProfile;
+                }
+                ProfileMessage = "";
+                PasswordMessage = "";
+            });
+
+            ToggleChangePasswordCommand = new RelayCommand(_ =>
+            {
+                if (CurrentSidePanel == ActiveSidePanel.ChangePassword)
+                {
+                    CurrentSidePanel = ActiveSidePanel.None;
+                }
+                else
+                {
+                    CurrentSidePanel = ActiveSidePanel.ChangePassword;
+                }
+                ProfileMessage = "";
+                PasswordMessage = "";
+            });
+
+            CloseSidePanelCommand = new RelayCommand(_ =>
+            {
+                CurrentSidePanel = ActiveSidePanel.None;
+                ProfileMessage = "";
+                PasswordMessage = "";
             });
 
             SaveProfileCommand = new RelayCommand(_ => ExecuteSaveProfile());
@@ -158,6 +272,15 @@ namespace LibraryManagement.ViewModels
             OnPropertyChanged(nameof(Username));
             OnPropertyChanged(nameof(Email));
             OnPropertyChanged(nameof(Role));
+            OnPropertyChanged(nameof(RoleHeader));
+            OnPropertyChanged(nameof(Initials));
+            OnPropertyChanged(nameof(MemberSinceFormatted));
+            OnPropertyChanged(nameof(IsAdmin));
+            OnPropertyChanged(nameof(ChangePasswordButtonVisibility));
+            OnPropertyChanged(nameof(AdminPasswordNoteVisibility));
+            OnPropertyChanged(nameof(UserAccountsCheckVisibility));
+            OnPropertyChanged(nameof(UserAccountsLockVisibility));
+            OnPropertyChanged(nameof(UserAccountsOpacity));
             OnPropertyChanged(nameof(UserId));
             OnPropertyChanged(nameof(CreatedAtFormatted));
             OnPropertyChanged(nameof(PermissionsSummary));
@@ -165,7 +288,10 @@ namespace LibraryManagement.ViewModels
 
         private void ExecuteSaveProfile()
         {
-            if (CurrentUser == null) return;
+            if (CurrentUser == null)
+            {
+                return;
+            }
 
             var result = _userService.UpdateSelfProfile(
                 CurrentUser.Id,
@@ -179,7 +305,8 @@ namespace LibraryManagement.ViewModels
                 IsProfileSuccess = true;
                 IsProfileError = false;
                 LoadUserData();
-                MessageBox.Show("changed succesfully", "Notification", MessageBoxButton.OK, MessageBoxImage.Information);
+                MessageBox.Show("Profile updated successfully", "Notification", MessageBoxButton.OK, MessageBoxImage.Information);
+                CurrentSidePanel = ActiveSidePanel.None;
             }
             else
             {
@@ -191,7 +318,10 @@ namespace LibraryManagement.ViewModels
 
         private void ExecuteChangePassword()
         {
-            if (CurrentUser == null) return;
+            if (CurrentUser == null)
+            {
+                return;
+            }
 
             var result = _userService.ChangePassword(
                 CurrentUser.Id,
@@ -207,7 +337,8 @@ namespace LibraryManagement.ViewModels
                 CurrentPassword = "";
                 NewPassword = "";
                 ConfirmPassword = "";
-                MessageBox.Show("changed succesfully", "Notification", MessageBoxButton.OK, MessageBoxImage.Information);
+                MessageBox.Show("Password changed successfully", "Notification", MessageBoxButton.OK, MessageBoxImage.Information);
+                CurrentSidePanel = ActiveSidePanel.None;
             }
             else
             {

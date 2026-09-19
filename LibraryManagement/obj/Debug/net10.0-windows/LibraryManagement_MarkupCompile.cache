@@ -12,7 +12,7 @@ TRACE;DEBUG;NET;NET10_0;NETCOREAPP;WINDOWS;WINDOWS7_0;NET5_0_OR_GREATER;NET6_0_O
 C:\Users\Admin\LibraryManagement1\LibraryManagement\App.xaml
 18-1092738189
 
-491824337885
+50-381407429
 221-1077890709
 Views\Accounts\AccountsView.xaml;Views\Accounts\CreateAccountDialog.xaml;Views\Accounts\EditAccountDialog.xaml;Views\Accounts\MyAccountView.xaml;Views\AuthWindow.xaml;Views\Auth\LoginView.xaml;Views\Auth\RegisterView.xaml;Views\Books\AddBookDialog.xaml;Views\Books\BooksView.xaml;Views\Books\EditBookDialog.xaml;Views\BorrowView.xaml;Views\DashboardView.xaml;Views\HistoryView.xaml;Views\MainWindow.xaml;Views\Readers\AddReaderDialog.xaml;Views\Readers\EditReaderDialog.xaml;Views\Readers\ReadersView.xaml;Views\ReturnView.xaml;
 

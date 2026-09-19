@@ -14,6 +14,13 @@ namespace LibraryManagement.Views.Auth
         {
             InitializeComponent();
             DataContextChanged += RegisterView_DataContextChanged;
+
+            LibraryManagement.Helpers.PasswordBoxHelper.SetupPasswordToggle(
+                TxtRegPassword,
+                TxtRegPasswordVisible,
+                BtnToggleRegPassword,
+                IconRegPasswordToggle,
+                pwd => PlaceholderPassword.Visibility = string.IsNullOrEmpty(pwd) ? Visibility.Visible : Visibility.Collapsed);
         }
 
         private void RegisterView_DataContextChanged(object sender, DependencyPropertyChangedEventArgs e)
@@ -52,13 +59,6 @@ namespace LibraryManagement.Views.Auth
                     TxtStatus.Foreground = new SolidColorBrush(Color.FromRgb(22, 163, 74));
                 }
             }
-        }
-
-        private void TxtRegPassword_PasswordChanged(object sender, RoutedEventArgs e)
-        {
-            PlaceholderPassword.Visibility = string.IsNullOrEmpty(TxtRegPassword.Password)
-                ? Visibility.Visible
-                : Visibility.Collapsed;
         }
 
         private void BtnRegister_Click(object sender, RoutedEventArgs e)

@@ -1,11 +1,11 @@
-﻿using LibraryManagement.Models;
-using LibraryManagement.Services;
-using LibraryManagement.Commands;
 using System;
 using System.Collections.ObjectModel;
 using System.Linq;
 using System.Windows;
 using System.Windows.Input;
+using LibraryManagement.Commands;
+using LibraryManagement.Models;
+using LibraryManagement.Services;
 
 namespace LibraryManagement.ViewModels
 {
@@ -19,15 +19,15 @@ namespace LibraryManagement.ViewModels
         public ObservableCollection<Book> Books { get; set; } = new ObservableCollection<Book>();
         public ObservableCollection<BorrowRow> CurrentBorrowings { get; set; } = new ObservableCollection<BorrowRow>();
 
-        private Reader _selectedReader;
-        public Reader SelectedReader
+        private Reader? _selectedReader;
+        public Reader? SelectedReader
         {
             get => _selectedReader;
             set => SetProperty(ref _selectedReader, value);
         }
 
-        private Book _selectedBook;
-        public Book SelectedBook
+        private Book? _selectedBook;
+        public Book? SelectedBook
         {
             get => _selectedBook;
             set => SetProperty(ref _selectedBook, value);
@@ -69,11 +69,15 @@ namespace LibraryManagement.ViewModels
             {
                 Readers.Clear();
                 foreach (var r in _readerService.GetAllReaders())
+                {
                     Readers.Add(r);
+                }
 
                 Books.Clear();
                 foreach (var b in _bookService.GetAllBooks())
+                {
                     Books.Add(b);
+                }
             }
             catch (Exception ex)
             {
@@ -145,9 +149,9 @@ namespace LibraryManagement.ViewModels
 
     public class BorrowRow
     {
-        public string ReaderName { get; set; }
-        public string BookTitle { get; set; }
-        public string BorrowDate { get; set; }
-        public string DueDate { get; set; }
+        public string ReaderName { get; set; } = string.Empty;
+        public string BookTitle { get; set; } = string.Empty;
+        public string BorrowDate { get; set; } = string.Empty;
+        public string DueDate { get; set; } = string.Empty;
     }
 }

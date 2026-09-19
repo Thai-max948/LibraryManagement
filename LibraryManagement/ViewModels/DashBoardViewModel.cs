@@ -1,16 +1,16 @@
-﻿using LibraryManagement.Services;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Windows;
+using LibraryManagement.Services;
 
 namespace LibraryManagement.ViewModels
 {
     public class DashboardViewModel : BaseViewModel
     {
-        private readonly BookService _bookService = new BookService();
-        private readonly ReaderService _readerService = new ReaderService();
-        private readonly BorrowService _borrowService = new BorrowService();
+        private readonly BookService _bookService = new();
+        private readonly ReaderService _readerService = new();
+        private readonly BorrowService _borrowService = new();
 
         private int _totalBooks;
         public int TotalBooks
@@ -47,8 +47,8 @@ namespace LibraryManagement.ViewModels
             set => SetProperty(ref _overdueBooks, value);
         }
 
-        public List<RecentBorrowRow> RecentBorrowings { get; set; } = new List<RecentBorrowRow>();
-        public List<RecentReturnRow> RecentReturnings { get; set; } = new List<RecentReturnRow>();
+        public List<RecentBorrowRow> RecentBorrowings { get; set; } = new();
+        public List<RecentReturnRow> RecentReturnings { get; set; } = new();
 
         public DashboardViewModel()
         {
@@ -62,7 +62,7 @@ namespace LibraryManagement.ViewModels
                 var books = _bookService.GetAllBooks();
                 var readers = _readerService.GetAllReaders();
                 var borrowing = _borrowService.GetBorrowingBooks();
-                var allHistory = _borrowService.GetHistory(); // toàn bộ record, không phân biệt Status
+                var allHistory = _borrowService.GetHistory();
 
                 TotalBooks = books.Sum(b => b.Quantity);
                 TotalReaders = readers.Count;
@@ -70,7 +70,6 @@ namespace LibraryManagement.ViewModels
                 CurrentlyBorrowed = borrowing.Count;
                 OverdueBooks = borrowing.Count(r => r.DueDate.Date < DateTime.Now.Date);
 
-                // Recent Borrowings: lấy từ toàn bộ history, không mất khi đã trả
                 RecentBorrowings = allHistory
                     .OrderByDescending(r => r.BorrowId)
                     .Take(5)
@@ -87,7 +86,6 @@ namespace LibraryManagement.ViewModels
                     })
                     .ToList();
 
-                // Recent Returnings: chỉ lấy record đã trả, sort theo ReturnDate mới nhất
                 RecentReturnings = allHistory
                     .Where(r => r.Status == "Returned" && r.ReturnDate.HasValue)
                     .OrderByDescending(r => r.ReturnDate)
@@ -100,7 +98,7 @@ namespace LibraryManagement.ViewModels
                         {
                             ReaderName = reader?.FullName ?? "?",
                             BookTitle = book?.Title ?? "?",
-                            ReturnDate = r.ReturnDate.Value.ToString("dd/MM/yyyy")
+                            ReturnDate = r.ReturnDate?.ToString("dd/MM/yyyy") ?? "-"
                         };
                     })
                     .ToList();
@@ -117,15 +115,15 @@ namespace LibraryManagement.ViewModels
 
     public class RecentBorrowRow
     {
-        public string ReaderName { get; set; }
-        public string BookTitle { get; set; }
-        public string BorrowDate { get; set; }
+        public string ReaderName { get; set; } = string.Empty;
+        public string BookTitle { get; set; } = string.Empty;
+        public string BorrowDate { get; set; } = string.Empty;
     }
 
     public class RecentReturnRow
     {
-        public string ReaderName { get; set; }
-        public string BookTitle { get; set; }
-        public string ReturnDate { get; set; }
+        public string ReaderName { get; set; } = string.Empty;
+        public string BookTitle { get; set; } = string.Empty;
+        public string ReturnDate { get; set; } = string.Empty;
     }
 }
