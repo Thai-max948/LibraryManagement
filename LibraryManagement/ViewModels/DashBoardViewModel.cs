@@ -8,9 +8,9 @@ namespace LibraryManagement.ViewModels
 {
     public class DashboardViewModel : BaseViewModel
     {
-        private readonly BookService _bookService = new();
-        private readonly ReaderService _readerService = new();
-        private readonly BorrowService _borrowService = new();
+        private readonly BookService _bookService;
+        private readonly ReaderService _readerService;
+        private readonly BorrowService _borrowService;
 
         private int _totalBooks;
         public int TotalBooks
@@ -50,8 +50,15 @@ namespace LibraryManagement.ViewModels
         public List<RecentBorrowRow> RecentBorrowings { get; set; } = new();
         public List<RecentReturnRow> RecentReturnings { get; set; } = new();
 
-        public DashboardViewModel()
+        public DashboardViewModel() : this(new BookService(), new ReaderService(), new BorrowService())
         {
+        }
+
+        public DashboardViewModel(BookService bookService, ReaderService readerService, BorrowService borrowService)
+        {
+            _bookService = bookService;
+            _readerService = readerService;
+            _borrowService = borrowService;
             LoadData();
         }
 
@@ -60,12 +67,13 @@ namespace LibraryManagement.ViewModels
             try
             {
                 var books = _bookService.GetAllBooks();
-                var readers = _readerService.GetAllReaders();
+                var activeReaders = _readerService.GetAllReaders();
+                var allReaders = _readerService.GetAllReaders(includeDeleted: true);
                 var borrowing = _borrowService.GetBorrowingBooks();
                 var allHistory = _borrowService.GetHistory();
 
                 TotalBooks = books.Sum(b => b.Quantity);
-                TotalReaders = readers.Count;
+                TotalReaders = activeReaders.Count;
                 AvailableBooks = books.Sum(b => b.AvailableQuantity);
                 CurrentlyBorrowed = borrowing.Count;
                 OverdueBooks = borrowing.Count(r => r.DueDate.Date < DateTime.Now.Date);
@@ -76,10 +84,12 @@ namespace LibraryManagement.ViewModels
                     .Select(r =>
                     {
                         var book = books.FirstOrDefault(b => b.BookId == r.BookId);
-                        var reader = readers.FirstOrDefault(x => x.ReaderId == r.ReaderId);
+                        var reader = allReaders.FirstOrDefault(x => x.ReaderId == r.ReaderId);
                         return new RecentBorrowRow
                         {
-                            ReaderName = reader?.FullName ?? "?",
+                            ReaderName = reader != null
+                                ? (reader.IsDeleted ? $"{reader.FullName} (Đã xóa)" : reader.FullName)
+                                : "?",
                             BookTitle = book?.Title ?? "?",
                             BorrowDate = r.BorrowDate.ToString("dd/MM/yyyy")
                         };
@@ -93,10 +103,12 @@ namespace LibraryManagement.ViewModels
                     .Select(r =>
                     {
                         var book = books.FirstOrDefault(b => b.BookId == r.BookId);
-                        var reader = readers.FirstOrDefault(x => x.ReaderId == r.ReaderId);
+                        var reader = allReaders.FirstOrDefault(x => x.ReaderId == r.ReaderId);
                         return new RecentReturnRow
                         {
-                            ReaderName = reader?.FullName ?? "?",
+                            ReaderName = reader != null
+                                ? (reader.IsDeleted ? $"{reader.FullName} (Đã xóa)" : reader.FullName)
+                                : "?",
                             BookTitle = book?.Title ?? "?",
                             ReturnDate = r.ReturnDate?.ToString("dd/MM/yyyy") ?? "-"
                         };

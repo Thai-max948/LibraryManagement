@@ -13,15 +13,34 @@ namespace LibraryManagement.Services
 
         private readonly BookRepository _bookRepo;
         private readonly BorrowRepository _borrowRepo;
+        private readonly ReaderRepository _readerRepo;
 
-        public BorrowService()
+        public BorrowService() : this(new BookRepository(), new BorrowRepository(), new ReaderRepository())
         {
-            _bookRepo = new BookRepository();
-            _borrowRepo = new BorrowRepository();
+        }
+
+        public BorrowService(BookRepository bookRepo, BorrowRepository borrowRepo, ReaderRepository readerRepo)
+        {
+            _bookRepo = bookRepo;
+            _borrowRepo = borrowRepo;
+            _readerRepo = readerRepo;
         }
 
         public bool CanBorrow(int readerId, int bookId, out string reason)
         {
+            var reader = _readerRepo.GetById(readerId);
+            if (reader == null || reader.IsDeleted)
+            {
+                reason = "Độc giả không tồn tại hoặc đã bị xóa.";
+                return false;
+            }
+
+            if (reader.IsSuspended)
+            {
+                reason = "Độc giả đang bị tạm khóa (Suspended), không thể mượn sách.";
+                return false;
+            }
+
             var book = _bookRepo.GetById(bookId);
             if (book == null)
             {
@@ -58,6 +77,17 @@ namespace LibraryManagement.Services
             if (dueDate <= borrowDate)
             {
                 throw new BusinessRuleException("Ngày hẹn trả phải sau ngày mượn.");
+            }
+
+            var reader = _readerRepo.GetById(readerId);
+            if (reader == null || reader.IsDeleted)
+            {
+                throw new BusinessRuleException("Độc giả không tồn tại hoặc đã bị xóa.");
+            }
+
+            if (reader.IsSuspended)
+            {
+                throw new BusinessRuleException("Độc giả đang bị tạm khóa (Suspended), không thể mượn sách.");
             }
 
             using var conn = Database.GetConnection();

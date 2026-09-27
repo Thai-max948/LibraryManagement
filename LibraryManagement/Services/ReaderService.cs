@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
@@ -14,10 +15,14 @@ namespace LibraryManagement.Services
         private readonly ReaderRepository _readerRepo;
         private readonly BorrowRepository _borrowRepo;
 
-        public ReaderService()
+        public ReaderService() : this(new ReaderRepository(), new BorrowRepository())
         {
-            _readerRepo = new ReaderRepository();
-            _borrowRepo = new BorrowRepository();
+        }
+
+        public ReaderService(ReaderRepository readerRepo, BorrowRepository borrowRepo)
+        {
+            _readerRepo = readerRepo;
+            _borrowRepo = borrowRepo;
         }
 
         public int AddReader(Reader reader)
@@ -30,7 +35,8 @@ namespace LibraryManagement.Services
         {
             Validate(reader);
 
-            if (_readerRepo.GetById(reader.ReaderId) == null)
+            var existing = _readerRepo.GetById(reader.ReaderId);
+            if (existing == null || existing.IsDeleted)
             {
                 throw new BusinessRuleException("Độc giả không tồn tại.");
             }
@@ -43,6 +49,12 @@ namespace LibraryManagement.Services
 
         public void DeleteReader(int readerId)
         {
+            var reader = _readerRepo.GetById(readerId);
+            if (reader == null || reader.IsDeleted)
+            {
+                throw new BusinessRuleException("Độc giả không tồn tại.");
+            }
+
             bool hasActiveBorrow = _borrowRepo.GetBorrowingRecords().Any(r => r.ReaderId == readerId);
             if (hasActiveBorrow)
             {
@@ -51,18 +63,59 @@ namespace LibraryManagement.Services
 
             if (!_readerRepo.Delete(readerId))
             {
+                throw new BusinessRuleException("Độc giả không tồn tại hoặc xóa thất bại.");
+            }
+        }
+
+        public void ToggleStatus(int readerId)
+        {
+            var reader = _readerRepo.GetById(readerId);
+            if (reader == null || reader.IsDeleted)
+            {
                 throw new BusinessRuleException("Độc giả không tồn tại.");
             }
+
+            reader.Status = string.Equals(reader.Status, "Suspended", StringComparison.OrdinalIgnoreCase)
+                ? "Active"
+                : "Suspended";
+
+            if (!_readerRepo.Update(reader))
+            {
+                throw new BusinessRuleException("Cập nhật trạng thái độc giả thất bại.");
+            }
+        }
+
+        public Reader? GetReaderById(int readerId)
+        {
+            return _readerRepo.GetById(readerId);
         }
 
         public List<Reader> SearchReader(string keyword)
         {
-            return string.IsNullOrWhiteSpace(keyword) ? _readerRepo.GetAll() : _readerRepo.Search(keyword);
+            return SearchReader(keyword, "All", "All");
         }
 
-        public List<Reader> GetAllReaders()
+        public List<Reader> SearchReader(string keyword, string typeFilter, string statusFilter)
         {
-            return _readerRepo.GetAll();
+            bool isTypeAll = string.IsNullOrWhiteSpace(typeFilter) || string.Equals(typeFilter, "All", StringComparison.OrdinalIgnoreCase);
+            bool isStatusAll = string.IsNullOrWhiteSpace(statusFilter) || string.Equals(statusFilter, "All", StringComparison.OrdinalIgnoreCase);
+
+            if (string.IsNullOrWhiteSpace(keyword) && isTypeAll && isStatusAll)
+            {
+                return _readerRepo.GetAll();
+            }
+
+            if (isTypeAll && isStatusAll)
+            {
+                return _readerRepo.Search(keyword);
+            }
+
+            return _readerRepo.Search(keyword, typeFilter, statusFilter);
+        }
+
+        public List<Reader> GetAllReaders(bool includeDeleted = false)
+        {
+            return _readerRepo.GetAll(includeDeleted);
         }
 
         private static void Validate(Reader reader)
@@ -86,6 +139,21 @@ namespace LibraryManagement.Services
             if (!PhoneRegex.IsMatch(reader.Phone))
             {
                 throw new BusinessRuleException("Số điện thoại không hợp lệ.");
+            }
+
+            if (string.IsNullOrWhiteSpace(reader.ReaderType))
+            {
+                reader.ReaderType = "Student";
+            }
+
+            if (string.IsNullOrWhiteSpace(reader.Status))
+            {
+                reader.Status = "Active";
+            }
+
+            if (reader.RegistrationDate == default)
+            {
+                reader.RegistrationDate = DateTime.Now;
             }
         }
     }

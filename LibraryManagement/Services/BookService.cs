@@ -10,10 +10,14 @@ namespace LibraryManagement.Services
         private readonly BookRepository _bookRepo;
         private readonly BorrowRepository _borrowRepo;
 
-        public BookService()
+        public BookService() : this(new BookRepository(), new BorrowRepository())
         {
-            _bookRepo = new BookRepository();
-            _borrowRepo = new BorrowRepository();
+        }
+
+        public BookService(BookRepository bookRepo, BorrowRepository borrowRepo)
+        {
+            _bookRepo = bookRepo;
+            _borrowRepo = borrowRepo;
         }
 
         public int AddBook(Book book)

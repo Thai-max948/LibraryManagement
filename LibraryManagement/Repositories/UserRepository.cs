@@ -12,7 +12,7 @@ namespace LibraryManagement.Repositories
         {
         }
 
-        public List<User> GetAll()
+        public virtual List<User> GetAll()
         {
             var list = new List<User>();
             using var conn = Database.GetConnection();
@@ -27,7 +27,7 @@ namespace LibraryManagement.Repositories
             return list;
         }
 
-        public User? GetById(int id)
+        public virtual User? GetById(int id)
         {
             using var conn = Database.GetConnection();
             conn.Open();
@@ -38,7 +38,7 @@ namespace LibraryManagement.Repositories
             return reader.Read() ? MapToUser(reader) : null;
         }
 
-        public bool ExistsByEmail(string email, int excludeUserId = 0)
+        public virtual bool ExistsByEmail(string email, int excludeUserId = 0)
         {
             using var conn = Database.GetConnection();
             conn.Open();
@@ -52,7 +52,7 @@ namespace LibraryManagement.Repositories
             return cmd.ExecuteScalar() != null;
         }
 
-        public bool ExistsByUsername(string username, int excludeUserId = 0)
+        public virtual bool ExistsByUsername(string username, int excludeUserId = 0)
         {
             using var conn = Database.GetConnection();
             conn.Open();
@@ -66,7 +66,7 @@ namespace LibraryManagement.Repositories
             return cmd.ExecuteScalar() != null;
         }
 
-        public (bool Success, string Message, User? User) Add(User user, string password)
+        public virtual (bool Success, string Message, User? User) Add(User user, string password)
         {
             string hashedPassword = BCrypt.Net.BCrypt.HashPassword(password);
 
@@ -108,7 +108,7 @@ namespace LibraryManagement.Repositories
             }
         }
 
-        public bool Update(User user, string? newPassword = null)
+        public virtual bool Update(User user, string? newPassword = null)
         {
             using var conn = Database.GetConnection();
             conn.Open();
@@ -130,7 +130,7 @@ namespace LibraryManagement.Repositories
             return cmd.ExecuteNonQuery() > 0;
         }
 
-        public bool Delete(int id)
+        public virtual bool Delete(int id)
         {
             using var conn = Database.GetConnection();
             conn.Open();
@@ -140,7 +140,7 @@ namespace LibraryManagement.Repositories
             return cmd.ExecuteNonQuery() > 0;
         }
 
-        public (bool Success, string Message, User? User) Authenticate(string usernameOrEmail, string password)
+        public virtual (bool Success, string Message, User? User) Authenticate(string usernameOrEmail, string password)
         {
             string trimmed = usernameOrEmail.Trim();
 
@@ -185,7 +185,7 @@ namespace LibraryManagement.Repositories
                 : (false, "Invalid username/email or password.", null);
         }
 
-        public bool VerifyPassword(int userId, string password)
+        public virtual bool VerifyPassword(int userId, string password)
         {
             using var conn = Database.GetConnection();
             conn.Open();
@@ -208,7 +208,7 @@ namespace LibraryManagement.Repositories
             }
         }
 
-        public bool ChangePassword(int userId, string newPassword)
+        public virtual bool ChangePassword(int userId, string newPassword)
         {
             using var conn = Database.GetConnection();
             conn.Open();

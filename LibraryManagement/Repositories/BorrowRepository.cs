@@ -8,7 +8,7 @@ namespace LibraryManagement.Repositories
 {
     public class BorrowRepository
     {
-        public List<BorrowRecord> GetAll()
+        public virtual List<BorrowRecord> GetAll()
         {
             var records = new List<BorrowRecord>();
             using (var conn = Database.GetConnection())
@@ -28,7 +28,7 @@ namespace LibraryManagement.Repositories
             return records;
         }
 
-        public BorrowRecord? GetById(int borrowId)
+        public virtual BorrowRecord? GetById(int borrowId)
         {
             using (var conn = Database.GetConnection())
             {
@@ -37,7 +37,7 @@ namespace LibraryManagement.Repositories
             }
         }
 
-        public BorrowRecord? GetById(SqlConnection conn, SqlTransaction? tran, int borrowId)
+        public virtual BorrowRecord? GetById(SqlConnection conn, SqlTransaction? tran, int borrowId)
         {
             string sql = @"SELECT BorrowId, BookId, ReaderId, BorrowDate, DueDate, ReturnDate, Status
                            FROM BorrowRecords WHERE BorrowId = @BorrowId";
@@ -55,7 +55,7 @@ namespace LibraryManagement.Repositories
             return null;
         }
 
-        public int Add(BorrowRecord record)
+        public virtual int Add(BorrowRecord record)
         {
             using (var conn = Database.GetConnection())
             {
@@ -64,7 +64,7 @@ namespace LibraryManagement.Repositories
             }
         }
 
-        public int Add(SqlConnection conn, SqlTransaction? tran, BorrowRecord record)
+        public virtual int Add(SqlConnection conn, SqlTransaction? tran, BorrowRecord record)
         {
             string sql = @"INSERT INTO BorrowRecords (BookId, ReaderId, BorrowDate, DueDate, ReturnDate, Status)
                            OUTPUT INSERTED.BorrowId
@@ -81,7 +81,7 @@ namespace LibraryManagement.Repositories
             }
         }
 
-        public bool Update(BorrowRecord record)
+        public virtual bool Update(BorrowRecord record)
         {
             using (var conn = Database.GetConnection())
             {
@@ -90,7 +90,7 @@ namespace LibraryManagement.Repositories
             }
         }
 
-        public bool Update(SqlConnection conn, SqlTransaction? tran, BorrowRecord record)
+        public virtual bool Update(SqlConnection conn, SqlTransaction? tran, BorrowRecord record)
         {
             string sql = @"UPDATE BorrowRecords SET
                                BookId = @BookId,
@@ -113,7 +113,7 @@ namespace LibraryManagement.Repositories
             }
         }
 
-        public List<BorrowRecord> GetBorrowingRecords()
+        public virtual List<BorrowRecord> GetBorrowingRecords()
         {
             var records = new List<BorrowRecord>();
             using (var conn = Database.GetConnection())
@@ -137,7 +137,7 @@ namespace LibraryManagement.Repositories
             return records;
         }
 
-        public List<BorrowRecord> GetHistory(
+        public virtual List<BorrowRecord> GetHistory(
             int? readerId = null,
             int? bookId = null,
             string? status = null,
@@ -210,7 +210,7 @@ namespace LibraryManagement.Repositories
             return records;
         }
 
-        public int CountActiveBorrowsByReader(SqlConnection conn, SqlTransaction? tran, int readerId)
+        public virtual int CountActiveBorrowsByReader(SqlConnection conn, SqlTransaction? tran, int readerId)
         {
             string sql = "SELECT COUNT(*) FROM BorrowRecords WHERE ReaderId = @ReaderId AND Status = @Status";
             using (var cmd = new SqlCommand(sql, conn, tran))
@@ -221,7 +221,7 @@ namespace LibraryManagement.Repositories
             }
         }
 
-        public bool MarkAsReturned(SqlConnection conn, SqlTransaction? tran, int borrowId, DateTime returnDate)
+        public virtual bool MarkAsReturned(SqlConnection conn, SqlTransaction? tran, int borrowId, DateTime returnDate)
         {
             string sql = @"UPDATE BorrowRecords SET Status = @StatusReturned, ReturnDate = @ReturnDate
                            WHERE BorrowId = @BorrowId AND Status = @StatusBorrowing";

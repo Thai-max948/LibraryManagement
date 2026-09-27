@@ -52,9 +52,33 @@ BEGIN
     CREATE TABLE Readers (
         ReaderId INT IDENTITY(1,1) PRIMARY KEY,
         FullName NVARCHAR(150) NOT NULL,
+        ReaderType NVARCHAR(50) NOT NULL DEFAULT 'Student',
+        StudentId NVARCHAR(50) NULL,
+        IdentityNumber NVARCHAR(50) NULL,
         Phone NVARCHAR(20) NULL,
-        Email NVARCHAR(150) NULL
+        Email NVARCHAR(150) NULL,
+        Address NVARCHAR(255) NULL,
+        RegistrationDate DATETIME NOT NULL DEFAULT GETDATE(),
+        Status NVARCHAR(50) NOT NULL DEFAULT 'Active',
+        IsDeleted BIT NOT NULL DEFAULT 0
     );
+END
+ELSE
+BEGIN
+    IF NOT EXISTS (SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'Readers' AND COLUMN_NAME = 'ReaderType')
+        ALTER TABLE Readers ADD ReaderType NVARCHAR(50) NOT NULL DEFAULT 'Student';
+    IF NOT EXISTS (SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'Readers' AND COLUMN_NAME = 'StudentId')
+        ALTER TABLE Readers ADD StudentId NVARCHAR(50) NULL;
+    IF NOT EXISTS (SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'Readers' AND COLUMN_NAME = 'IdentityNumber')
+        ALTER TABLE Readers ADD IdentityNumber NVARCHAR(50) NULL;
+    IF NOT EXISTS (SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'Readers' AND COLUMN_NAME = 'Address')
+        ALTER TABLE Readers ADD Address NVARCHAR(255) NULL;
+    IF NOT EXISTS (SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'Readers' AND COLUMN_NAME = 'RegistrationDate')
+        ALTER TABLE Readers ADD RegistrationDate DATETIME NOT NULL DEFAULT GETDATE();
+    IF NOT EXISTS (SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'Readers' AND COLUMN_NAME = 'Status')
+        ALTER TABLE Readers ADD Status NVARCHAR(50) NOT NULL DEFAULT 'Active';
+    IF NOT EXISTS (SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'Readers' AND COLUMN_NAME = 'IsDeleted')
+        ALTER TABLE Readers ADD IsDeleted BIT NOT NULL DEFAULT 0;
 END
 GO
 
@@ -114,10 +138,10 @@ GO
 IF NOT EXISTS (SELECT 1 FROM Readers)
 BEGIN
     SET IDENTITY_INSERT Readers ON;
-    INSERT INTO Readers (ReaderId, FullName, Phone, Email) VALUES
-    (1, N'Nguyễn Văn A', '0901234567', 'nguyenvana@email.com'),
-    (2, N'Trần Văn B', '0912345678', 'tranvanb@email.com'),
-    (3, N'Lê Thị C', '0923456789', 'lethic@email.com');
+    INSERT INTO Readers (ReaderId, FullName, ReaderType, StudentId, IdentityNumber, Phone, Email, Address, RegistrationDate, Status, IsDeleted) VALUES
+    (1, N'Nguyễn Văn An', 'Student', '23A12345', NULL, '0901234567', 'nguyenvana@email.com', N'Hà Nội', '2026-09-01', 'Active', 0),
+    (2, N'Trần Minh Bảo', 'External', NULL, '001201007789', '0912345678', 'tranvanb@email.com', N'Thái Nguyên', '2026-09-02', 'Active', 0),
+    (3, N'Lê Thị Mai', 'Student', '23A54321', NULL, '0923456789', 'lethic@email.com', N'Đà Nẵng', '2026-09-05', 'Suspended', 0);
     SET IDENTITY_INSERT Readers OFF;
 END
 GO

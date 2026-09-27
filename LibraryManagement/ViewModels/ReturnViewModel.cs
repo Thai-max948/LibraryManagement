@@ -11,9 +11,9 @@ namespace LibraryManagement.ViewModels
 {
     public class ReturnViewModel : BaseViewModel
     {
-        private readonly BorrowService _borrowService = new BorrowService();
-        private readonly BookService _bookService = new BookService();
-        private readonly ReaderService _readerService = new ReaderService();
+        private readonly BorrowService _borrowService;
+        private readonly BookService _bookService;
+        private readonly ReaderService _readerService;
 
         public ObservableCollection<ActiveBorrowRow> ActiveBorrowings { get; set; } = new ObservableCollection<ActiveBorrowRow>();
 
@@ -44,8 +44,15 @@ namespace LibraryManagement.ViewModels
 
         public ICommand ReturnCommand { get; }
 
-        public ReturnViewModel()
+        public ReturnViewModel() : this(new BorrowService(), new BookService(), new ReaderService())
         {
+        }
+
+        public ReturnViewModel(BorrowService borrowService, BookService bookService, ReaderService readerService)
+        {
+            _borrowService = borrowService;
+            _bookService = bookService;
+            _readerService = readerService;
             ReturnCommand = new RelayCommand(DoReturn, () => SelectedRow != null);
             Load();
         }
@@ -57,7 +64,7 @@ namespace LibraryManagement.ViewModels
                 ActiveBorrowings.Clear();
                 var records = _borrowService.GetBorrowingBooks();
                 var books = _bookService.GetAllBooks();
-                var readers = _readerService.GetAllReaders();
+                var readers = _readerService.GetAllReaders(includeDeleted: true);
 
                 var rows = records.Select(r =>
                 {
@@ -66,7 +73,9 @@ namespace LibraryManagement.ViewModels
                     return new ActiveBorrowRow
                     {
                         BorrowId = r.BorrowId,
-                        ReaderName = reader?.FullName ?? "?",
+                        ReaderName = reader != null
+                            ? (reader.IsDeleted ? $"{reader.FullName} (Đã xóa)" : reader.FullName)
+                            : "?",
                         BookTitle = book?.Title ?? "?",
                         BorrowDate = r.BorrowDate.ToString("dd/MM/yyyy"),
                         DueDate = r.DueDate.ToString("dd/MM/yyyy"),

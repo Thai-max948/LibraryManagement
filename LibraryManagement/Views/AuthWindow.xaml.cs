@@ -1,5 +1,8 @@
 using System;
+using System.Collections.Generic;
 using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
@@ -10,17 +13,83 @@ namespace LibraryManagement.Views
 {
     public partial class AuthWindow : Window
     {
-        private bool _isRegisterMode = false;
+        private const double FormSlideDistance = 280;
+        private const double OverlayContentSlideDistance = 220;
+        private const double OverlayTravel = 520;          // overlay đi từ X=455 (Sign in) tới X=-65 (Register)
+        private const double DragStartThreshold = 8;       // px tối thiểu để coi là kéo
+        private const double CommitRatio = 0.2;            // kéo quá 20% quãng đường thì chuyển mode
+
+        private bool _isRegisterMode;
         private bool _isAnimating;
-        private double _swipeStartX;
+
+        // Drag state
+        private bool _dragArmed, _dragging;
+        private double _dragStartX, _dragBase;
+
+        // Cache bitmap cho các phần tử chuyển động (chỉ bật khi đang kéo/animate)
+        private UIElement[] _cacheTargets = Array.Empty<UIElement>();
+        private static readonly IEasingFunction Ease = new CubicEase { EasingMode = EasingMode.EaseOut };
 
         public AuthWindow()
         {
             InitializeComponent();
 
+            CardContainer.Background = Brushes.Transparent;   // vùng trống (panel tối) mới nhận chuột
+            CardContainer.PreviewMouseMove += CardContainer_PreviewMouseMove;
+            BuildCacheTargets();
+
             Loaded += AuthWindow_Loaded;
         }
 
+        // ================= Progress: 0 = Sign in, 1 = Register =================
+        public static readonly DependencyProperty ProgressProperty =
+            DependencyProperty.Register(nameof(Progress), typeof(double), typeof(AuthWindow),
+                new PropertyMetadata(0.0, (d, e) => ((AuthWindow)d).ApplyProgress((double)e.NewValue)));
+
+        public double Progress
+        {
+            get => (double)GetValue(ProgressProperty);
+            set => SetValue(ProgressProperty, value);
+        }
+
+        private void ApplyProgress(double p)
+        {
+            TransOverlay.X = 455 - OverlayTravel * p;
+
+            TransSignIn.X = -FormSlideDistance * p;
+            PanelSignIn.Opacity = Math.Clamp(1 - p * 1.6, 0, 1);
+            PanelSignIn.IsHitTestVisible = p < 0.05;
+
+            TransRegister.X = FormSlideDistance * (1 - p);
+            PanelRegister.Opacity = Math.Clamp(p * 1.6 - 0.6, 0, 1);
+            PanelRegister.IsHitTestVisible = p > 0.95;
+
+            TransWelcomeBack.X = -OverlayContentSlideDistance * p;
+            PanelWelcomeBack.Opacity = Math.Clamp(1 - p * 1.6, 0, 1);
+
+            TransStartPage.X = OverlayContentSlideDistance * (1 - p);
+            PanelStartPage.Opacity = Math.Clamp(p * 1.6 - 0.6, 0, 1);
+        }
+
+        // ================= BitmapCache khi chuyển động =================
+        private void BuildCacheTargets()
+        {
+            // Chỉ cache các "lá" (không chứa phần tử đang animate bên trong) để cache không bị vô hiệu mỗi frame
+            var list = new List<UIElement> { PanelSignIn, PanelRegister, PanelWelcomeBack, PanelStartPage };
+            foreach (UIElement c in SlidingDarkOverlay.Children)
+            {
+                if (c != PanelWelcomeBack && c != PanelStartPage) list.Add(c);
+            }
+            _cacheTargets = list.ToArray();
+        }
+
+        private void SetCache(bool on)
+        {
+            CacheMode? cache = on ? new BitmapCache() : null;
+            foreach (var el in _cacheTargets) el.CacheMode = cache;
+        }
+
+        // ================= Init / Events =================
         private void AuthWindow_Loaded(object sender, RoutedEventArgs e)
         {
             if (DataContext is AuthViewModel vm)
@@ -43,6 +112,7 @@ namespace LibraryManagement.Views
             Close();
         }
 
+        // ================= Mode switching =================
         public void SwipeToRegister()
         {
             if (_isRegisterMode || _isAnimating)
@@ -61,124 +131,95 @@ namespace LibraryManagement.Views
             AnimateAuthMode(false);
         }
 
-        private const double FormSlideDistance = 280;
-        private const double OverlayContentSlideDistance = 220;
-
-        private void AnimateAuthMode(bool isRegister)
-        {
-            _isAnimating = true;
-            bool wasRegister = _isRegisterMode;
-            _isRegisterMode = isRegister;
-            UpdateTabVisuals(isRegister);
-
-            PanelSignIn.IsHitTestVisible = false;
-            PanelRegister.IsHitTestVisible = false;
-
-            var duration = new Duration(TimeSpan.FromMilliseconds(620));
-            var easing = new CubicEase { EasingMode = EasingMode.EaseInOut };
-            var storyboard = new Storyboard();
-
-            // 1. Sliding Dark Overlay across card (520px)
-            AddAnimation(storyboard, TransOverlay, TranslateTransform.XProperty,
-                wasRegister ? -65 : 455, isRegister ? -65 : 455, duration, easing);
-
-            // 2. Sign In Form: slides between 0 and -FormSlideDistance (to/from left)
-            AddAnimation(storyboard, TransSignIn, TranslateTransform.XProperty,
-                wasRegister ? -FormSlideDistance : 0, isRegister ? -FormSlideDistance : 0, duration, easing);
-            AddAnimation(storyboard, PanelSignIn, UIElement.OpacityProperty,
-                wasRegister ? 0 : 1, isRegister ? 0 : 1, duration, easing, isRegister ? 0 : 60);
-
-            // 3. Register Form: slides between +FormSlideDistance and 0 (to/from right)
-            AddAnimation(storyboard, TransRegister, TranslateTransform.XProperty,
-                wasRegister ? 0 : FormSlideDistance, isRegister ? 0 : FormSlideDistance, duration, easing);
-            AddAnimation(storyboard, PanelRegister, UIElement.OpacityProperty,
-                wasRegister ? 1 : 0, isRegister ? 1 : 0, duration, easing, isRegister ? 60 : 0);
-
-            // 4. Dark Overlay Content - "Welcome back."
-            AddAnimation(storyboard, TransWelcomeBack, TranslateTransform.XProperty,
-                wasRegister ? -OverlayContentSlideDistance : 0, isRegister ? -OverlayContentSlideDistance : 0, duration, easing);
-            AddAnimation(storyboard, PanelWelcomeBack, UIElement.OpacityProperty,
-                wasRegister ? 0 : 1, isRegister ? 0 : 1, duration, easing, isRegister ? 0 : 60);
-
-            // 5. Dark Overlay Content - "Start the first page."
-            AddAnimation(storyboard, TransStartPage, TranslateTransform.XProperty,
-                wasRegister ? 0 : OverlayContentSlideDistance, isRegister ? 0 : OverlayContentSlideDistance, duration, easing);
-            AddAnimation(storyboard, PanelStartPage, UIElement.OpacityProperty,
-                wasRegister ? 1 : 0, isRegister ? 1 : 0, duration, easing, isRegister ? 60 : 0);
-
-            storyboard.Completed += (_, _) =>
-            {
-                ApplyAuthMode(isRegister);
-                storyboard.Remove(this);
-                _isAnimating = false;
-            };
-            storyboard.Begin(this, true);
-        }
-
-        private static void AddAnimation(
-            Storyboard storyboard,
-            DependencyObject target,
-            DependencyProperty property,
-            double from,
-            double to,
-            Duration duration,
-            IEasingFunction easing,
-            int delayMilliseconds = 0)
-        {
-            var animation = new DoubleAnimation(from, to, duration)
-            {
-                BeginTime = TimeSpan.FromMilliseconds(delayMilliseconds),
-                EasingFunction = easing,
-                FillBehavior = FillBehavior.HoldEnd
-            };
-            Storyboard.SetTarget(animation, target);
-            Storyboard.SetTargetProperty(animation, new PropertyPath(property));
-            storyboard.Children.Add(animation);
-        }
-
         private void ApplyAuthMode(bool isRegister)
         {
             _isRegisterMode = isRegister;
             _isAnimating = false;
             UpdateTabVisuals(isRegister);
+            SetCache(false);
+            Progress = isRegister ? 1 : 0;
+            ApplyProgress(Progress);
+        }
 
-            TransOverlay.X = isRegister ? -65 : 455;
-            PanelSignIn.Opacity = isRegister ? 0 : 1;
-            PanelSignIn.IsHitTestVisible = !isRegister;
-            TransSignIn.X = isRegister ? -FormSlideDistance : 0;
+        private void AnimateAuthMode(bool isRegister)
+        {
+            _isAnimating = true;
+            _isRegisterMode = isRegister;
+            UpdateTabVisuals(isRegister);
+            SetCache(true);
 
-            PanelRegister.Opacity = isRegister ? 1 : 0;
-            PanelRegister.IsHitTestVisible = isRegister;
-            TransRegister.X = isRegister ? 0 : FormSlideDistance;
+            double from = Progress, target = isRegister ? 1 : 0;
+            Progress = target;   // giá trị cuối gán local, animation chỉ là hiệu ứng
 
-            PanelWelcomeBack.Opacity = isRegister ? 0 : 1;
-            TransWelcomeBack.X = isRegister ? -OverlayContentSlideDistance : 0;
+            var anim = new DoubleAnimation(from, target,
+                TimeSpan.FromMilliseconds(Math.Max(200, 620 * Math.Abs(target - from))))
+            {
+                EasingFunction = Ease,
+                FillBehavior = FillBehavior.Stop
+            };
+            anim.Completed += (_, _) => { _isAnimating = false; SetCache(false); };
+            BeginAnimation(ProgressProperty, anim);
+        }
 
-            PanelStartPage.Opacity = isRegister ? 1 : 0;
-            TransStartPage.X = isRegister ? 0 : OverlayContentSlideDistance;
+        // ================= Kéo chuột kiểu Tinder =================
+        private static bool IsInteractive(DependencyObject? d)
+        {
+            while (d != null)
+            {
+                if (d is TextBoxBase or PasswordBox or ButtonBase) return true;
+                d = d is Visual ? VisualTreeHelper.GetParent(d) : LogicalTreeHelper.GetParent(d);
+            }
+            return false;
         }
 
         private void CardContainer_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
-            _swipeStartX = e.GetPosition(CardContainer).X;
+            if (_isAnimating || IsInteractive(e.OriginalSource as DependencyObject)) return;
+
+            var pos = e.GetPosition(CardContainer);
+            if (pos.Y < 50) return;                    // vùng titlebar (DragMove)
+
+            _dragArmed = true;
+            _dragging = false;
+            _dragStartX = pos.X;
+            _dragBase = Progress;
+        }
+
+        private void CardContainer_PreviewMouseMove(object sender, MouseEventArgs e)
+        {
+            if (!_dragArmed) return;
+            if (e.LeftButton != MouseButtonState.Pressed) { EndDrag(); return; }
+
+            double dx = e.GetPosition(CardContainer).X - _dragStartX;
+            if (!_dragging)
+            {
+                if (Math.Abs(dx) < DragStartThreshold) return;
+                _dragging = true;
+                SetCache(true);
+                CardContainer.CaptureMouse();
+            }
+            Progress = Math.Clamp(_dragBase - dx / OverlayTravel, 0, 1);
         }
 
         private void CardContainer_PreviewMouseLeftButtonUp(object sender, MouseButtonEventArgs e)
         {
-            double endX = e.GetPosition(CardContainer).X;
-            double deltaX = endX - _swipeStartX;
+            if (!_dragArmed) return;
+            bool wasDragging = _dragging;
+            EndDrag();
+            if (!wasDragging) return;
 
-            // Swipe threshold of 60px
-            if (deltaX < -60 && !_isRegisterMode)
-            {
-                SwipeToRegister();
-            }
-            else if (deltaX > 60 && _isRegisterMode)
-            {
-                SwipeToSignIn();
-            }
+            // Quá ngưỡng thì chuyển mode, chưa tới thì bật về
+            bool toRegister = _isRegisterMode ? Progress > 1 - CommitRatio : Progress > CommitRatio;
+            AnimateAuthMode(toRegister);
         }
 
+        private void EndDrag()
+        {
+            _dragArmed = _dragging = false;
+            CardContainer.ReleaseMouseCapture();
+        }
+
+        // ================= Window chrome =================
         private void TitleBar_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
             if (e.LeftButton == MouseButtonState.Pressed)

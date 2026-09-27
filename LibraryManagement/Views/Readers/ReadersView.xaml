@@ -3,37 +3,258 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="clr-namespace:LibraryManagement.ViewModels">
 
-    <StackPanel Margin="10">
-        <TextBlock Text="👥 Readers Management" FontSize="22" FontWeight="Bold" Foreground="{StaticResource TextBrush}"/>
-        <TextBlock Text="Manage library members" Foreground="{StaticResource SecondaryTextBrush}" Margin="0,0,0,16"/>
+    <Grid Margin="16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
 
-        <Border Style="{StaticResource CardStyle}" HorizontalAlignment="Left" Margin="0,0,0,16">
-            <StackPanel>
-                <TextBlock Text="{Binding TotalReaders}" FontSize="22" FontWeight="Bold" Foreground="{StaticResource TextBrush}"/>
-                <TextBlock Text="Readers" Foreground="{StaticResource SecondaryTextBrush}"/>
+        <!-- Header & Stats -->
+        <Grid Grid.Row="0" Margin="0,0,0,14">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+
+            <StackPanel Grid.Column="0">
+                <TextBlock Text="👥 Quản Lý Độc Giả (Reader Management)" FontSize="22" FontWeight="Bold" Foreground="{StaticResource TextBrush}"/>
+                <TextBlock Text="Quản lý đồng nhất sinh viên và độc giả ngoài trường (Manage students &amp; external readers)" Foreground="{StaticResource SecondaryTextBrush}" Margin="0,2,0,0"/>
             </StackPanel>
+
+            <Border Grid.Column="1" Style="{StaticResource CardStyle}" VerticalAlignment="Center" Padding="16,8">
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                    <TextBlock Text="👥 " FontSize="16" VerticalAlignment="Center"/>
+                    <StackPanel Margin="6,0,0,0" VerticalAlignment="Center">
+                        <TextBlock Text="{Binding TotalReaders}" FontSize="18" FontWeight="Bold" Foreground="{StaticResource TextBrush}"/>
+                        <TextBlock Text="Tổng độc giả" FontSize="11" Foreground="{StaticResource SecondaryTextBrush}"/>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+        </Grid>
+
+        <!-- Toolbar: Add Button, Search Box, Type Filter, Status Filter -->
+        <Border Grid.Row="1" Style="{StaticResource CardStyle}" Padding="14,12" Margin="0,0,0,14">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <!-- Add Button -->
+                <Button Grid.Column="0" Content="+ Thêm Độc Giả" Command="{Binding AddCommand}" Style="{StaticResource PrimaryButtonStyle}" Margin="0,0,16,0" Padding="16,8"/>
+
+                <!-- Search Box -->
+                <TextBox Grid.Column="1"
+                         Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}"
+                         Tag="🔍 Tìm theo ID, tên, mã SV, CCCD, SĐT, email..."
+                         Style="{StaticResource PlaceholderTextBoxStyle}"
+                         VerticalContentAlignment="Center"
+                         Margin="0,0,14,0"/>
+
+                <!-- Reader Type Filter -->
+                <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,14,0">
+                    <TextBlock Text="Loại:" VerticalAlignment="Center" Margin="0,0,6,0" FontWeight="SemiBold" Foreground="{StaticResource SecondaryTextBrush}"/>
+                    <ComboBox Width="120"
+                              ItemsSource="{Binding TypeOptions}"
+                              SelectedItem="{Binding SelectedTypeFilter, Mode=TwoWay}"
+                              Padding="6,5"
+                              BorderBrush="{StaticResource TechBorderBrush}"/>
+                </StackPanel>
+
+                <!-- Reader Status Filter -->
+                <StackPanel Grid.Column="3" Orientation="Horizontal" VerticalAlignment="Center">
+                    <TextBlock Text="Trạng thái:" VerticalAlignment="Center" Margin="0,0,6,0" FontWeight="SemiBold" Foreground="{StaticResource SecondaryTextBrush}"/>
+                    <ComboBox Width="120"
+                              ItemsSource="{Binding StatusOptions}"
+                              SelectedItem="{Binding SelectedStatusFilter, Mode=TwoWay}"
+                              Padding="6,5"
+                              BorderBrush="{StaticResource TechBorderBrush}"/>
+                </StackPanel>
+            </Grid>
         </Border>
 
-        <TextBox Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}"
-                 Margin="0,0,0,10"
-                 Tag="Search name / phone / email..."
-                 Style="{StaticResource PlaceholderTextBoxStyle}"/>
-
-        <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
-            <Button Content="+ Add Reader" Command="{Binding AddCommand}" Style="{StaticResource PrimaryButtonStyle}"/>
-            <Button Content="✏ Edit" Command="{Binding EditCommand}" Style="{StaticResource SecondaryButtonStyle}"/>
-            <Button Content="🗑 Delete" Command="{Binding DeleteCommand}" Style="{StaticResource DangerButtonStyle}"/>
-        </StackPanel>
-
-        <DataGrid ItemsSource="{Binding Readers}" SelectedItem="{Binding SelectedReader}"
-                  AutoGenerateColumns="False" IsReadOnly="True"
-                  Style="{StaticResource AppDataGridStyle}" Height="380">
+        <!-- DataGrid of Readers -->
+        <DataGrid Grid.Row="2"
+                  ItemsSource="{Binding Readers}"
+                  SelectedItem="{Binding SelectedReader}"
+                  AutoGenerateColumns="False"
+                  IsReadOnly="True"
+                  Style="{StaticResource AppDataGridStyle}"
+                  RowHeight="42">
             <DataGrid.Columns>
-                <DataGridTextColumn Header="ID" Binding="{Binding ReaderId}" Width="50"/>
-                <DataGridTextColumn Header="Name" Binding="{Binding FullName}" Width="*"/>
-                <DataGridTextColumn Header="Phone" Binding="{Binding Phone}" Width="130"/>
-                <DataGridTextColumn Header="Email" Binding="{Binding Email}" Width="200"/>
+                <!-- Formatted Reader ID (e.g. R000125) -->
+                <DataGridTextColumn Header="Mã ĐG" Binding="{Binding FormattedId}" Width="85">
+                    <DataGridTextColumn.ElementStyle>
+                        <Style TargetType="TextBlock">
+                            <Setter Property="FontWeight" Value="SemiBold"/>
+                            <Setter Property="Foreground" Value="{StaticResource PrimaryBrush}"/>
+                            <Setter Property="VerticalAlignment" Value="Center"/>
+                            <Setter Property="Padding" Value="4,0"/>
+                        </Style>
+                    </DataGridTextColumn.ElementStyle>
+                </DataGridTextColumn>
+
+                <!-- Full Name -->
+                <DataGridTextColumn Header="Họ và Tên" Binding="{Binding FullName}" Width="1.8*">
+                    <DataGridTextColumn.ElementStyle>
+                        <Style TargetType="TextBlock">
+                            <Setter Property="FontWeight" Value="Medium"/>
+                            <Setter Property="VerticalAlignment" Value="Center"/>
+                        </Style>
+                    </DataGridTextColumn.ElementStyle>
+                </DataGridTextColumn>
+
+                <!-- Reader Type (Student / External) -->
+                <DataGridTemplateColumn Header="Loại ĐG" Width="100">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <Border CornerRadius="4" Padding="6,2" HorizontalAlignment="Left" VerticalAlignment="Center">
+                                <Border.Style>
+                                    <Style TargetType="Border">
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding ReaderType}" Value="Student">
+                                                <Setter Property="Background" Value="#E0F2FE"/>
+                                            </DataTrigger>
+                                            <DataTrigger Binding="{Binding ReaderType}" Value="External">
+                                                <Setter Property="Background" Value="#FEF3C7"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Border.Style>
+                                <TextBlock Text="{Binding ReaderType}" FontSize="11" FontWeight="SemiBold">
+                                    <TextBlock.Style>
+                                        <Style TargetType="TextBlock">
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding ReaderType}" Value="Student">
+                                                    <Setter Property="Foreground" Value="#0369A1"/>
+                                                </DataTrigger>
+                                                <DataTrigger Binding="{Binding ReaderType}" Value="External">
+                                                    <Setter Property="Foreground" Value="#B45309"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </TextBlock.Style>
+                                </TextBlock>
+                            </Border>
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
+
+                <!-- Student ID / Identity Number -->
+                <DataGridTextColumn Header="Mã SV / CCCD" Binding="{Binding DisplayIdentification}" Width="120">
+                    <DataGridTextColumn.ElementStyle>
+                        <Style TargetType="TextBlock">
+                            <Setter Property="VerticalAlignment" Value="Center"/>
+                            <Setter Property="FontFamily" Value="Consolas, Segoe UI"/>
+                        </Style>
+                    </DataGridTextColumn.ElementStyle>
+                </DataGridTextColumn>
+
+                <!-- Phone -->
+                <DataGridTextColumn Header="Điện Thoại" Binding="{Binding Phone}" Width="110">
+                    <DataGridTextColumn.ElementStyle>
+                        <Style TargetType="TextBlock">
+                            <Setter Property="VerticalAlignment" Value="Center"/>
+                        </Style>
+                    </DataGridTextColumn.ElementStyle>
+                </DataGridTextColumn>
+
+                <!-- Email -->
+                <DataGridTextColumn Header="Email" Binding="{Binding Email}" Width="1.5*">
+                    <DataGridTextColumn.ElementStyle>
+                        <Style TargetType="TextBlock">
+                            <Setter Property="VerticalAlignment" Value="Center"/>
+                        </Style>
+                    </DataGridTextColumn.ElementStyle>
+                </DataGridTextColumn>
+
+                <!-- Status Badge -->
+                <DataGridTemplateColumn Header="Trạng Thái" Width="95">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <Border CornerRadius="4" Padding="6,2" HorizontalAlignment="Left" VerticalAlignment="Center">
+                                <Border.Style>
+                                    <Style TargetType="Border">
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding Status}" Value="Active">
+                                                <Setter Property="Background" Value="#D1FAE5"/>
+                                            </DataTrigger>
+                                            <DataTrigger Binding="{Binding Status}" Value="Suspended">
+                                                <Setter Property="Background" Value="#FEE2E2"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Border.Style>
+                                <TextBlock Text="{Binding Status}" FontSize="11" FontWeight="Bold">
+                                    <TextBlock.Style>
+                                        <Style TargetType="TextBlock">
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding Status}" Value="Active">
+                                                    <Setter Property="Foreground" Value="#059669"/>
+                                                </DataTrigger>
+                                                <DataTrigger Binding="{Binding Status}" Value="Suspended">
+                                                    <Setter Property="Foreground" Value="#DC2626"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </TextBlock.Style>
+                                </TextBlock>
+                            </Border>
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
+
+                <!-- 3 Main Actions: [View Card] [Detail] [Edit] -->
+                <DataGridTemplateColumn Header="Thao Tác" Width="240">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                <!-- View Card Button -->
+                                <Button Content="🪪 Thẻ"
+                                        Command="{Binding DataContext.ViewCardCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                        CommandParameter="{Binding}"
+                                        Padding="8,3"
+                                        FontSize="11"
+                                        Margin="0,0,4,0"
+                                        ToolTip="Xem Thẻ Thư Viện (Library Card)"
+                                        Style="{StaticResource SecondaryButtonStyle}"/>
+
+                                <!-- Detail Button -->
+                                <Button Content="📋 Chi Tiết"
+                                        Command="{Binding DataContext.DetailCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                        CommandParameter="{Binding}"
+                                        Padding="8,3"
+                                        FontSize="11"
+                                        Margin="0,0,4,0"
+                                        ToolTip="Xem Thông Tin Chi Tiết (Reader Details)"
+                                        Style="{StaticResource SecondaryButtonStyle}"/>
+
+                                <!-- Edit Button -->
+                                <Button Content="✏️ Sửa"
+                                        Command="{Binding DataContext.EditCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                        CommandParameter="{Binding}"
+                                        Padding="8,3"
+                                        FontSize="11"
+                                        Margin="0,0,4,0"
+                                        ToolTip="Chỉnh Sửa Thông Tin (Edit Reader)"
+                                        Style="{StaticResource SecondaryButtonStyle}"/>
+
+                                <!-- Context / Delete option -->
+                                <Button Content="🗑"
+                                        Command="{Binding DataContext.DeleteCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                        CommandParameter="{Binding}"
+                                        Padding="6,3"
+                                        FontSize="11"
+                                        ToolTip="Xóa Độc Giả"
+                                        Style="{StaticResource DangerButtonStyle}"/>
+                            </StackPanel>
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
             </DataGrid.Columns>
         </DataGrid>
-    </StackPanel>
+    </Grid>
 </UserControl>

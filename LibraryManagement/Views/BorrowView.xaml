@@ -3,47 +3,310 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="clr-namespace:LibraryManagement.ViewModels">
 
-    <StackPanel Margin="10">
-        <TextBlock Text="📖 Borrow Book" FontSize="22" FontWeight="Bold" Foreground="{StaticResource TextBrush}" Margin="0,0,0,16"/>
+    <UserControl.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVis"/>
 
-        <TextBlock Text="Reader" Foreground="{StaticResource TextBrush}"/>
-        <ComboBox ItemsSource="{Binding Readers}" SelectedItem="{Binding SelectedReader}"
-                  DisplayMemberPath="FullName" Margin="0,4,0,10" Padding="6"/>
+        <Style x:Key="RecommendationItemButtonStyle" TargetType="Button">
+            <Setter Property="Background" Value="#FFFFFF"/>
+            <Setter Property="BorderBrush" Value="{StaticResource TechBorderBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="10,8"/>
+            <Setter Property="Margin" Value="0,0,0,6"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Bd"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="6"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#F0F9FF"/>
+                                <Setter TargetName="Bd" Property="BorderBrush" Value="{StaticResource TechAccentCyan}"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#E0F2FE"/>
+                                <Setter TargetName="Bd" Property="BorderBrush" Value="{StaticResource PrimaryBrush}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
 
-        <TextBlock Text="Book" Foreground="{StaticResource TextBrush}"/>
-        <ComboBox ItemsSource="{Binding Books}" SelectedItem="{Binding SelectedBook}"
-                  DisplayMemberPath="Title" Margin="0,4,0,10" Padding="6"/>
+        <Style x:Key="StockBadgeBorderStyle" TargetType="Border">
+            <Setter Property="Background" Value="#ECFDF5"/>
+            <Setter Property="BorderBrush" Value="#A7F3D0"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="10"/>
+            <Setter Property="Padding" Value="8,3"/>
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding AvailableQuantity}" Value="0">
+                    <Setter Property="Background" Value="#FEF2F2"/>
+                    <Setter Property="BorderBrush" Value="#FECACA"/>
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
 
-        <Grid Margin="0,0,0,10">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*"/>
-                <ColumnDefinition Width="10"/>
-                <ColumnDefinition Width="*"/>
-            </Grid.ColumnDefinitions>
-            <StackPanel Grid.Column="0">
-                <TextBlock Text="Borrow Date" Foreground="{StaticResource TextBrush}"/>
-                <DatePicker SelectedDate="{Binding BorrowDate}" Margin="0,4,0,0"/>
-            </StackPanel>
-            <StackPanel Grid.Column="2">
-                <TextBlock Text="Due Date" Foreground="{StaticResource TextBrush}"/>
-                <DatePicker SelectedDate="{Binding DueDate}" Margin="0,4,0,0"/>
-            </StackPanel>
-        </Grid>
+        <Style x:Key="StockBadgeTextStyle" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="#059669"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Text" Value="{Binding AvailableQuantity, StringFormat='🟢 Còn {0} cuốn'}"/>
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding AvailableQuantity}" Value="0">
+                    <Setter Property="Foreground" Value="#DC2626"/>
+                    <Setter Property="Text" Value="🔴 Hết sách"/>
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+    </UserControl.Resources>
 
-        <Button Content="📖 Borrow Book" Command="{Binding BorrowCommand}"
-                Style="{StaticResource PrimaryButtonStyle}"
-                IsEnabled="{Binding IsBusy, Converter={StaticResource InverseBooleanConverter}}"
-                HorizontalAlignment="Right" Margin="0,0,0,16"/>
+    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+        <StackPanel Margin="10">
+            <!-- Header -->
+            <TextBlock Text="📖 Mượn Sách (Borrow Book)" FontSize="22" FontWeight="Bold" Foreground="{StaticResource TextBrush}"/>
+            <TextBlock Text="Tìm kiếm độc giả và sách với gợi ý thông minh thời gian thực" Foreground="{StaticResource SecondaryTextBrush}" Margin="0,2,0,16"/>
 
-        <TextBlock Text="Current Borrowings" FontSize="16" FontWeight="Bold" Foreground="{StaticResource TextBrush}" Margin="0,0,0,10"/>
-        <DataGrid ItemsSource="{Binding CurrentBorrowings}" AutoGenerateColumns="False" IsReadOnly="True"
-                  Style="{StaticResource AppDataGridStyle}">
-            <DataGrid.Columns>
-                <DataGridTextColumn Header="Reader" Binding="{Binding ReaderName}" Width="*"/>
-                <DataGridTextColumn Header="Book" Binding="{Binding BookTitle}" Width="*"/>
-                <DataGridTextColumn Header="Borrow Date" Binding="{Binding BorrowDate}" Width="120"/>
-                <DataGridTextColumn Header="Due Date" Binding="{Binding DueDate}" Width="120"/>
-            </DataGrid.Columns>
-        </DataGrid>
-    </StackPanel>
+            <!-- 2-Column Search & Recommendation Area -->
+            <Grid Margin="0,0,0,16">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="16"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+
+                <!-- ==================== LEFT COLUMN: READER ==================== -->
+                <Border Grid.Column="0" Style="{StaticResource CardStyle}" Margin="0">
+                    <StackPanel>
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                            <TextBlock Text="👤 Độc Giả (Reader)" FontWeight="Bold" FontSize="14" Foreground="{StaticResource TextBrush}"/>
+                            <TextBlock Text=" *" Foreground="{StaticResource DangerBrush}" FontWeight="Bold"/>
+                        </StackPanel>
+
+                        <!-- State 1: Searching (when HasNoSelectedReader is True) -->
+                        <StackPanel Visibility="{Binding HasNoSelectedReader, Converter={StaticResource BoolToVis}}">
+                            <TextBox Text="{Binding ReaderSearchQuery, UpdateSourceTrigger=PropertyChanged}"
+                                     Tag="🔍 Gõ tên, SĐT, email hoặc mã..."
+                                     Style="{StaticResource PlaceholderTextBoxStyle}"
+                                     FontSize="13"/>
+
+                            <!-- Recommendations Container -->
+                            <Border Background="#F8FAFC" BorderBrush="{StaticResource TechBorderBrush}" BorderThickness="1"
+                                    CornerRadius="6" Margin="0,8,0,0" Padding="8">
+                                <StackPanel>
+                                    <TextBlock Text="{Binding ReaderRecommendationHeader}"
+                                               FontSize="11.5" FontWeight="SemiBold"
+                                               Foreground="{StaticResource SecondaryTextBrush}"
+                                               Margin="2,0,0,6"/>
+
+                                    <ScrollViewer MaxHeight="190" VerticalScrollBarVisibility="Auto">
+                                        <ItemsControl ItemsSource="{Binding RecommendedReaders}">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <Button Command="{Binding DataContext.SelectReaderCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                            CommandParameter="{Binding}"
+                                                            Style="{StaticResource RecommendationItemButtonStyle}">
+                                                        <Grid>
+                                                            <Grid.ColumnDefinitions>
+                                                                <ColumnDefinition Width="*"/>
+                                                                <ColumnDefinition Width="Auto"/>
+                                                            </Grid.ColumnDefinitions>
+                                                            <StackPanel Grid.Column="0">
+                                                                <TextBlock Text="{Binding FullName}" FontWeight="SemiBold" Foreground="{StaticResource TextBrush}" FontSize="13"/>
+                                                                <StackPanel Orientation="Horizontal" Margin="0,3,0,0">
+                                                                    <TextBlock Text="{Binding Phone, StringFormat='📞 {0}'}" FontSize="11" Foreground="{StaticResource SecondaryTextBrush}" Margin="0,0,10,0"/>
+                                                                    <TextBlock Text="{Binding Email, StringFormat='✉ {0}'}" FontSize="11" Foreground="{StaticResource SecondaryTextBrush}" TextTrimming="CharacterEllipsis"/>
+                                                                </StackPanel>
+                                                            </StackPanel>
+                                                            <Border Grid.Column="1" VerticalAlignment="Center" Background="#EEF2FF" CornerRadius="4" Padding="6,2" Margin="6,0,0,0">
+                                                                <TextBlock Text="{Binding ReaderId, StringFormat='#ID: {0}'}" FontSize="10.5" FontWeight="SemiBold" Foreground="{StaticResource TechAccentPurple}"/>
+                                                            </Border>
+                                                        </Grid>
+                                                    </Button>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </ScrollViewer>
+                                </StackPanel>
+                            </Border>
+                        </StackPanel>
+
+                        <!-- State 2: Reader Selected (when HasSelectedReader is True) -->
+                        <Border Visibility="{Binding HasSelectedReader, Converter={StaticResource BoolToVis}}"
+                                Background="#F0FDF4" BorderBrush="#86EFAC" BorderThickness="1"
+                                CornerRadius="8" Padding="12" Margin="0,4,0,0">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+
+                                <StackPanel Grid.Column="0">
+                                    <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                                        <TextBlock Text="✓ Độc giả đã chọn" Foreground="#16A34A" FontWeight="Bold" FontSize="11"/>
+                                        <TextBlock Text="{Binding SelectedReader.ReaderId, StringFormat=' • Mã: #{0}'}" Foreground="#16A34A" FontSize="11"/>
+                                    </StackPanel>
+                                    <TextBlock Text="{Binding SelectedReader.FullName}" FontSize="15" FontWeight="Bold" Foreground="{StaticResource TextBrush}"/>
+                                    <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
+                                        <TextBlock Text="{Binding SelectedReader.Phone, StringFormat='📞 {0}'}" Foreground="{StaticResource SecondaryTextBrush}" FontSize="12" Margin="0,0,12,0"/>
+                                        <TextBlock Text="{Binding SelectedReader.Email, StringFormat='✉ {0}'}" Foreground="{StaticResource SecondaryTextBrush}" FontSize="12"/>
+                                    </StackPanel>
+                                </StackPanel>
+
+                                <Button Grid.Column="1" VerticalAlignment="Center"
+                                        Content="🔄 Đổi độc giả"
+                                        Command="{Binding ClearReaderSelectionCommand}"
+                                        Style="{StaticResource SecondaryButtonStyle}"
+                                        Padding="10,6" FontSize="11.5"/>
+                            </Grid>
+                        </Border>
+                    </StackPanel>
+                </Border>
+
+                <!-- ==================== RIGHT COLUMN: BOOK ==================== -->
+                <Border Grid.Column="2" Style="{StaticResource CardStyle}" Margin="0">
+                    <StackPanel>
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                            <TextBlock Text="📚 Sách Mượn (Book)" FontWeight="Bold" FontSize="14" Foreground="{StaticResource TextBrush}"/>
+                            <TextBlock Text=" *" Foreground="{StaticResource DangerBrush}" FontWeight="Bold"/>
+                        </StackPanel>
+
+                        <!-- State 1: Searching (when HasNoSelectedBook is True) -->
+                        <StackPanel Visibility="{Binding HasNoSelectedBook, Converter={StaticResource BoolToVis}}">
+                            <TextBox Text="{Binding BookSearchQuery, UpdateSourceTrigger=PropertyChanged}"
+                                     Tag="🔍 Gõ tên sách, tác giả, thể loại..."
+                                     Style="{StaticResource PlaceholderTextBoxStyle}"
+                                     FontSize="13"/>
+
+                            <!-- Recommendations Container -->
+                            <Border Background="#F8FAFC" BorderBrush="{StaticResource TechBorderBrush}" BorderThickness="1"
+                                    CornerRadius="6" Margin="0,8,0,0" Padding="8">
+                                <StackPanel>
+                                    <TextBlock Text="{Binding BookRecommendationHeader}"
+                                               FontSize="11.5" FontWeight="SemiBold"
+                                               Foreground="{StaticResource SecondaryTextBrush}"
+                                               Margin="2,0,0,6"/>
+
+                                    <ScrollViewer MaxHeight="190" VerticalScrollBarVisibility="Auto">
+                                        <ItemsControl ItemsSource="{Binding RecommendedBooks}">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <Button Command="{Binding DataContext.SelectBookCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                            CommandParameter="{Binding}"
+                                                            Style="{StaticResource RecommendationItemButtonStyle}">
+                                                        <Grid>
+                                                            <Grid.ColumnDefinitions>
+                                                                <ColumnDefinition Width="*"/>
+                                                                <ColumnDefinition Width="Auto"/>
+                                                            </Grid.ColumnDefinitions>
+                                                            <StackPanel Grid.Column="0">
+                                                                <TextBlock Text="{Binding Title}" FontWeight="SemiBold" Foreground="{StaticResource TextBrush}" FontSize="13" TextTrimming="CharacterEllipsis"/>
+                                                                <TextBlock Foreground="{StaticResource SecondaryTextBrush}" FontSize="11" Margin="0,3,0,0" TextTrimming="CharacterEllipsis">
+                                                                    <Run Text="✍ " Foreground="#94A3B8"/>
+                                                                    <Run Text="{Binding Author}"/>
+                                                                    <Run Text="  •  "/>
+                                                                    <Run Text="{Binding Category}"/>
+                                                                </TextBlock>
+                                                            </StackPanel>
+                                                            <Border Grid.Column="1" VerticalAlignment="Center" Margin="8,0,0,0" Style="{StaticResource StockBadgeBorderStyle}">
+                                                                <TextBlock Style="{StaticResource StockBadgeTextStyle}"/>
+                                                            </Border>
+                                                        </Grid>
+                                                    </Button>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </ScrollViewer>
+                                </StackPanel>
+                            </Border>
+                        </StackPanel>
+
+                        <!-- State 2: Book Selected (when HasSelectedBook is True) -->
+                        <Border Visibility="{Binding HasSelectedBook, Converter={StaticResource BoolToVis}}"
+                                Background="#F0FDF4" BorderBrush="#86EFAC" BorderThickness="1"
+                                CornerRadius="8" Padding="12" Margin="0,4,0,0">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+
+                                <StackPanel Grid.Column="0">
+                                    <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                                        <TextBlock Text="✓ Sách đã chọn" Foreground="#16A34A" FontWeight="Bold" FontSize="11"/>
+                                        <TextBlock Text="{Binding SelectedBook.BookId, StringFormat=' • Mã: #{0}'}" Foreground="#16A34A" FontSize="11"/>
+                                        <TextBlock Text="{Binding SelectedBook.AvailableQuantity, StringFormat=' • Còn: {0} cuốn'}" Foreground="#16A34A" FontSize="11" FontWeight="SemiBold"/>
+                                    </StackPanel>
+                                    <TextBlock Text="{Binding SelectedBook.Title}" FontSize="15" FontWeight="Bold" Foreground="{StaticResource TextBrush}"/>
+                                    <TextBlock Foreground="{StaticResource SecondaryTextBrush}" FontSize="12" Margin="0,4,0,0">
+                                        <Run Text="Tác giả: "/>
+                                        <Run Text="{Binding SelectedBook.Author}" FontWeight="SemiBold"/>
+                                        <Run Text="  •  Thể loại: "/>
+                                        <Run Text="{Binding SelectedBook.Category}"/>
+                                    </TextBlock>
+                                </StackPanel>
+
+                                <Button Grid.Column="1" VerticalAlignment="Center"
+                                        Content="🔄 Đổi sách"
+                                        Command="{Binding ClearBookSelectionCommand}"
+                                        Style="{StaticResource SecondaryButtonStyle}"
+                                        Padding="10,6" FontSize="11.5"/>
+                            </Grid>
+                        </Border>
+                    </StackPanel>
+                </Border>
+            </Grid>
+
+            <!-- ==================== BORROW DATES & ACTION ==================== -->
+            <Border Style="{StaticResource CardStyle}" Margin="0,0,0,16">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="16"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="16"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+
+                    <StackPanel Grid.Column="0">
+                        <TextBlock Text="📅 Ngày mượn (Borrow Date)" Foreground="{StaticResource TextBrush}" FontWeight="SemiBold" Margin="0,0,0,4"/>
+                        <DatePicker SelectedDate="{Binding BorrowDate}" Padding="4"/>
+                    </StackPanel>
+
+                    <StackPanel Grid.Column="2">
+                        <TextBlock Text="📅 Hạn trả (Due Date)" Foreground="{StaticResource TextBrush}" FontWeight="SemiBold" Margin="0,0,0,4"/>
+                        <DatePicker SelectedDate="{Binding DueDate}" Padding="4"/>
+                    </StackPanel>
+
+                    <Button Grid.Column="4" Content="📖 Xác Nhận Mượn Sách"
+                            Command="{Binding BorrowCommand}"
+                            Style="{StaticResource PrimaryButtonStyle}"
+                            IsEnabled="{Binding IsBusy, Converter={StaticResource InverseBooleanConverter}}"
+                            VerticalAlignment="Bottom"
+                            Height="34"
+                            Padding="20,0"
+                            Margin="0"/>
+                </Grid>
+            </Border>
+
+            <!-- ==================== CURRENT BORROWINGS TABLE ==================== -->
+            <TextBlock Text="📋 Danh Sách Đang Mượn (Current Borrowings)" FontSize="16" FontWeight="Bold" Foreground="{StaticResource TextBrush}" Margin="0,0,0,8"/>
+            <DataGrid ItemsSource="{Binding CurrentBorrowings}" AutoGenerateColumns="False" IsReadOnly="True"
+                      Style="{StaticResource AppDataGridStyle}" MaxHeight="300">
+                <DataGrid.Columns>
+                    <DataGridTextColumn Header="Độc giả" Binding="{Binding ReaderName}" Width="*"/>
+                    <DataGridTextColumn Header="Tên sách" Binding="{Binding BookTitle}" Width="1.4*"/>
+                    <DataGridTextColumn Header="Ngày mượn" Binding="{Binding BorrowDate}" Width="130"/>
+                    <DataGridTextColumn Header="Hạn trả" Binding="{Binding DueDate}" Width="130"/>
+                </DataGrid.Columns>
+            </DataGrid>
+        </StackPanel>
+    </ScrollViewer>
 </UserControl>

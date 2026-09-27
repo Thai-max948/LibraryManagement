@@ -1,0 +1,87 @@
+<Window x:Class="LibraryManagement.Views.Readers.ReaderDetailDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Reader Details" Height="470" Width="480"
+        WindowStartupLocation="CenterOwner" ResizeMode="NoResize"
+        Background="{StaticResource BackgroundBrush}">
+    <Border Background="#FFFFFF" Margin="16" CornerRadius="10" Padding="24" BorderBrush="{StaticResource TechBorderBrush}" BorderThickness="1">
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <!-- Header -->
+            <StackPanel Grid.Row="0" Margin="0,0,0,16">
+                <TextBlock Text="📋 Chi Tiết Thông Tin Độc Giả" FontSize="18" FontWeight="Bold" Foreground="{StaticResource TextBrush}"/>
+                <TextBlock Text="Toàn bộ thông tin hồ sơ lưu trữ trong hệ thống" FontSize="12" Foreground="{StaticResource SecondaryTextBrush}" Margin="0,2,0,0"/>
+                <Separator Background="#E2E8F0" Margin="0,12,0,0"/>
+            </StackPanel>
+
+            <!-- Details Content Grid -->
+            <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="150"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="32"/>
+                        <RowDefinition Height="32"/>
+                        <RowDefinition Height="32"/>
+                        <RowDefinition Height="32"/>
+                        <RowDefinition Height="32"/>
+                        <RowDefinition Height="32"/>
+                        <RowDefinition Height="32"/>
+                        <RowDefinition Height="32"/>
+                        <RowDefinition Height="32"/>
+                    </Grid.RowDefinitions>
+
+                    <!-- Reader ID -->
+                    <TextBlock Grid.Row="0" Grid.Column="0" Text="Mã độc giả (Reader ID):" FontWeight="SemiBold" Foreground="{StaticResource SecondaryTextBrush}" VerticalAlignment="Center"/>
+                    <TextBlock Grid.Row="0" Grid.Column="1" x:Name="ReaderIdText" Text="R000125" FontWeight="Bold" Foreground="{StaticResource PrimaryBrush}" VerticalAlignment="Center"/>
+
+                    <!-- Reader Type -->
+                    <TextBlock Grid.Row="1" Grid.Column="0" Text="Loại độc giả (Type):" FontWeight="SemiBold" Foreground="{StaticResource SecondaryTextBrush}" VerticalAlignment="Center"/>
+                    <TextBlock Grid.Row="1" Grid.Column="1" x:Name="ReaderTypeText" Text="Student" FontWeight="SemiBold" Foreground="{StaticResource TextBrush}" VerticalAlignment="Center"/>
+
+                    <!-- Full Name -->
+                    <TextBlock Grid.Row="2" Grid.Column="0" Text="Họ và tên (Full Name):" FontWeight="SemiBold" Foreground="{StaticResource SecondaryTextBrush}" VerticalAlignment="Center"/>
+                    <TextBlock Grid.Row="2" Grid.Column="1" x:Name="FullNameText" Text="Nguyễn Văn An" FontWeight="Bold" Foreground="{StaticResource TextBrush}" VerticalAlignment="Center"/>
+
+                    <!-- Identification (Student ID / Identity Number) -->
+                    <TextBlock Grid.Row="3" Grid.Column="0" x:Name="IdLabelText" Text="Mã SV (Student ID):" FontWeight="SemiBold" Foreground="{StaticResource SecondaryTextBrush}" VerticalAlignment="Center"/>
+                    <TextBlock Grid.Row="3" Grid.Column="1" x:Name="IdValueText" Text="23A12345" FontWeight="SemiBold" Foreground="{StaticResource TextBrush}" VerticalAlignment="Center"/>
+
+                    <!-- Phone -->
+                    <TextBlock Grid.Row="4" Grid.Column="0" Text="Số điện thoại (Phone):" FontWeight="SemiBold" Foreground="{StaticResource SecondaryTextBrush}" VerticalAlignment="Center"/>
+                    <TextBlock Grid.Row="4" Grid.Column="1" x:Name="PhoneText" Text="0912345678" Foreground="{StaticResource TextBrush}" VerticalAlignment="Center"/>
+
+                    <!-- Email -->
+                    <TextBlock Grid.Row="5" Grid.Column="0" Text="Email:" FontWeight="SemiBold" Foreground="{StaticResource SecondaryTextBrush}" VerticalAlignment="Center"/>
+                    <TextBlock Grid.Row="5" Grid.Column="1" x:Name="EmailText" Text="an@gmail.com" Foreground="{StaticResource TextBrush}" VerticalAlignment="Center"/>
+
+                    <!-- Address -->
+                    <TextBlock Grid.Row="6" Grid.Column="0" Text="Địa chỉ (Address):" FontWeight="SemiBold" Foreground="{StaticResource SecondaryTextBrush}" VerticalAlignment="Center"/>
+                    <TextBlock Grid.Row="6" Grid.Column="1" x:Name="AddressText" Text="Thái Nguyên" Foreground="{StaticResource TextBrush}" VerticalAlignment="Center"/>
+
+                    <!-- Registration Date -->
+                    <TextBlock Grid.Row="7" Grid.Column="0" Text="Ngày đăng ký:" FontWeight="SemiBold" Foreground="{StaticResource SecondaryTextBrush}" VerticalAlignment="Center"/>
+                    <TextBlock Grid.Row="7" Grid.Column="1" x:Name="RegistrationDateText" Text="20/09/2026" Foreground="{StaticResource TextBrush}" VerticalAlignment="Center"/>
+
+                    <!-- Status -->
+                    <TextBlock Grid.Row="8" Grid.Column="0" Text="Trạng thái (Status):" FontWeight="SemiBold" Foreground="{StaticResource SecondaryTextBrush}" VerticalAlignment="Center"/>
+                    <Border Grid.Row="8" Grid.Column="1" x:Name="StatusBadge" Background="#D1FAE5" CornerRadius="4" Padding="8,2" HorizontalAlignment="Left" VerticalAlignment="Center">
+                        <TextBlock x:Name="StatusText" Text="Active" FontWeight="Bold" FontSize="11" Foreground="#059669"/>
+                    </Border>
+                </Grid>
+            </ScrollViewer>
+
+            <!-- Close Button -->
+            <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
+                <Button Content="Đóng (Close)" Width="100" Height="34" Style="{StaticResource SecondaryButtonStyle}" Click="Close_Click"/>
+            </StackPanel>
+        </Grid>
+    </Border>
+</Window>

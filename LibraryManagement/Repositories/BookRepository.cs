@@ -1,4 +1,4 @@
-using System;
+    using System;
 using System.Collections.Generic;
 using LibraryManagement.Data;
 using LibraryManagement.Models;
@@ -8,7 +8,7 @@ namespace LibraryManagement.Repositories
 {
     public class BookRepository
     {
-        public List<Book> GetAll()
+        public virtual List<Book> GetAll()
         {
             var books = new List<Book>();
             using (var conn = Database.GetConnection())
@@ -27,7 +27,7 @@ namespace LibraryManagement.Repositories
             return books;
         }
 
-        public Book? GetById(int id)
+        public virtual Book? GetById(int id)
         {
             using (var conn = Database.GetConnection())
             {
@@ -36,7 +36,7 @@ namespace LibraryManagement.Repositories
             }
         }
 
-        public Book? GetById(SqlConnection conn, SqlTransaction? tran, int id)
+        public virtual Book? GetById(SqlConnection conn, SqlTransaction? tran, int id)
         {
             string sql = "SELECT BookId, Title, Author, Category, PublishYear, Quantity, AvailableQuantity FROM Books WHERE BookId = @BookId";
             using (var cmd = new SqlCommand(sql, conn, tran))
@@ -53,7 +53,7 @@ namespace LibraryManagement.Repositories
             return null;
         }
 
-        public int Add(Book book)
+        public virtual int Add(Book book)
         {
             using (var conn = Database.GetConnection())
             {
@@ -62,7 +62,7 @@ namespace LibraryManagement.Repositories
             }
         }
 
-        public int Add(SqlConnection conn, SqlTransaction? tran, Book book)
+        public virtual int Add(SqlConnection conn, SqlTransaction? tran, Book book)
         {
             string sql = @"INSERT INTO Books (Title, Author, Category, PublishYear, Quantity, AvailableQuantity)
                            OUTPUT INSERTED.BookId
@@ -79,7 +79,7 @@ namespace LibraryManagement.Repositories
             }
         }
 
-        public bool Update(Book book)
+        public virtual bool Update(Book book)
         {
             using (var conn = Database.GetConnection())
             {
@@ -88,7 +88,7 @@ namespace LibraryManagement.Repositories
             }
         }
 
-        public bool Update(SqlConnection conn, SqlTransaction? tran, Book book)
+        public virtual bool Update(SqlConnection conn, SqlTransaction? tran, Book book)
         {
             string sql = @"UPDATE Books SET
                                Title = @Title,
@@ -111,7 +111,7 @@ namespace LibraryManagement.Repositories
             }
         }
 
-        public bool UpdateAvailableQuantity(SqlConnection conn, SqlTransaction? tran, int bookId, int delta)
+        public virtual bool UpdateAvailableQuantity(SqlConnection conn, SqlTransaction? tran, int bookId, int delta)
         {
             string sql = @"UPDATE Books SET AvailableQuantity = AvailableQuantity + @Delta
                            WHERE BookId = @BookId AND AvailableQuantity + @Delta >= 0";
@@ -123,7 +123,7 @@ namespace LibraryManagement.Repositories
             }
         }
 
-        public bool Delete(int id)
+        public virtual bool Delete(int id)
         {
             using (var conn = Database.GetConnection())
             {
@@ -137,7 +137,7 @@ namespace LibraryManagement.Repositories
             }
         }
 
-        public List<Book> Search(string keyword)
+        public virtual List<Book> Search(string keyword)
         {
             var books = new List<Book>();
             using (var conn = Database.GetConnection())

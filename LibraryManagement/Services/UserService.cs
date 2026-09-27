@@ -10,9 +10,13 @@ namespace LibraryManagement.Services
     {
         private readonly UserRepository _userRepository;
 
-        public UserService()
+        public UserService() : this(new UserRepository())
         {
-            _userRepository = new UserRepository();
+        }
+
+        public UserService(UserRepository userRepository)
+        {
+            _userRepository = userRepository;
         }
 
         private static void EnsureAdmin()

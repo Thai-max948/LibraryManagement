@@ -12,7 +12,7 @@ namespace LibraryManagement.ViewModels
 {
     public class BooksViewModel : BaseViewModel
     {
-        private readonly BookService _bookService = new();
+        private readonly BookService _bookService;
 
         public ObservableCollection<Book> Books { get; set; } = new();
 
@@ -42,8 +42,13 @@ namespace LibraryManagement.ViewModels
         public ICommand EditCommand { get; }
         public ICommand DeleteCommand { get; }
 
-        public BooksViewModel()
+        public BooksViewModel() : this(new BookService())
         {
+        }
+
+        public BooksViewModel(BookService bookService)
+        {
+            _bookService = bookService;
             AddCommand = new RelayCommand(AddBook);
             EditCommand = new RelayCommand(EditBook, () => SelectedBook != null);
             DeleteCommand = new RelayCommand(DeleteBook, () => SelectedBook != null);

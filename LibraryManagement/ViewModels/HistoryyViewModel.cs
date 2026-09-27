@@ -11,13 +11,13 @@ namespace LibraryManagement.ViewModels
 {
     public class HistoryViewModel : BaseViewModel
     {
-        private readonly BorrowService _borrowService = new BorrowService();
-        private readonly BookService _bookService = new BookService();
-        private readonly ReaderService _readerService = new ReaderService();
+        private readonly BorrowService _borrowService;
+        private readonly BookService _bookService;
+        private readonly ReaderService _readerService;
 
         public ObservableCollection<HistoryRow> Records { get; set; } = new ObservableCollection<HistoryRow>();
         public ObservableCollection<string> StatusOptions { get; set; } =
-            new ObservableCollection<string> { "All", "Borrowing", "Returned" };
+            new ObservableCollection<string> { "All", "Borrowing", "Returned", "Overdue" };
 
         private string _searchText = string.Empty;
         public string SearchText
@@ -63,11 +63,29 @@ namespace LibraryManagement.ViewModels
             }
         }
 
-        public ICommand RefreshCommand { get; }
-
-        public HistoryViewModel()
+        private int _overdueCount;
+        public int OverdueCount
         {
+            get => _overdueCount;
+            set => SetProperty(ref _overdueCount, value);
+        }
+
+        public bool HasOverdue => OverdueCount > 0;
+
+        public ICommand RefreshCommand { get; }
+        public ICommand FilterOverdueCommand { get; }
+
+        public HistoryViewModel() : this(new BorrowService(), new BookService(), new ReaderService())
+        {
+        }
+
+        public HistoryViewModel(BorrowService borrowService, BookService bookService, ReaderService readerService)
+        {
+            _borrowService = borrowService;
+            _bookService = bookService;
+            _readerService = readerService;
             RefreshCommand = new RelayCommand(Load);
+            FilterOverdueCommand = new RelayCommand(() => SelectedStatus = "Overdue");
             Load();
         }
 
@@ -75,7 +93,23 @@ namespace LibraryManagement.ViewModels
         {
             try
             {
-                string? statusFilter = SelectedStatus == "All" ? null : SelectedStatus;
+                var activeBorrowings = _borrowService.GetBorrowingBooks();
+                OverdueCount = activeBorrowings.Count(r => r.DueDate.Date < DateTime.Today);
+                OnPropertyChanged(nameof(HasOverdue));
+
+                string? statusFilter = null;
+                if (SelectedStatus == "Borrowing")
+                {
+                    statusFilter = "Borrowing";
+                }
+                else if (SelectedStatus == "Returned")
+                {
+                    statusFilter = "Returned";
+                }
+                else if (SelectedStatus == "Overdue")
+                {
+                    statusFilter = "Borrowing";
+                }
 
                 var records = _borrowService.GetHistory(
                     status: statusFilter,
@@ -83,25 +117,47 @@ namespace LibraryManagement.ViewModels
                     toDate: ToDate);
 
                 var books = _bookService.GetAllBooks();
-                var readers = _readerService.GetAllReaders();
+                var readers = _readerService.GetAllReaders(includeDeleted: true);
 
                 var rows = records.Select(r =>
                 {
                     var book = books.FirstOrDefault(b => b.BookId == r.BookId);
                     var reader = readers.FirstOrDefault(x => x.ReaderId == r.ReaderId);
                     DateTime actionDate = r.ReturnDate ?? r.BorrowDate;
+
+                    bool isOverdue = r.Status == "Borrowing" && r.DueDate.Date < DateTime.Today;
+                    int overdueDays = isOverdue ? (DateTime.Today - r.DueDate.Date).Days : 0;
+                    string status = isOverdue ? "Overdue" : r.Status;
+                    string statusDisplay = isOverdue ? $"Overdue ({overdueDays}d)" : r.Status;
+                    string overdueText = isOverdue
+                        ? $"Quá hạn {overdueDays} ngày (Hạn trả: {r.DueDate:dd/MM/yyyy})"
+                        : (r.Status == "Borrowing" ? $"Đang mượn (Hạn: {r.DueDate:dd/MM/yyyy})" : "Đã hoàn thành");
+
+                    string readerName = reader != null
+                        ? (reader.IsDeleted ? $"{reader.FullName} (Đã xóa)" : reader.FullName)
+                        : "?";
+
                     return new HistoryRow
                     {
-                        ReaderName = reader?.FullName ?? "?",
+                        ReaderName = readerName,
                         BookTitle = book?.Title ?? "?",
                         BorrowDate = r.BorrowDate.ToString("dd/MM/yyyy"),
                         DueDate = r.DueDate.ToString("dd/MM/yyyy"),
-                        ReturnDate = r.ReturnDate?.ToString("dd/MM/yyyy") ?? "—",
-                        Status = r.Status,
+                        ReturnDate = r.DueDate.ToString("dd/MM/yyyy"),
+                        Status = status,
+                        StatusDisplay = statusDisplay,
+                        IsOverdue = isOverdue,
+                        OverdueDays = overdueDays,
+                        OverdueText = overdueText,
                         BorrowId = r.BorrowId,
                         ActionDate = actionDate
                     };
                 });
+
+                if (SelectedStatus == "Overdue")
+                {
+                    rows = rows.Where(x => x.IsOverdue);
+                }
 
                 if (!string.IsNullOrWhiteSpace(SearchText))
                 {
@@ -132,6 +188,10 @@ namespace LibraryManagement.ViewModels
         public string DueDate { get; set; } = string.Empty;
         public string ReturnDate { get; set; } = string.Empty;
         public string Status { get; set; } = string.Empty;
+        public string StatusDisplay { get; set; } = string.Empty;
+        public bool IsOverdue { get; set; }
+        public int OverdueDays { get; set; }
+        public string OverdueText { get; set; } = string.Empty;
         public int BorrowId { get; set; }
         public DateTime ActionDate { get; set; }
     }

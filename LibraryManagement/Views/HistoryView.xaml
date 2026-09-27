@@ -4,7 +4,58 @@
              xmlns:vm="clr-namespace:LibraryManagement.ViewModels">
 
     <StackPanel Margin="10">
-        <TextBlock Text="📋 Borrowing History" FontSize="22" FontWeight="Bold" Foreground="{StaticResource TextBrush}" Margin="0,0,0,16"/>
+        <!-- Title and Overdue Quick Filter Card -->
+        <Grid Margin="0,0,0,16">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+
+            <TextBlock Grid.Column="0" Text="📋 Borrowing History" FontSize="22" FontWeight="Bold" Foreground="{StaticResource TextBrush}" VerticalAlignment="Center"/>
+
+            <Button Grid.Column="1" Command="{Binding FilterOverdueCommand}"
+                    Cursor="Hand"
+                    Padding="12,6"
+                    ToolTip="Nhấn để lọc nhanh các sách đang quá hạn">
+                <Button.Style>
+                    <Style TargetType="Button">
+                        <Setter Property="Background" Value="#F8FAFC"/>
+                        <Setter Property="BorderBrush" Value="{StaticResource TechBorderBrush}"/>
+                        <Setter Property="Foreground" Value="{StaticResource SecondaryTextBrush}"/>
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding HasOverdue}" Value="True">
+                                <Setter Property="Background" Value="#FFE4E6"/>
+                                <Setter Property="BorderBrush" Value="#FECDD3"/>
+                                <Setter Property="Foreground" Value="{StaticResource TechAccentRose}"/>
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </Button.Style>
+                <Button.Template>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="1"
+                                CornerRadius="6"
+                                Padding="{TemplateBinding Padding}">
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                <TextBlock Text="⚠️" FontSize="12" Margin="0,0,6,0" VerticalAlignment="Center"/>
+                                <TextBlock Text="{Binding OverdueCount, StringFormat='{}{0} Overdue'}"
+                                           FontSize="12"
+                                           FontWeight="Bold"
+                                           Foreground="{TemplateBinding Foreground}"
+                                           VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Opacity" Value="0.85"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Button.Template>
+            </Button>
+        </Grid>
 
         <Grid Margin="0,0,0,10">
             <Grid.ColumnDefinitions>
@@ -39,10 +90,32 @@
             <DataGrid.Columns>
                 <DataGridTextColumn Header="Reader" Binding="{Binding ReaderName}" Width="*"/>
                 <DataGridTextColumn Header="Book" Binding="{Binding BookTitle}" Width="*"/>
-                <DataGridTextColumn Header="Borrow" Binding="{Binding BorrowDate}" Width="100"/>
-                <DataGridTextColumn Header="Due" Binding="{Binding DueDate}" Width="100"/>
-                <DataGridTextColumn Header="Return" Binding="{Binding ReturnDate}" Width="100"/>
-                <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="90"/>
+                <DataGridTextColumn Header="Borrow" Binding="{Binding BorrowDate}" Width="110"/>
+                <DataGridTextColumn Header="Return" Binding="{Binding ReturnDate}" Width="110"/>
+                <DataGridTemplateColumn Header="Status" Width="125" SortMemberPath="Status">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <Border x:Name="StatusBadge" CornerRadius="4" Padding="8,3" HorizontalAlignment="Left" VerticalAlignment="Center"
+                                    ToolTip="{Binding OverdueText}">
+                                <TextBlock x:Name="StatusText" Text="{Binding StatusDisplay}" FontSize="11" FontWeight="SemiBold"/>
+                            </Border>
+                            <DataTemplate.Triggers>
+                                <DataTrigger Binding="{Binding Status}" Value="Returned">
+                                    <Setter TargetName="StatusBadge" Property="Background" Value="#DCFCE7"/>
+                                    <Setter TargetName="StatusText" Property="Foreground" Value="{StaticResource TechAccentGreen}"/>
+                                </DataTrigger>
+                                <DataTrigger Binding="{Binding Status}" Value="Borrowing">
+                                    <Setter TargetName="StatusBadge" Property="Background" Value="#E0F2FE"/>
+                                    <Setter TargetName="StatusText" Property="Foreground" Value="{StaticResource TechAccentCyan}"/>
+                                </DataTrigger>
+                                <DataTrigger Binding="{Binding Status}" Value="Overdue">
+                                    <Setter TargetName="StatusBadge" Property="Background" Value="#FFE4E6"/>
+                                    <Setter TargetName="StatusText" Property="Foreground" Value="{StaticResource TechAccentRose}"/>
+                                </DataTrigger>
+                            </DataTemplate.Triggers>
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
             </DataGrid.Columns>
         </DataGrid>
     </StackPanel>

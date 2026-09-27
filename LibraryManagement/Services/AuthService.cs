@@ -14,7 +14,16 @@ namespace LibraryManagement.Services
             set => _currentUser = value;
         }
 
-        private readonly UserRepository _userRepository = new();
+        private readonly UserRepository _userRepository;
+
+        public AuthService() : this(new UserRepository())
+        {
+        }
+
+        public AuthService(UserRepository userRepository)
+        {
+            _userRepository = userRepository;
+        }
 
         public (bool Success, string Message, User? User) Login(string usernameOrEmail, string password)
         {
