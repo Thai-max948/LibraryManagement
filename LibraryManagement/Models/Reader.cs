@@ -48,6 +48,10 @@ namespace LibraryManagement.Models
 
         public string Status { get; set; } = "Active";
 
+        public string SuspensionReason { get; set; } = string.Empty;
+
+        public DateTime? SuspendedDate { get; set; }
+
         public bool IsDeleted { get; set; }
 
         public bool IsSuspended => string.Equals(Status, "Suspended", StringComparison.OrdinalIgnoreCase);

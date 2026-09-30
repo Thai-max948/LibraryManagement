@@ -17,6 +17,8 @@ namespace LibraryManagement.ViewModels
 
         public ObservableCollection<string> TypeOptions { get; } = new ObservableCollection<string> { "All", "Student", "External" };
         public ObservableCollection<string> StatusOptions { get; } = new ObservableCollection<string> { "All", "Active", "Suspended" };
+        public ObservableCollection<string> SortOptions { get; } = new ObservableCollection<string> { "Name A-Z", "Name Z-A", "Newest", "Oldest", "Status" };
+        public ObservableCollection<int> PageSizeOptions { get; } = new ObservableCollection<int> { 10, 20, 50 };
 
         private string _searchText = string.Empty;
         public string SearchText
@@ -26,7 +28,7 @@ namespace LibraryManagement.ViewModels
             {
                 if (SetProperty(ref _searchText, value))
                 {
-                    Search();
+                    ResetAndSearch();
                 }
             }
         }
@@ -39,7 +41,7 @@ namespace LibraryManagement.ViewModels
             {
                 if (SetProperty(ref _selectedTypeFilter, value))
                 {
-                    Search();
+                    ResetAndSearch();
                 }
             }
         }
@@ -52,7 +54,7 @@ namespace LibraryManagement.ViewModels
             {
                 if (SetProperty(ref _selectedStatusFilter, value))
                 {
-                    Search();
+                    ResetAndSearch();
                 }
             }
         }
@@ -64,7 +66,29 @@ namespace LibraryManagement.ViewModels
             set => SetProperty(ref _selectedReader, value);
         }
 
-        public int TotalReaders => Readers.Count;
+        private string _selectedSort = "Name A-Z";
+        public string SelectedSort
+        {
+            get => _selectedSort;
+            set { if (SetProperty(ref _selectedSort, value)) ResetAndSearch(); }
+        }
+
+        private int _pageSize = 20;
+        public int PageSize
+        {
+            get => _pageSize;
+            set { if (SetProperty(ref _pageSize, value)) ResetAndSearch(); }
+        }
+
+        private int _currentPage = 1;
+        public int CurrentPage { get => _currentPage; private set => SetProperty(ref _currentPage, value); }
+
+        private int _totalReaders;
+        public int TotalReaders { get => _totalReaders; private set => SetProperty(ref _totalReaders, value); }
+
+        private int _totalPages = 1;
+        public int TotalPages { get => _totalPages; private set => SetProperty(ref _totalPages, value); }
+        public string PageSummary => $"Trang {CurrentPage}/{TotalPages} • {TotalReaders} độc giả";
 
         public ICommand AddCommand { get; }
         public ICommand EditCommand { get; }
@@ -72,6 +96,8 @@ namespace LibraryManagement.ViewModels
         public ICommand DetailCommand { get; }
         public ICommand DeleteCommand { get; }
         public ICommand ToggleStatusCommand { get; }
+        public ICommand PreviousPageCommand { get; }
+        public ICommand NextPageCommand { get; }
 
         public ReadersViewModel() : this(new ReaderService())
         {
@@ -86,6 +112,8 @@ namespace LibraryManagement.ViewModels
             DetailCommand = new RelayCommand(param => ViewDetail(param as Reader ?? SelectedReader), param => param != null || SelectedReader != null);
             DeleteCommand = new RelayCommand(param => DeleteReader(param as Reader ?? SelectedReader), param => param != null || SelectedReader != null);
             ToggleStatusCommand = new RelayCommand(param => ToggleStatus(param as Reader ?? SelectedReader), param => param != null || SelectedReader != null);
+            PreviousPageCommand = new RelayCommand(_ => ChangePage(-1));
+            NextPageCommand = new RelayCommand(_ => ChangePage(1));
             Load();
         }
 
@@ -93,12 +121,7 @@ namespace LibraryManagement.ViewModels
         {
             try
             {
-                Readers.Clear();
-                foreach (var r in _readerService.GetAllReaders())
-                {
-                    Readers.Add(r);
-                }
-                OnPropertyChanged(nameof(TotalReaders));
+                Search();
             }
             catch (Exception ex)
             {
@@ -110,18 +133,36 @@ namespace LibraryManagement.ViewModels
         {
             try
             {
+                var page = _readerService.GetReaderPage(SearchText, SelectedTypeFilter, SelectedStatusFilter,
+                    SelectedSort, CurrentPage, PageSize);
                 Readers.Clear();
-                var results = _readerService.SearchReader(SearchText, SelectedTypeFilter, SelectedStatusFilter);
-                foreach (var r in results)
+                foreach (var r in page.Items)
                 {
                     Readers.Add(r);
                 }
-                OnPropertyChanged(nameof(TotalReaders));
+                CurrentPage = page.PageNumber;
+                TotalReaders = page.TotalCount;
+                TotalPages = page.TotalPages;
+                OnPropertyChanged(nameof(PageSummary));
             }
             catch (Exception ex)
             {
                 MessageBox.Show("Không thể tìm kiếm độc giả: " + ex.Message, "Lỗi");
             }
+        }
+
+        private void ResetAndSearch()
+        {
+            CurrentPage = 1;
+            Search();
+        }
+
+        private void ChangePage(int delta)
+        {
+            int target = Math.Clamp(CurrentPage + delta, 1, TotalPages);
+            if (target == CurrentPage) return;
+            CurrentPage = target;
+            Search();
         }
 
         public void AddReader()
@@ -203,10 +244,8 @@ namespace LibraryManagement.ViewModels
 
             try
             {
-                var current = _readerService.GetReaderById(target.ReaderId);
-                if (current == null || current.IsDeleted)
-                    throw new BusinessRuleException("Độc giả không còn tồn tại.");
-                new ReaderDetailDialog(current).ShowDialog();
+                var profile = _readerService.GetReaderProfile(target.ReaderId);
+                new ReaderDetailDialog(profile).ShowDialog();
             }
             catch (Exception ex)
             {

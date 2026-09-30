@@ -25,10 +25,13 @@ public sealed class ProjectIntegrationTests : IClassFixture<SqlIntegrationFixtur
 
         reader.FullName = "Độc giả đã sửa";
         reader.Status = "Suspended";
+        reader.SuspensionReason = "Vi phạm quy định mượn sách";
         readers.UpdateReader(reader);
         var persistedReader = readers.GetReaderById(readerId)!;
         Assert.Equal("Độc giả đã sửa", persistedReader.FullName);
         Assert.Equal("Suspended", persistedReader.Status);
+        Assert.Equal("Vi phạm quy định mượn sách", persistedReader.SuspensionReason);
+        Assert.NotNull(persistedReader.SuspendedDate);
         Assert.Equal("*********788", persistedReader.DisplayIdentification);
         Assert.Empty(readers.SearchReader(reader.FormattedId, "External", "Active"));
 
@@ -40,6 +43,10 @@ public sealed class ProjectIntegrationTests : IClassFixture<SqlIntegrationFixtur
         books.UpdateBook(book);
         Assert.Equal(6, new BookRepository().GetById(bookId)!.AvailableQuantity);
         Assert.Contains(books.SearchBook("Sách tích hợp"), b => b.BookId == bookId);
+
+        var duplicate = new Reader { ReaderType = "External", FullName = "Trùng định danh",
+            IdentityNumber = reader.IdentityNumber, Phone = "0987654321" };
+        Assert.Throws<BusinessRuleException>(() => readers.AddReader(duplicate));
     }
 
     [IntegrationFact]

@@ -9,6 +9,7 @@ namespace LibraryManagement.Views.Readers
     {
         private readonly int _readerId;
         private readonly DateTime _registrationDate;
+        private readonly DateTime? _suspendedDate;
         public Reader ResultReader { get; private set; } = new();
 
         public EditReaderDialog(Reader existing)
@@ -16,6 +17,7 @@ namespace LibraryManagement.Views.Readers
             InitializeComponent();
             _readerId = existing.ReaderId;
             _registrationDate = existing.RegistrationDate == default ? DateTime.Now : existing.RegistrationDate;
+            _suspendedDate = existing.SuspendedDate;
 
             ReaderIdBox.Text = existing.FormattedId;
             FullNameBox.Text = existing.FullName;
@@ -33,6 +35,22 @@ namespace LibraryManagement.Views.Readers
 
             bool isSuspended = string.Equals(existing.Status, "Suspended", StringComparison.OrdinalIgnoreCase);
             StatusComboBox.SelectedIndex = isSuspended ? 1 : 0;
+            SuspensionReasonBox.Text = existing.SuspensionReason;
+            UpdateSuspensionVisibility(isSuspended);
+        }
+
+        private void Status_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (SuspensionPanel == null) return;
+            UpdateSuspensionVisibility(StatusComboBox.SelectedIndex == 1);
+        }
+
+        private void UpdateSuspensionVisibility(bool isSuspended)
+        {
+            SuspensionPanel.Visibility = isSuspended ? Visibility.Visible : Visibility.Collapsed;
+            SuspendedDateText.Text = _suspendedDate.HasValue
+                ? $"Đã khóa từ: {_suspendedDate:dd/MM/yyyy HH:mm}"
+                : "Ngày khóa sẽ được ghi tự động khi lưu.";
         }
 
         private void ReaderType_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -84,6 +102,11 @@ namespace LibraryManagement.Views.Readers
             }
 
             string status = StatusComboBox.SelectedIndex == 1 ? "Suspended" : "Active";
+            if (status == "Suspended" && string.IsNullOrWhiteSpace(SuspensionReasonBox.Text))
+            {
+                MessageBox.Show("Vui lòng nhập lý do tạm khóa độc giả.", "Thiếu thông tin");
+                return;
+            }
 
             ResultReader = new Reader
             {
@@ -96,7 +119,9 @@ namespace LibraryManagement.Views.Readers
                 Email = EmailBox.Text.Trim(),
                 Address = AddressBox.Text.Trim(),
                 RegistrationDate = _registrationDate,
-                Status = status
+                Status = status,
+                SuspensionReason = status == "Suspended" ? SuspensionReasonBox.Text.Trim() : string.Empty,
+                SuspendedDate = status == "Suspended" ? _suspendedDate : null
             };
 
             DialogResult = true;

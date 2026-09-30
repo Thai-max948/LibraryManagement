@@ -1,7 +1,7 @@
 <Window x:Class="LibraryManagement.Views.Readers.EditReaderDialog"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Edit Reader" Height="540" Width="480"
+        Title="Edit Reader" Height="640" Width="500"
         WindowStartupLocation="CenterOwner"
         Background="{StaticResource BackgroundBrush}">
     <Border Background="#FFFFFF" Margin="14" CornerRadius="8" Padding="20" BorderBrush="{StaticResource TechBorderBrush}" BorderThickness="1">
@@ -87,12 +87,17 @@
                         </StackPanel>
                         <StackPanel Grid.Column="2">
                             <TextBlock Text="Trạng thái (Status) *" FontWeight="SemiBold" Foreground="{StaticResource TextBrush}" Margin="0,0,0,4"/>
-                            <ComboBox x:Name="StatusComboBox" Padding="8,6" BorderBrush="{StaticResource TechBorderBrush}">
+                            <ComboBox x:Name="StatusComboBox" Padding="8,6" BorderBrush="{StaticResource TechBorderBrush}" SelectionChanged="Status_SelectionChanged">
                                 <ComboBoxItem Content="Active" IsSelected="True"/>
                                 <ComboBoxItem Content="Suspended"/>
                             </ComboBox>
                         </StackPanel>
                     </Grid>
+                    <StackPanel x:Name="SuspensionPanel" Visibility="Collapsed" Margin="0,8,0,0">
+                        <TextBlock Text="Lý do tạm khóa *" FontWeight="SemiBold" Foreground="{StaticResource TextBrush}" Margin="0,0,0,4"/>
+                        <TextBox x:Name="SuspensionReasonBox" Padding="8,6" MinHeight="52" TextWrapping="Wrap" AcceptsReturn="True" BorderBrush="{StaticResource TechBorderBrush}"/>
+                        <TextBlock x:Name="SuspendedDateText" Foreground="{StaticResource SecondaryTextBrush}" FontSize="11" Margin="0,4,0,0"/>
+                    </StackPanel>
                 </StackPanel>
             </ScrollViewer>
 
