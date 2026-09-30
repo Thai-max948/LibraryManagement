@@ -103,27 +103,6 @@
                                        Margin="0,2,0,0"/>
                         </StackPanel>
 
-                        <!-- Simulated Barcode / QR Section -->
-                        <Border Background="#FFFFFF" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="6" Padding="14,8" HorizontalAlignment="Center" Margin="0,0,0,8">
-                            <StackPanel HorizontalAlignment="Center">
-                                <!-- Barcode Lines Pattern -->
-                                <TextBlock Text="||||| | |||| ||| || |||||| || | |||| ||||"
-                                           FontFamily="Courier New"
-                                           FontSize="24"
-                                           FontWeight="Bold"
-                                           Foreground="#1E293B"
-                                           HorizontalAlignment="Center"/>
-                                <TextBlock x:Name="BarcodeText"
-                                           Text="* R000125 *"
-                                           FontFamily="Courier New"
-                                           FontSize="11"
-                                           FontWeight="Medium"
-                                           Foreground="#64748B"
-                                           HorizontalAlignment="Center"
-                                           Margin="0,2,0,0"/>
-                            </StackPanel>
-                        </Border>
-
                         <!-- Status indicator -->
                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,4,0,0">
                             <TextBlock Text="STATUS: " FontSize="10" FontWeight="SemiBold" Foreground="#94A3B8"/>

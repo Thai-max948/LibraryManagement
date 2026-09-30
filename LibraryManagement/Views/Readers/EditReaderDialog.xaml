@@ -69,7 +69,7 @@
                             <TextBox x:Name="PhoneBox" Padding="8,6" BorderBrush="{StaticResource TechBorderBrush}"/>
                         </StackPanel>
                         <StackPanel Grid.Column="2">
-                            <TextBlock Text="Email *" FontWeight="SemiBold" Foreground="{StaticResource TextBrush}" Margin="0,0,0,4"/>
+                            <TextBlock Text="Email" FontWeight="SemiBold" Foreground="{StaticResource TextBrush}" Margin="0,0,0,4"/>
                             <TextBox x:Name="EmailBox" Padding="8,6" BorderBrush="{StaticResource TechBorderBrush}"/>
                         </StackPanel>
                     </Grid>

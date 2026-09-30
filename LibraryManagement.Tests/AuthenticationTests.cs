@@ -93,7 +93,7 @@ namespace LibraryManagement.Tests
             // Act & Assert
             StaHelper.RunInSta(() =>
             {
-                var mainVm = new MainViewModel();
+                var mainVm = new MainViewModel(_ => new object());
                 Assert.False(mainVm.IsAccountsVisible);
                 Assert.Equal(System.Windows.Visibility.Collapsed, mainVm.AccountsVisibility);
             });
@@ -376,7 +376,7 @@ namespace LibraryManagement.Tests
             Assert.Equal("Librarian", AuthService.CurrentUser.Role);
             StaHelper.RunInSta(() =>
             {
-                var mainVm = new MainViewModel();
+                var mainVm = new MainViewModel(_ => new object());
                 Assert.False(mainVm.IsAccountsVisible);
             });
         }

@@ -128,11 +128,7 @@ namespace LibraryManagement.Services
             {
                 throw new BusinessRuleException("thiếu thông tin sđt");
             }
-            if (string.IsNullOrWhiteSpace(reader.Email))
-            {
-                throw new BusinessRuleException("thiếu thông tin email");
-            }
-            if (!EmailRegex.IsMatch(reader.Email))
+            if (!string.IsNullOrWhiteSpace(reader.Email) && !EmailRegex.IsMatch(reader.Email.Trim()))
             {
                 throw new BusinessRuleException("Email không hợp lệ.");
             }
@@ -141,15 +137,37 @@ namespace LibraryManagement.Services
                 throw new BusinessRuleException("Số điện thoại không hợp lệ.");
             }
 
-            if (string.IsNullOrWhiteSpace(reader.ReaderType))
+            if (!string.Equals(reader.ReaderType, "Student", StringComparison.OrdinalIgnoreCase)
+                && !string.Equals(reader.ReaderType, "External", StringComparison.OrdinalIgnoreCase))
             {
-                reader.ReaderType = "Student";
+                throw new BusinessRuleException("Loại độc giả không hợp lệ.");
             }
 
-            if (string.IsNullOrWhiteSpace(reader.Status))
+            if (string.Equals(reader.ReaderType, "Student", StringComparison.OrdinalIgnoreCase))
             {
-                reader.Status = "Active";
+                if (string.IsNullOrWhiteSpace(reader.StudentId))
+                    throw new BusinessRuleException("Mã sinh viên không được để trống.");
+                reader.ReaderType = "Student";
+                reader.StudentId = reader.StudentId.Trim();
+                reader.IdentityNumber = null;
             }
+            else
+            {
+                if (string.IsNullOrWhiteSpace(reader.IdentityNumber))
+                    throw new BusinessRuleException("Số CCCD / Định danh không được để trống.");
+                reader.ReaderType = "External";
+                reader.IdentityNumber = reader.IdentityNumber.Trim();
+                reader.StudentId = null;
+            }
+
+            if (!string.Equals(reader.Status, "Active", StringComparison.OrdinalIgnoreCase)
+                && !string.Equals(reader.Status, "Suspended", StringComparison.OrdinalIgnoreCase))
+                throw new BusinessRuleException("Trạng thái độc giả không hợp lệ.");
+
+            reader.Status = string.Equals(reader.Status, "Suspended", StringComparison.OrdinalIgnoreCase) ? "Suspended" : "Active";
+            reader.FullName = reader.FullName.Trim();
+            reader.Phone = reader.Phone.Trim();
+            reader.Email = reader.Email?.Trim() ?? string.Empty;
 
             if (reader.RegistrationDate == default)
             {

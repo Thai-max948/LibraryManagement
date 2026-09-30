@@ -51,7 +51,9 @@ namespace LibraryManagement.Data
 
         public static SqlConnection GetConnection()
         {
-            return new SqlConnection(ConnectionString);
+            // Integration tests point only their process at an isolated database.
+            string? overrideConnection = Environment.GetEnvironmentVariable("LIBRARY_TEST_DB_CONNECTION_STRING");
+            return new SqlConnection(string.IsNullOrWhiteSpace(overrideConnection) ? ConnectionString : overrideConnection);
         }
     }
 }

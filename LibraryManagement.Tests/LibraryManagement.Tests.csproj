@@ -24,4 +24,8 @@
     <Using Include="Xunit" />
   </ItemGroup>
 
+  <ItemGroup>
+    <None Include="..\LibraryDB.sql" Link="LibraryDB.sql" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
 </Project>

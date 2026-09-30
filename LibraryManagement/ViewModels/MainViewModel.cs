@@ -12,6 +12,20 @@ namespace LibraryManagement.ViewModels
 {
     public class MainViewModel : BaseViewModel
     {
+        private readonly Func<string, object> _createView;
+
+        private static object CreateDefaultView(string name) => name switch
+        {
+            "Dashboard" => new DashboardView(),
+            "Books" => new BooksView(),
+            "Readers" => new ReadersView(),
+            "Borrow" => new BorrowView(),
+            "Return" => new ReturnView(),
+            "History" => new HistoryView(),
+            "MyAccount" => new MyAccountView(),
+            "Accounts" => new AccountsView(),
+            _ => throw new ArgumentOutOfRangeException(nameof(name))
+        };
         private static bool HasAccountManagementRole()
         {
             return string.Equals(
@@ -54,8 +68,13 @@ namespace LibraryManagement.ViewModels
         public ICommand ShowMyAccountCommand { get; }
         public ICommand ShowAccountsCommand { get; }
 
-        public MainViewModel()
+        public MainViewModel() : this(CreateDefaultView)
         {
+        }
+
+        public MainViewModel(Func<string, object> createView)
+        {
+            _createView = createView ?? throw new ArgumentNullException(nameof(createView));
             ShowDashboardCommand = new RelayCommand(ShowDashboard);
             ShowBooksCommand = new RelayCommand(ShowBooks);
             ShowReadersCommand = new RelayCommand(ShowReaders);
@@ -71,43 +90,43 @@ namespace LibraryManagement.ViewModels
         private void ShowDashboard()
         {
             CurrentViewName = "Dashboard";
-            CurrentView = new DashboardView();
+            CurrentView = _createView("Dashboard");
         }
 
         private void ShowBooks()
         {
             CurrentViewName = "Books";
-            CurrentView = new BooksView();
+            CurrentView = _createView("Books");
         }
 
         private void ShowReaders()
         {
             CurrentViewName = "Readers";
-            CurrentView = new ReadersView();
+            CurrentView = _createView("Readers");
         }
 
         private void ShowBorrow()
         {
             CurrentViewName = "Borrow";
-            CurrentView = new BorrowView();
+            CurrentView = _createView("Borrow");
         }
 
         private void ShowReturn()
         {
             CurrentViewName = "Return";
-            CurrentView = new ReturnView();
+            CurrentView = _createView("Return");
         }
 
         private void ShowHistory()
         {
             CurrentViewName = "History";
-            CurrentView = new HistoryView();
+            CurrentView = _createView("History");
         }
 
         private void ShowMyAccount()
         {
             CurrentViewName = "MyAccount";
-            CurrentView = new MyAccountView();
+            CurrentView = _createView("MyAccount");
             OnPropertyChanged(nameof(CurrentUserName));
             OnPropertyChanged(nameof(CurrentUserRole));
         }
@@ -119,7 +138,7 @@ namespace LibraryManagement.ViewModels
                 return;
             }
             CurrentViewName = "Accounts";
-            CurrentView = new AccountsView();
+            CurrentView = _createView("Accounts");
         }
     }
 }

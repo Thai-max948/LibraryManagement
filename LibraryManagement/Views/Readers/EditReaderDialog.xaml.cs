@@ -83,12 +83,6 @@ namespace LibraryManagement.Views.Readers
                 return;
             }
 
-            if (string.IsNullOrWhiteSpace(EmailBox.Text))
-            {
-                MessageBox.Show("thiếu thông tin email", "Thiếu thông tin");
-                return;
-            }
-
             string status = StatusComboBox.SelectedIndex == 1 ? "Suspended" : "Active";
 
             ResultReader = new Reader

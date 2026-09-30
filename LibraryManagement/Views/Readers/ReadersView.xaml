@@ -153,24 +153,6 @@
                     </DataGridTextColumn.ElementStyle>
                 </DataGridTextColumn>
 
-                <!-- Phone -->
-                <DataGridTextColumn Header="Điện Thoại" Binding="{Binding Phone}" Width="110">
-                    <DataGridTextColumn.ElementStyle>
-                        <Style TargetType="TextBlock">
-                            <Setter Property="VerticalAlignment" Value="Center"/>
-                        </Style>
-                    </DataGridTextColumn.ElementStyle>
-                </DataGridTextColumn>
-
-                <!-- Email -->
-                <DataGridTextColumn Header="Email" Binding="{Binding Email}" Width="1.5*">
-                    <DataGridTextColumn.ElementStyle>
-                        <Style TargetType="TextBlock">
-                            <Setter Property="VerticalAlignment" Value="Center"/>
-                        </Style>
-                    </DataGridTextColumn.ElementStyle>
-                </DataGridTextColumn>
-
                 <!-- Status Badge -->
                 <DataGridTemplateColumn Header="Trạng Thái" Width="95">
                     <DataGridTemplateColumn.CellTemplate>
@@ -208,7 +190,7 @@
                 </DataGridTemplateColumn>
 
                 <!-- 3 Main Actions: [View Card] [Detail] [Edit] -->
-                <DataGridTemplateColumn Header="Thao Tác" Width="240">
+                <DataGridTemplateColumn Header="Thao Tác" Width="205">
                     <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate>
                             <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
@@ -242,14 +224,6 @@
                                         ToolTip="Chỉnh Sửa Thông Tin (Edit Reader)"
                                         Style="{StaticResource SecondaryButtonStyle}"/>
 
-                                <!-- Context / Delete option -->
-                                <Button Content="🗑"
-                                        Command="{Binding DataContext.DeleteCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                                        CommandParameter="{Binding}"
-                                        Padding="6,3"
-                                        FontSize="11"
-                                        ToolTip="Xóa Độc Giả"
-                                        Style="{StaticResource DangerButtonStyle}"/>
                             </StackPanel>
                         </DataTemplate>
                     </DataGridTemplateColumn.CellTemplate>

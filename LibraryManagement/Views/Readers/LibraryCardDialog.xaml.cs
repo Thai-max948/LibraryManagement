@@ -17,7 +17,6 @@ namespace LibraryManagement.Views.Readers
         {
             FullNameText.Text = reader.FullName;
             ReaderIdText.Text = reader.FormattedId;
-            BarcodeText.Text = $"* {reader.FormattedId} *";
 
             bool isExternal = string.Equals(reader.ReaderType, "External", StringComparison.OrdinalIgnoreCase);
 
