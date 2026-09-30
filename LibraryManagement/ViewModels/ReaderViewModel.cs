@@ -132,7 +132,7 @@ namespace LibraryManagement.ViewModels
                 try
                 {
                     _readerService.AddReader(dialog.ResultReader);
-                    Load();
+                    Search();
                 }
                 catch (BusinessRuleException ex)
                 {
@@ -159,7 +159,7 @@ namespace LibraryManagement.ViewModels
                 try
                 {
                     _readerService.UpdateReader(dialog.ResultReader);
-                    Load();
+                    Search();
                 }
                 catch (BusinessRuleException ex)
                 {
@@ -180,8 +180,17 @@ namespace LibraryManagement.ViewModels
                 return;
             }
 
-            var cardDialog = new LibraryCardDialog(target);
-            cardDialog.ShowDialog();
+            try
+            {
+                var current = _readerService.GetReaderById(target.ReaderId);
+                if (current == null || current.IsDeleted)
+                    throw new BusinessRuleException("Độc giả không còn tồn tại.");
+                new LibraryCardDialog(current).ShowDialog();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(ex.Message, "Không thể xem thẻ");
+            }
         }
 
         public void ViewDetail(Reader? reader)
@@ -192,8 +201,17 @@ namespace LibraryManagement.ViewModels
                 return;
             }
 
-            var detailDialog = new ReaderDetailDialog(target);
-            detailDialog.ShowDialog();
+            try
+            {
+                var current = _readerService.GetReaderById(target.ReaderId);
+                if (current == null || current.IsDeleted)
+                    throw new BusinessRuleException("Độc giả không còn tồn tại.");
+                new ReaderDetailDialog(current).ShowDialog();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(ex.Message, "Không thể xem chi tiết");
+            }
         }
 
         public void ToggleStatus(Reader? reader)

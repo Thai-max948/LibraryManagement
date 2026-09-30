@@ -63,6 +63,24 @@ dotnet run --project LibraryManagement/LibraryManagement.csproj
 ```
 Hoặc mở file [`LibraryManagement.slnx`](LibraryManagement.slnx) bằng **Visual Studio 2022+** và nhấn **F5**.
 
+### Kiểm thử
+
+Chạy toàn bộ unit test (không cần SQL Server):
+
+```powershell
+dotnet test LibraryManagement.slnx --filter "Category!=Integration"
+```
+
+Integration test dùng SQL Server LocalDB hoặc SQL Server Express cục bộ. Chúng tạo một database tạm có tên `LibraryMgmtTest_<guid>` từ `LibraryDB.sql`, chạy thử luồng tài khoản, độc giả, sách và mượn/trả, rồi xóa database tạm. Chúng không kết nối vào `LibraryDB` của ứng dụng. Để chạy trên máy có LocalDB hoạt động:
+
+```powershell
+$env:LIBRARY_TEST_SQL_MASTER_CONNECTION = 'Server=(localdb)\MSSQLLocalDB;Database=master;Integrated Security=True;Encrypt=False;TrustServerCertificate=True'
+dotnet test LibraryManagement.slnx --filter "Category=Integration"
+Remove-Item Env:LIBRARY_TEST_SQL_MASTER_CONNECTION
+```
+
+CI chạy cả hai nhóm test trên Windows. Nếu chưa đặt biến môi trường này khi chạy cục bộ, các integration test sẽ được đánh dấu bỏ qua.
+
 ---
 
 ## 🔑 Tài khoản kiểm thử mặc định (Seed Data)

@@ -38,7 +38,7 @@ namespace LibraryManagement.Tests
 
             StaHelper.RunInSta(() =>
             {
-                var mainVm = new MainViewModel();
+                var mainVm = new MainViewModel(_ => new object());
 
                 // 1. Dashboard
                 mainVm.ShowDashboardCommand.Execute(null);
@@ -89,7 +89,7 @@ namespace LibraryManagement.Tests
             // Arrange & Act & Assert (TC-NAV-02)
             StaHelper.RunInSta(() =>
             {
-                var mainVm = new MainViewModel();
+                var mainVm = new MainViewModel(_ => new object());
 
                 mainVm.ShowBooksCommand.Execute(null);
                 Assert.Equal("Books", mainVm.CurrentViewName);
@@ -108,7 +108,7 @@ namespace LibraryManagement.Tests
             // Arrange & Act & Assert (TC-NAV-03)
             StaHelper.RunInSta(() =>
             {
-                var mainVm = new MainViewModel();
+                var mainVm = new MainViewModel(_ => new object());
 
                 for (int i = 0; i < 10; i++)
                 {
@@ -136,7 +136,7 @@ namespace LibraryManagement.Tests
 
             StaHelper.RunInSta(() =>
             {
-                var mainVm = new MainViewModel();
+                var mainVm = new MainViewModel(_ => new object());
 
                 Assert.False(mainVm.IsAccountsVisible);
                 Assert.Equal(System.Windows.Visibility.Collapsed, mainVm.AccountsVisibility);

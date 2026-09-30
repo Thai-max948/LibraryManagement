@@ -56,12 +56,6 @@ namespace LibraryManagement.Views.Readers
                 return;
             }
 
-            if (string.IsNullOrWhiteSpace(EmailBox.Text))
-            {
-                MessageBox.Show("thiếu thông tin email", "Thiếu thông tin");
-                return;
-            }
-
             ResultReader = new Reader
             {
                 FullName = FullNameBox.Text.Trim(),

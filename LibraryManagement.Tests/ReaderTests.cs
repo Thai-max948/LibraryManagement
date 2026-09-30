@@ -11,6 +11,62 @@ namespace LibraryManagement.Tests
 {
     public class ReaderTests
     {
+        [Theory]
+        [InlineData("Student", null, null, "Mã sinh viên không được để trống.")]
+        [InlineData("External", null, null, "Số CCCD / Định danh không được để trống.")]
+        public void AddReader_RequiresIdentificationForSelectedType(string type, string? studentId, string? identityNumber, string message)
+        {
+            var repo = new Mock<ReaderRepository>();
+            var service = new ReaderService(repo.Object, new Mock<BorrowRepository>().Object);
+            var reader = new Reader { ReaderType = type, StudentId = studentId, IdentityNumber = identityNumber,
+                FullName = "Nguyễn Văn A", Phone = "0901234567" };
+
+            var ex = Assert.Throws<BusinessRuleException>(() => service.AddReader(reader));
+            Assert.Equal(message, ex.Message);
+            repo.Verify(r => r.Add(It.IsAny<Reader>()), Times.Never);
+        }
+
+        [Fact]
+        public void AddReader_ExternalWithoutEmail_ClearsStudentIdAndSaves()
+        {
+            var repo = new Mock<ReaderRepository>();
+            repo.Setup(r => r.Add(It.IsAny<Reader>())).Returns(7);
+            var service = new ReaderService(repo.Object, new Mock<BorrowRepository>().Object);
+            var reader = new Reader { ReaderType = "External", IdentityNumber = "001201007789",
+                StudentId = "old", FullName = "Trần Minh Bảo", Phone = "0901234567" };
+
+            Assert.Equal(7, service.AddReader(reader));
+            Assert.Null(reader.StudentId);
+            Assert.Equal("*********789", reader.DisplayIdentification);
+            repo.Verify(r => r.Add(reader), Times.Once);
+        }
+
+        [Fact]
+        public void UpdateReader_StudentWithoutStudentId_RejectsBeforeRepositoryUpdate()
+        {
+            var repo = new Mock<ReaderRepository>();
+            var service = new ReaderService(repo.Object, new Mock<BorrowRepository>().Object);
+            var reader = new Reader { ReaderId = 125, ReaderType = "Student", FullName = "Nguyễn Văn An",
+                Phone = "0901234567", StudentId = " " };
+
+            var ex = Assert.Throws<BusinessRuleException>(() => service.UpdateReader(reader));
+            Assert.Equal("Mã sinh viên không được để trống.", ex.Message);
+            repo.Verify(r => r.Update(It.IsAny<Reader>()), Times.Never);
+        }
+
+        [Fact]
+        public void AddReader_UnknownStatus_RejectsBeforeSaving()
+        {
+            var repo = new Mock<ReaderRepository>();
+            var service = new ReaderService(repo.Object, new Mock<BorrowRepository>().Object);
+            var reader = new Reader { ReaderType = "Student", FullName = "Nguyễn Văn An",
+                Phone = "0901234567", StudentId = "23A12345", Status = "Deleted" };
+
+            var ex = Assert.Throws<BusinessRuleException>(() => service.AddReader(reader));
+            Assert.Equal("Trạng thái độc giả không hợp lệ.", ex.Message);
+            repo.Verify(r => r.Add(It.IsAny<Reader>()), Times.Never);
+        }
+
         [Fact]
         public void AddReader_ValidData_ReturnsNewId()
         {
@@ -21,6 +77,7 @@ namespace LibraryManagement.Tests
             var reader = new Reader
             {
                 FullName = "Nguyễn Văn A",
+                StudentId = "23A12345",
                 Phone = "0901234567",
                 Email = "a@mail.com"
             };
@@ -47,7 +104,7 @@ namespace LibraryManagement.Tests
             var mockBorrowRepo = new Mock<BorrowRepository>();
             var service = new ReaderService(mockReaderRepo.Object, mockBorrowRepo.Object);
 
-            var reader = new Reader { FullName = fullName!, Phone = "0901234567", Email = "a@mail.com" };
+            var reader = new Reader { StudentId = "23A12345", FullName = fullName!, Phone = "0901234567", Email = "a@mail.com" };
 
             // Act & Assert
             var ex = Assert.Throws<BusinessRuleException>(() => service.AddReader(reader));
@@ -65,7 +122,7 @@ namespace LibraryManagement.Tests
             var mockBorrowRepo = new Mock<BorrowRepository>();
             var service = new ReaderService(mockReaderRepo.Object, mockBorrowRepo.Object);
 
-            var reader = new Reader { FullName = "Nguyen Van A", Phone = phone!, Email = "a@mail.com" };
+            var reader = new Reader { StudentId = "23A12345", FullName = "Nguyen Van A", Phone = phone!, Email = "a@mail.com" };
 
             // Act & Assert
             var ex = Assert.Throws<BusinessRuleException>(() => service.AddReader(reader));
@@ -76,18 +133,17 @@ namespace LibraryManagement.Tests
         [InlineData("")]
         [InlineData("   ")]
         [InlineData(null)]
-        public void AddReader_EmptyOrWhitespaceEmail_ThrowsBusinessRuleException(string? email)
+        public void AddReader_EmptyOrWhitespaceEmail_IsAllowed(string? email)
         {
             // Arrange (TC-READER-04)
             var mockReaderRepo = new Mock<ReaderRepository>();
             var mockBorrowRepo = new Mock<BorrowRepository>();
             var service = new ReaderService(mockReaderRepo.Object, mockBorrowRepo.Object);
 
-            var reader = new Reader { FullName = "Nguyen Van A", Phone = "0901234567", Email = email! };
+            var reader = new Reader { StudentId = "23A12345", FullName = "Nguyen Van A", Phone = "0901234567", Email = email! };
 
-            // Act & Assert
-            var ex = Assert.Throws<BusinessRuleException>(() => service.AddReader(reader));
-            Assert.Equal("thiếu thông tin email", ex.Message);
+            service.AddReader(reader);
+            mockReaderRepo.Verify(r => r.Add(reader), Times.Once);
         }
 
         [Fact]
@@ -98,7 +154,7 @@ namespace LibraryManagement.Tests
             var mockBorrowRepo = new Mock<BorrowRepository>();
             var service = new ReaderService(mockReaderRepo.Object, mockBorrowRepo.Object);
 
-            var reader = new Reader { FullName = "Nguyen Van A", Phone = "09012345", Email = "a@mail.com" };
+            var reader = new Reader { StudentId = "23A12345", FullName = "Nguyen Van A", Phone = "09012345", Email = "a@mail.com" };
 
             // Act & Assert
             var ex = Assert.Throws<BusinessRuleException>(() => service.AddReader(reader));
@@ -116,7 +172,7 @@ namespace LibraryManagement.Tests
             mockReaderRepo.Setup(r => r.Add(It.IsAny<Reader>())).Returns(1);
             var service = new ReaderService(mockReaderRepo.Object, mockBorrowRepo.Object);
 
-            var reader = new Reader { FullName = "Nguyen Van A", Phone = phone, Email = "a@mail.com" };
+            var reader = new Reader { StudentId = "23A12345", FullName = "Nguyen Van A", Phone = phone, Email = "a@mail.com" };
 
             // Act
             int id = service.AddReader(reader);
@@ -133,7 +189,7 @@ namespace LibraryManagement.Tests
             var mockBorrowRepo = new Mock<BorrowRepository>();
             var service = new ReaderService(mockReaderRepo.Object, mockBorrowRepo.Object);
 
-            var reader = new Reader { FullName = "Nguyen Van A", Phone = "090123456789", Email = "a@mail.com" };
+            var reader = new Reader { StudentId = "23A12345", FullName = "Nguyen Van A", Phone = "090123456789", Email = "a@mail.com" };
 
             // Act & Assert
             var ex = Assert.Throws<BusinessRuleException>(() => service.AddReader(reader));
@@ -152,7 +208,7 @@ namespace LibraryManagement.Tests
             var mockBorrowRepo = new Mock<BorrowRepository>();
             var service = new ReaderService(mockReaderRepo.Object, mockBorrowRepo.Object);
 
-            var reader = new Reader { FullName = "Nguyen Van A", Phone = phone, Email = "a@mail.com" };
+            var reader = new Reader { StudentId = "23A12345", FullName = "Nguyen Van A", Phone = phone, Email = "a@mail.com" };
 
             // Act & Assert
             var ex = Assert.Throws<BusinessRuleException>(() => service.AddReader(reader));
@@ -167,7 +223,7 @@ namespace LibraryManagement.Tests
             var mockBorrowRepo = new Mock<BorrowRepository>();
             var service = new ReaderService(mockReaderRepo.Object, mockBorrowRepo.Object);
 
-            var reader = new Reader { FullName = "Nguyen Van A", Phone = "0901234567", Email = "abc.com" };
+            var reader = new Reader { StudentId = "23A12345", FullName = "Nguyen Van A", Phone = "0901234567", Email = "abc.com" };
 
             // Act & Assert
             var ex = Assert.Throws<BusinessRuleException>(() => service.AddReader(reader));
@@ -185,7 +241,7 @@ namespace LibraryManagement.Tests
             var mockBorrowRepo = new Mock<BorrowRepository>();
             var service = new ReaderService(mockReaderRepo.Object, mockBorrowRepo.Object);
 
-            var reader = new Reader { FullName = "Nguyen Van A", Phone = "0901234567", Email = email };
+            var reader = new Reader { StudentId = "23A12345", FullName = "Nguyen Van A", Phone = "0901234567", Email = email };
 
             // Act & Assert
             var ex = Assert.Throws<BusinessRuleException>(() => service.AddReader(reader));
@@ -201,7 +257,7 @@ namespace LibraryManagement.Tests
             mockReaderRepo.Setup(r => r.Add(It.IsAny<Reader>())).Returns(1);
             var service = new ReaderService(mockReaderRepo.Object, mockBorrowRepo.Object);
 
-            var reader = new Reader { FullName = "Nguyen Van A", Phone = "0901234567", Email = "a.b+c@sub.mail.com" };
+            var reader = new Reader { StudentId = "23A12345", FullName = "Nguyen Van A", Phone = "0901234567", Email = "a.b+c@sub.mail.com" };
 
             // Act
             int id = service.AddReader(reader);
@@ -220,7 +276,7 @@ namespace LibraryManagement.Tests
             var service = new ReaderService(mockReaderRepo.Object, mockBorrowRepo.Object);
 
             const string name = "Nguyễn O'Brien";
-            var reader = new Reader { FullName = name, Phone = "0901234567", Email = "obrien@mail.com" };
+            var reader = new Reader { StudentId = "23A12345", FullName = name, Phone = "0901234567", Email = "obrien@mail.com" };
 
             // Act
             int id = service.AddReader(reader);
@@ -243,7 +299,7 @@ namespace LibraryManagement.Tests
 
             var service = new ReaderService(mockReaderRepo.Object, mockBorrowRepo.Object);
 
-            var updated = new Reader { ReaderId = 1, FullName = "Nguyen Van B", Phone = "0909999999", Email = "b@mail.com" };
+            var updated = new Reader { ReaderId = 1, FullName = "Nguyen Van B", StudentId = "23A12345", Phone = "0909999999", Email = "b@mail.com" };
 
             // Act
             service.UpdateReader(updated);
