@@ -136,6 +136,15 @@ public sealed class ProjectIntegrationTests : IClassFixture<SqlIntegrationFixtur
         {
             Title = "Sách lifecycle", Author = "Tác giả", PublishYear = 2026, Quantity = 1
         });
+
+        readers.SuspendReader(readerId, "Kiểm tra lifecycle action");
+        var suspended = readers.GetReaderById(readerId)!;
+        Assert.Equal("Suspended", suspended.Status);
+        Assert.Equal("Kiểm tra lifecycle action", suspended.SuspensionReason);
+        Assert.Throws<BusinessRuleException>(() =>
+            circulation.BorrowBook(readerId, bookId, DateTime.Today, DateTime.Today.AddDays(7)));
+        readers.ReactivateReader(readerId);
+
         int borrowId = circulation.BorrowBook(readerId, bookId, DateTime.Today, DateTime.Today.AddDays(7));
 
         Assert.Throws<BusinessRuleException>(() => readers.DeactivateReader(readerId));

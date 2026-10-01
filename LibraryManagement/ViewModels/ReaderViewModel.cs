@@ -95,7 +95,6 @@ namespace LibraryManagement.ViewModels
         public ICommand ViewCardCommand { get; }
         public ICommand DetailCommand { get; }
         public ICommand DeleteCommand { get; }
-        public ICommand ToggleStatusCommand { get; }
         public ICommand PreviousPageCommand { get; }
         public ICommand NextPageCommand { get; }
 
@@ -111,7 +110,6 @@ namespace LibraryManagement.ViewModels
             ViewCardCommand = new RelayCommand(param => ViewCard(param as Reader ?? SelectedReader), param => param != null || SelectedReader != null);
             DetailCommand = new RelayCommand(param => ViewDetail(param as Reader ?? SelectedReader), param => param != null || SelectedReader != null);
             DeleteCommand = new RelayCommand(param => DeleteReader(param as Reader ?? SelectedReader), param => param != null || SelectedReader != null);
-            ToggleStatusCommand = new RelayCommand(param => ToggleStatus(param as Reader ?? SelectedReader), param => param != null || SelectedReader != null);
             PreviousPageCommand = new RelayCommand(_ => ChangePage(-1));
             NextPageCommand = new RelayCommand(_ => ChangePage(1));
             Load();
@@ -245,34 +243,12 @@ namespace LibraryManagement.ViewModels
             try
             {
                 var profile = _readerService.GetReaderProfile(target.ReaderId);
-                new ReaderDetailDialog(profile).ShowDialog();
+                new ReaderDetailDialog(profile, _readerService).ShowDialog();
+                Search();
             }
             catch (Exception ex)
             {
                 MessageBox.Show(ex.Message, "Không thể xem chi tiết");
-            }
-        }
-
-        public void ToggleStatus(Reader? reader)
-        {
-            var target = reader ?? SelectedReader;
-            if (target == null)
-            {
-                return;
-            }
-
-            try
-            {
-                _readerService.ToggleStatus(target.ReaderId);
-                Load();
-            }
-            catch (BusinessRuleException ex)
-            {
-                MessageBox.Show(ex.Message, "Lỗi cập nhật trạng thái");
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show("Đã có lỗi hệ thống: " + ex.Message, "Lỗi");
             }
         }
 

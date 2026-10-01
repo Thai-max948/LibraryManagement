@@ -38,12 +38,6 @@ namespace LibraryManagement.Views.Readers
                 IdLabelText.Text = "STUDENT ID";
                 IdValueText.Text = string.IsNullOrWhiteSpace(reader.StudentId) ? "-" : reader.StudentId;
             }
-
-            bool isSuspended = reader.IsSuspended;
-            StatusText.Text = isSuspended ? "SUSPENDED" : "ACTIVE";
-            StatusText.Foreground = isSuspended
-                ? new SolidColorBrush(Color.FromRgb(225, 29, 72)) // Danger
-                : new SolidColorBrush(Color.FromRgb(5, 150, 105)); // Green
         }
 
         private void Close_Click(object sender, RoutedEventArgs e)

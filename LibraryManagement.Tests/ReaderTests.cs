@@ -719,6 +719,35 @@ namespace LibraryManagement.Tests
         }
 
         [Fact]
+        public void SuspendReader_WithoutReason_IsRejected()
+        {
+            var readerRepo = new Mock<ReaderRepository>();
+            var service = new ReaderService(readerRepo.Object, new Mock<BorrowRepository>().Object);
+
+            var exception = Assert.Throws<BusinessRuleException>(() => service.SuspendReader(1, "   "));
+
+            Assert.Contains("lý do", exception.Message);
+            readerRepo.Verify(repository => repository.Update(It.IsAny<Reader>()), Times.Never);
+        }
+
+        [Fact]
+        public void SuspendReader_ActiveReader_RecordsReasonAndDate()
+        {
+            var readerRepo = new Mock<ReaderRepository>();
+            var reader = new Reader { ReaderId = 1, Status = "Active" };
+            readerRepo.Setup(repository => repository.GetById(1)).Returns(reader);
+            readerRepo.Setup(repository => repository.Update(reader)).Returns(true);
+            var service = new ReaderService(readerRepo.Object, new Mock<BorrowRepository>().Object);
+
+            service.SuspendReader(1, "  Vi phạm quy định  ");
+
+            Assert.Equal("Suspended", reader.Status);
+            Assert.Equal("Vi phạm quy định", reader.SuspensionReason);
+            Assert.NotNull(reader.SuspendedDate);
+            readerRepo.Verify(repository => repository.Update(reader), Times.Once);
+        }
+
+        [Fact]
         public void CanBorrow_ReaderIsSuspended_ReturnsFalseWithReason()
         {
             // Arrange
@@ -866,6 +895,42 @@ namespace LibraryManagement.Tests
             Assert.Equal(6, profile.TotalBorrowed);
             Assert.Equal(5, profile.BorrowingHistory.Count);
             Assert.DoesNotContain(profile.BorrowingHistory, activity => activity.BorrowId == 6);
+        }
+
+        [Theory]
+        [InlineData("Active", System.Windows.Visibility.Visible, System.Windows.Visibility.Collapsed)]
+        [InlineData("Suspended", System.Windows.Visibility.Collapsed, System.Windows.Visibility.Visible)]
+        [InlineData("Inactive", System.Windows.Visibility.Collapsed, System.Windows.Visibility.Visible)]
+        public void ReaderDetail_LifecycleActions_MatchReaderStatus(
+            string status,
+            System.Windows.Visibility expectedActiveActions,
+            System.Windows.Visibility expectedReactivate)
+        {
+            StaHelper.RunInSta(() =>
+            {
+                var profile = new ReaderProfile { Reader = new Reader { ReaderId = 5, Status = status } };
+                var service = new ReaderService(new Mock<ReaderRepository>().Object, new Mock<BorrowRepository>().Object);
+                var dialog = new LibraryManagement.Views.Readers.ReaderDetailDialog(profile, service);
+                var activeActions = Assert.IsType<System.Windows.Controls.StackPanel>(dialog.FindName("ActiveActionsPanel"));
+                var reactivate = Assert.IsType<System.Windows.Controls.Button>(dialog.FindName("ReactivateButton"));
+
+                Assert.Equal(expectedActiveActions, activeActions.Visibility);
+                Assert.Equal(expectedReactivate, reactivate.Visibility);
+                dialog.Close();
+            });
+        }
+
+        [Fact]
+        public void LibraryCard_DoesNotExposeLifecycleStatus()
+        {
+            StaHelper.RunInSta(() =>
+            {
+                var dialog = new LibraryManagement.Views.Readers.LibraryCardDialog(
+                    new Reader { ReaderId = 3, FullName = "Reader", Status = "Inactive" });
+
+                Assert.Null(dialog.FindName("StatusText"));
+                dialog.Close();
+            });
         }
     }
 }

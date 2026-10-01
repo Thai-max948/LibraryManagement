@@ -119,6 +119,7 @@ Dữ liệu mẫu đã được mã hóa bằng **BCrypt Hash** an toàn:
 4. **Quản lý Độc giả (Readers Directory):**
    - Quản lý chung độc giả Student/External, hồ sơ, trạng thái, tìm kiếm, lọc, sắp xếp và phân trang.
    - Quản lý vòng đời `Active → Suspended/Inactive → Active`; không cho chuyển Inactive khi còn sách và không xóa Reader đã có lịch sử.
+   - `Edit Reader` chỉ sửa hồ sơ; các action `Suspend`, `Deactivate`, `Reactivate` nằm trong Reader Detail và yêu cầu xác nhận phù hợp.
    - Tính `Reader Eligibility` theo thời gian thực từ trạng thái, sách đang mượn, sách quá hạn và giới hạn mượn; không lưu cột trạng thái dễ lỗi thời.
    - Reader Detail hiển thị tổng quan và tối đa 5 hoạt động gần nhất; lịch sử đầy đủ thuộc Circulation History.
 5. **Mượn & Trả sách (Circulation Desk):**
