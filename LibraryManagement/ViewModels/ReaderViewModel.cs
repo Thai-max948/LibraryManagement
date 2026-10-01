@@ -16,7 +16,7 @@ namespace LibraryManagement.ViewModels
         public ObservableCollection<Reader> Readers { get; set; } = new ObservableCollection<Reader>();
 
         public ObservableCollection<string> TypeOptions { get; } = new ObservableCollection<string> { "All", "Student", "External" };
-        public ObservableCollection<string> StatusOptions { get; } = new ObservableCollection<string> { "All", "Active", "Suspended" };
+        public ObservableCollection<string> StatusOptions { get; } = new ObservableCollection<string> { "All", "Active", "Suspended", "Inactive" };
         public ObservableCollection<string> SortOptions { get; } = new ObservableCollection<string> { "Name A-Z", "Name Z-A", "Newest", "Oldest", "Status" };
         public ObservableCollection<int> PageSizeOptions { get; } = new ObservableCollection<int> { 10, 20, 50 };
 

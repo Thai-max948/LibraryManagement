@@ -56,6 +56,10 @@ namespace LibraryManagement.Models
 
         public bool IsSuspended => string.Equals(Status, "Suspended", StringComparison.OrdinalIgnoreCase);
 
+        public bool IsInactive => string.Equals(Status, "Inactive", StringComparison.OrdinalIgnoreCase);
+
+        public bool IsActive => string.Equals(Status, "Active", StringComparison.OrdinalIgnoreCase);
+
         public bool IsStudent => string.Equals(ReaderType, "Student", StringComparison.OrdinalIgnoreCase);
 
         public bool IsExternal => string.Equals(ReaderType, "External", StringComparison.OrdinalIgnoreCase);

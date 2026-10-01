@@ -94,6 +94,27 @@ namespace LibraryManagement.Tests
             mockReaderRepo.Verify(r => r.Add(reader), Times.Once);
         }
 
+        [Fact]
+        public void AddReader_AlwaysStartsLifecycleAsActive()
+        {
+            var readerRepo = new Mock<ReaderRepository>();
+            readerRepo.Setup(repository => repository.Add(It.IsAny<Reader>())).Returns(15);
+            var service = new ReaderService(readerRepo.Object, new Mock<BorrowRepository>().Object);
+            var reader = new Reader
+            {
+                FullName = "Nguyễn Văn Mới",
+                ReaderType = "Student",
+                StudentId = "SV-LIFECYCLE-NEW",
+                Phone = "0901234567",
+                Status = "Inactive"
+            };
+
+            service.AddReader(reader);
+
+            Assert.Equal("Active", reader.Status);
+            readerRepo.Verify(repository => repository.Add(reader), Times.Once);
+        }
+
         [Theory]
         [InlineData("")]
         [InlineData("   ")]
@@ -367,6 +388,124 @@ namespace LibraryManagement.Tests
             var ex = Assert.Throws<BusinessRuleException>(() => service.DeleteReader(1));
             Assert.Equal("Không thể xóa độc giả đang có sách chưa trả.", ex.Message);
             mockReaderRepo.Verify(r => r.Delete(It.IsAny<int>()), Times.Never);
+        }
+
+        [Fact]
+        public void DeleteReader_WithReturnedHistory_RequiresInactiveInstead()
+        {
+            var readerRepo = new Mock<ReaderRepository>();
+            var borrowRepo = new Mock<BorrowRepository>();
+            readerRepo.Setup(repository => repository.GetById(1))
+                .Returns(new Reader { ReaderId = 1, Status = "Active" });
+            borrowRepo.Setup(repository => repository.GetBorrowingRecords())
+                .Returns(new List<BorrowRecord>());
+            borrowRepo.Setup(repository => repository.GetHistory(1, null, null, null, null))
+                .Returns(new List<BorrowRecord>
+                {
+                    new() { ReaderId = 1, Status = "Returned", ReturnDate = DateTime.Today }
+                });
+            var service = new ReaderService(readerRepo.Object, borrowRepo.Object);
+
+            var exception = Assert.Throws<BusinessRuleException>(() => service.DeleteReader(1));
+
+            Assert.Contains("Inactive", exception.Message);
+            readerRepo.Verify(repository => repository.Delete(It.IsAny<int>()), Times.Never);
+        }
+
+        [Fact]
+        public void UpdateReader_ActiveToInactiveWithoutLoans_Succeeds()
+        {
+            var readerRepo = new Mock<ReaderRepository>();
+            var borrowRepo = new Mock<BorrowRepository>();
+            readerRepo.Setup(repository => repository.GetById(1))
+                .Returns(new Reader { ReaderId = 1, Status = "Active" });
+            readerRepo.Setup(repository => repository.Update(It.IsAny<Reader>())).Returns(true);
+            borrowRepo.Setup(repository => repository.GetBorrowingRecords())
+                .Returns(new List<BorrowRecord>());
+            var service = new ReaderService(readerRepo.Object, borrowRepo.Object);
+            var updated = new Reader
+            {
+                ReaderId = 1,
+                FullName = "Nguyễn Văn An",
+                ReaderType = "Student",
+                StudentId = "SV-LIFECYCLE-1",
+                Phone = "0901234567",
+                Status = "Inactive"
+            };
+
+            service.UpdateReader(updated);
+
+            Assert.Equal("Inactive", updated.Status);
+            Assert.Empty(updated.SuspensionReason);
+            Assert.Null(updated.SuspendedDate);
+            readerRepo.Verify(repository => repository.Update(updated), Times.Once);
+        }
+
+        [Fact]
+        public void UpdateReader_ActiveToInactiveWithCurrentLoan_IsRejected()
+        {
+            var readerRepo = new Mock<ReaderRepository>();
+            var borrowRepo = new Mock<BorrowRepository>();
+            readerRepo.Setup(repository => repository.GetById(1))
+                .Returns(new Reader { ReaderId = 1, Status = "Active" });
+            borrowRepo.Setup(repository => repository.GetBorrowingRecords())
+                .Returns(new List<BorrowRecord> { new() { ReaderId = 1, Status = "Borrowing" } });
+            var service = new ReaderService(readerRepo.Object, borrowRepo.Object);
+            var updated = new Reader
+            {
+                ReaderId = 1,
+                FullName = "Nguyễn Văn An",
+                ReaderType = "Student",
+                StudentId = "SV-LIFECYCLE-1",
+                Phone = "0901234567",
+                Status = "Inactive"
+            };
+
+            var exception = Assert.Throws<BusinessRuleException>(() => service.UpdateReader(updated));
+
+            Assert.Contains("còn sách chưa trả", exception.Message);
+            readerRepo.Verify(repository => repository.Update(It.IsAny<Reader>()), Times.Never);
+        }
+
+        [Fact]
+        public void ReactivateReader_InactiveReader_PreservesReaderIdAndSetsActive()
+        {
+            var readerRepo = new Mock<ReaderRepository>();
+            var reader = new Reader { ReaderId = 125, Status = "Inactive" };
+            readerRepo.Setup(repository => repository.GetById(125)).Returns(reader);
+            readerRepo.Setup(repository => repository.Update(reader)).Returns(true);
+            var service = new ReaderService(readerRepo.Object, new Mock<BorrowRepository>().Object);
+
+            service.ReactivateReader(125);
+
+            Assert.Equal(125, reader.ReaderId);
+            Assert.Equal("Active", reader.Status);
+            readerRepo.Verify(repository => repository.Update(reader), Times.Once);
+        }
+
+        [Fact]
+        public void UpdateReader_InactiveToActive_PreservesReaderId()
+        {
+            var readerRepo = new Mock<ReaderRepository>();
+            readerRepo.Setup(repository => repository.GetById(125))
+                .Returns(new Reader { ReaderId = 125, Status = "Inactive" });
+            readerRepo.Setup(repository => repository.Update(It.IsAny<Reader>())).Returns(true);
+            var service = new ReaderService(readerRepo.Object, new Mock<BorrowRepository>().Object);
+            var updated = new Reader
+            {
+                ReaderId = 125,
+                FullName = "Nguyễn Văn An",
+                ReaderType = "Student",
+                StudentId = "SV-LIFECYCLE-125",
+                Phone = "0901234567",
+                Status = "Active"
+            };
+
+            service.UpdateReader(updated);
+
+            Assert.Equal(125, updated.ReaderId);
+            Assert.Equal("Active", updated.Status);
+            readerRepo.Verify(repository => repository.Update(updated), Times.Once);
         }
 
         [Fact]

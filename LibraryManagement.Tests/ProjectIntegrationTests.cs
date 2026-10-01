@@ -122,6 +122,42 @@ public sealed class ProjectIntegrationTests : IClassFixture<SqlIntegrationFixtur
 
     [IntegrationFact]
     [Trait("Category", "Integration")]
+    public void ReaderLifecycle_ActiveInactiveReactivate_PreservesIdentityAndHistory()
+    {
+        var readers = new ReaderService();
+        var circulation = new BorrowService();
+        int readerId = readers.AddReader(new Reader
+        {
+            FullName = "Độc giả lifecycle",
+            StudentId = "SV-LIFECYCLE-INTEGRATION",
+            Phone = "0911122233"
+        });
+        int bookId = new BookService().AddBook(new Book
+        {
+            Title = "Sách lifecycle", Author = "Tác giả", PublishYear = 2026, Quantity = 1
+        });
+        int borrowId = circulation.BorrowBook(readerId, bookId, DateTime.Today, DateTime.Today.AddDays(7));
+
+        Assert.Throws<BusinessRuleException>(() => readers.DeactivateReader(readerId));
+        circulation.ReturnBook(borrowId, DateTime.Today.AddDays(1));
+        readers.DeactivateReader(readerId);
+
+        var inactive = readers.GetReaderById(readerId)!;
+        Assert.Equal("Inactive", inactive.Status);
+        Assert.False(new ReaderEligibilityService().CheckEligibility(readerId).IsEligible);
+        Assert.Throws<BusinessRuleException>(() => readers.DeleteReader(readerId));
+        Assert.Throws<BusinessRuleException>(() =>
+            circulation.BorrowBook(readerId, bookId, DateTime.Today, DateTime.Today.AddDays(7)));
+
+        readers.ReactivateReader(readerId);
+        var reactivated = readers.GetReaderById(readerId)!;
+        Assert.Equal(readerId, reactivated.ReaderId);
+        Assert.Equal("Active", reactivated.Status);
+        Assert.Single(circulation.GetHistory(readerId: readerId));
+    }
+
+    [IntegrationFact]
+    [Trait("Category", "Integration")]
     public void AccountRegistration_LoginAndPasswordVerification_UseSql()
     {
         var auth = new AuthService();

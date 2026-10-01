@@ -71,7 +71,17 @@ Chạy toàn bộ unit test (không cần SQL Server):
 dotnet test LibraryManagement.slnx --filter "Category!=Integration"
 ```
 
-Integration test dùng SQL Server LocalDB hoặc SQL Server Express cục bộ. Chúng tạo một database tạm có tên `LibraryMgmtTest_<guid>` từ `LibraryDB.sql`, chạy thử luồng tài khoản, độc giả, sách và mượn/trả, rồi xóa database tạm. Chúng không kết nối vào `LibraryDB` của ứng dụng. Để chạy trên máy có LocalDB hoạt động:
+Integration test dùng SQL Server LocalDB hoặc SQL Server Express cục bộ. Chúng tạo một database tạm có tên `LibraryMgmtTest_<guid>` từ `LibraryDB.sql`, chạy thử luồng tài khoản, độc giả, sách và mượn/trả, rồi xóa database tạm. Chúng không kết nối vào `LibraryDB` của ứng dụng.
+
+Trên máy phát triển Windows đang dùng `SQL Server (SQLEXPRESS)`, chạy:
+
+```powershell
+.\scripts\Run-SqlIntegrationTests.ps1
+```
+
+Script chỉ đặt connection string trong tiến trình test. Mặc định nó dùng `Server=.\SQLEXPRESS;Database=master;Integrated Security=True` và fixture tự dọn database tạm sau khi hoàn tất. Có thể truyền connection khác bằng `-MasterConnection`.
+
+Để chạy thủ công trên LocalDB:
 
 ```powershell
 $env:LIBRARY_TEST_SQL_MASTER_CONNECTION = 'Server=(localdb)\MSSQLLocalDB;Database=master;Integrated Security=True;Encrypt=False;TrustServerCertificate=True'
@@ -108,6 +118,7 @@ Dữ liệu mẫu đã được mã hóa bằng **BCrypt Hash** an toàn:
    - Thêm mới, chỉnh sửa và xóa sách có kiểm tra ràng buộc số lượng sách đang lưu hành.
 4. **Quản lý Độc giả (Readers Directory):**
    - Quản lý chung độc giả Student/External, hồ sơ, trạng thái, tìm kiếm, lọc, sắp xếp và phân trang.
+   - Quản lý vòng đời `Active → Suspended/Inactive → Active`; không cho chuyển Inactive khi còn sách và không xóa Reader đã có lịch sử.
    - Tính `Reader Eligibility` theo thời gian thực từ trạng thái, sách đang mượn, sách quá hạn và giới hạn mượn; không lưu cột trạng thái dễ lỗi thời.
    - Reader Detail hiển thị tổng quan và tối đa 5 hoạt động gần nhất; lịch sử đầy đủ thuộc Circulation History.
 5. **Mượn & Trả sách (Circulation Desk):**
