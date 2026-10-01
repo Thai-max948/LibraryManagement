@@ -8,12 +8,11 @@ namespace LibraryManagement.Services
 {
     public class BorrowService
     {
-        private const int MaxActiveBorrowsPerReader = 3;
         private const string StatusBorrowing = "Borrowing";
 
         private readonly BookRepository _bookRepo;
         private readonly BorrowRepository _borrowRepo;
-        private readonly ReaderRepository _readerRepo;
+        private readonly ReaderEligibilityService _eligibilityService;
 
         public BorrowService() : this(new BookRepository(), new BorrowRepository(), new ReaderRepository())
         {
@@ -23,21 +22,15 @@ namespace LibraryManagement.Services
         {
             _bookRepo = bookRepo;
             _borrowRepo = borrowRepo;
-            _readerRepo = readerRepo;
+            _eligibilityService = new ReaderEligibilityService(readerRepo, borrowRepo);
         }
 
         public bool CanBorrow(int readerId, int bookId, out string reason)
         {
-            var reader = _readerRepo.GetById(readerId);
-            if (reader == null || reader.IsDeleted)
+            var eligibility = _eligibilityService.CheckEligibility(readerId);
+            if (!eligibility.IsEligible)
             {
-                reason = "Độc giả không tồn tại hoặc đã bị xóa.";
-                return false;
-            }
-
-            if (reader.IsSuspended)
-            {
-                reason = "Độc giả đang bị tạm khóa (Suspended), không thể mượn sách.";
+                reason = eligibility.ReasonSummary;
                 return false;
             }
 
@@ -53,21 +46,6 @@ namespace LibraryManagement.Services
                 return false;
             }
 
-            int count = 0;
-            foreach (var r in _borrowRepo.GetBorrowingRecords())
-            {
-                if (r.ReaderId == readerId)
-                {
-                    count++;
-                }
-            }
-
-            if (count >= MaxActiveBorrowsPerReader)
-            {
-                reason = $"Độc giả đã mượn tối đa {MaxActiveBorrowsPerReader} sách.";
-                return false;
-            }
-
             reason = string.Empty;
             return true;
         }
@@ -79,15 +57,10 @@ namespace LibraryManagement.Services
                 throw new BusinessRuleException("Ngày hẹn trả phải sau ngày mượn.");
             }
 
-            var reader = _readerRepo.GetById(readerId);
-            if (reader == null || reader.IsDeleted)
+            var eligibility = _eligibilityService.CheckEligibility(readerId);
+            if (!eligibility.IsEligible)
             {
-                throw new BusinessRuleException("Độc giả không tồn tại hoặc đã bị xóa.");
-            }
-
-            if (reader.IsSuspended)
-            {
-                throw new BusinessRuleException("Độc giả đang bị tạm khóa (Suspended), không thể mượn sách.");
+                throw new BusinessRuleException(eligibility.ReasonSummary);
             }
 
             using var conn = Database.GetConnection();
@@ -106,9 +79,9 @@ namespace LibraryManagement.Services
                 }
 
                 int activeCount = _borrowRepo.CountActiveBorrowsByReader(conn, tran, readerId);
-                if (activeCount >= MaxActiveBorrowsPerReader)
+                if (activeCount >= ReaderEligibilityService.BorrowLimit)
                 {
-                    throw new BusinessRuleException($"Độc giả đã mượn tối đa {MaxActiveBorrowsPerReader} sách.");
+                    throw new BusinessRuleException($"Đã đạt giới hạn {ReaderEligibilityService.BorrowLimit} sách đang mượn.");
                 }
 
                 var actualBorrowDate = (borrowDate.Date == DateTime.Today && borrowDate.TimeOfDay == TimeSpan.Zero)

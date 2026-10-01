@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using LibraryManagement.Models;
 using LibraryManagement.Repositories;
 using LibraryManagement.Services;
@@ -691,7 +692,41 @@ namespace LibraryManagement.Tests
             Assert.Equal(2, profile.TotalBorrowed);
             Assert.Equal(1, profile.CurrentlyBorrowing);
             Assert.Equal(1, profile.OverdueCount);
+            Assert.False(profile.Eligibility.IsEligible);
+            Assert.Contains("quá hạn", profile.Eligibility.ReasonSummary);
             Assert.Contains(profile.BorrowingHistory, h => h.BookTitle == "Clean Code");
+        }
+
+        [Fact]
+        public void GetReaderProfile_ExposesOnlyFiveMostRecentActivities()
+        {
+            var readerRepo = new Mock<ReaderRepository>();
+            var borrowRepo = new Mock<BorrowRepository>();
+            var bookRepo = new Mock<BookRepository>();
+            readerRepo.Setup(repository => repository.GetById(8))
+                .Returns(new Reader { ReaderId = 8, FullName = "Lan", Status = "Active" });
+            var records = Enumerable.Range(1, 6)
+                .Select(id => new BorrowRecord
+                {
+                    BorrowId = id,
+                    ReaderId = 8,
+                    BookId = id,
+                    Status = "Returned",
+                    BorrowDate = DateTime.Today.AddDays(-id),
+                    DueDate = DateTime.Today.AddDays(7 - id),
+                    ReturnDate = DateTime.Today.AddDays(1 - id)
+                })
+                .ToList();
+            borrowRepo.Setup(repository => repository.GetHistory(8, null, null, null, null)).Returns(records);
+            bookRepo.Setup(repository => repository.GetById(It.IsAny<int>()))
+                .Returns<int>(id => new Book { BookId = id, Title = $"Book {id}" });
+            var service = new ReaderService(readerRepo.Object, borrowRepo.Object, bookRepo.Object);
+
+            var profile = service.GetReaderProfile(8);
+
+            Assert.Equal(6, profile.TotalBorrowed);
+            Assert.Equal(5, profile.BorrowingHistory.Count);
+            Assert.DoesNotContain(profile.BorrowingHistory, activity => activity.BorrowId == 6);
         }
     }
 }

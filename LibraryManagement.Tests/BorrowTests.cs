@@ -133,7 +133,30 @@ namespace LibraryManagement.Tests
 
             // Assert
             Assert.False(canBorrow);
-            Assert.Equal("Độc giả đã mượn tối đa 3 sách.", reason);
+            Assert.Equal("Đã đạt giới hạn 3 sách đang mượn.", reason);
+        }
+
+        [Fact]
+        public void CanBorrow_ReaderHasOverdueBook_ReturnsFalseWithOverdueReason()
+        {
+            var mockBookRepo = new Mock<BookRepository>();
+            var mockBorrowRepo = new Mock<BorrowRepository>();
+            var mockReaderRepo = new Mock<ReaderRepository>();
+            mockReaderRepo.Setup(repository => repository.GetById(1))
+                .Returns(new Reader { ReaderId = 1, Status = "Active" });
+            mockBookRepo.Setup(repository => repository.GetById(2))
+                .Returns(new Book { BookId = 2, AvailableQuantity = 1 });
+            mockBorrowRepo.Setup(repository => repository.GetBorrowingRecords())
+                .Returns(new List<BorrowRecord>
+                {
+                    new() { ReaderId = 1, BookId = 1, Status = "Borrowing", DueDate = DateTime.Today.AddDays(-1) }
+                });
+            var service = new BorrowService(mockBookRepo.Object, mockBorrowRepo.Object, mockReaderRepo.Object);
+
+            bool canBorrow = service.CanBorrow(1, 2, out string reason);
+
+            Assert.False(canBorrow);
+            Assert.Contains("quá hạn", reason);
         }
 
         [Fact]

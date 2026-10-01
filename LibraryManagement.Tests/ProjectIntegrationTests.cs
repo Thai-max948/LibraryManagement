@@ -84,6 +84,44 @@ public sealed class ProjectIntegrationTests : IClassFixture<SqlIntegrationFixtur
 
     [IntegrationFact]
     [Trait("Category", "Integration")]
+    public void ReaderEligibility_OverdueLoanBlocksConfirmAndRefreshesAfterReturn()
+    {
+        var readers = new ReaderService();
+        var circulation = new BorrowService();
+        int readerId = readers.AddReader(new Reader
+        {
+            FullName = "Độc giả kiểm tra eligibility",
+            StudentId = "SV-ELIGIBILITY-1",
+            Phone = "0909876543"
+        });
+        int overdueBookId = new BookService().AddBook(new Book
+        {
+            Title = "Sách quá hạn tích hợp", Author = "Tác giả", PublishYear = 2026, Quantity = 1
+        });
+        int nextBookId = new BookService().AddBook(new Book
+        {
+            Title = "Sách mượn tiếp", Author = "Tác giả", PublishYear = 2026, Quantity = 1
+        });
+
+        int overdueBorrowId = circulation.BorrowBook(
+            readerId, overdueBookId, DateTime.Today.AddDays(-10), DateTime.Today.AddDays(-1));
+
+        var blocked = new ReaderEligibilityService().CheckEligibility(readerId);
+        Assert.False(blocked.IsEligible);
+        Assert.Equal(1, blocked.OverdueLoans);
+        var exception = Assert.Throws<BusinessRuleException>(() =>
+            circulation.BorrowBook(readerId, nextBookId, DateTime.Today, DateTime.Today.AddDays(7)));
+        Assert.Contains("quá hạn", exception.Message);
+        Assert.Equal(1, new BookRepository().GetById(nextBookId)!.AvailableQuantity);
+
+        circulation.ReturnBook(overdueBorrowId, DateTime.Today);
+        Assert.True(new ReaderEligibilityService().CheckEligibility(readerId).IsEligible);
+        circulation.BorrowBook(readerId, nextBookId, DateTime.Today, DateTime.Today.AddDays(7));
+        Assert.Equal(0, new BookRepository().GetById(nextBookId)!.AvailableQuantity);
+    }
+
+    [IntegrationFact]
+    [Trait("Category", "Integration")]
     public void AccountRegistration_LoginAndPasswordVerification_UseSql()
     {
         var auth = new AuthService();

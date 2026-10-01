@@ -15,6 +15,7 @@ namespace LibraryManagement.Services
         private readonly ReaderRepository _readerRepo;
         private readonly BorrowRepository _borrowRepo;
         private readonly BookRepository _bookRepo;
+        private readonly ReaderEligibilityService _eligibilityService;
 
         public ReaderService() : this(new ReaderRepository(), new BorrowRepository(), new BookRepository())
         {
@@ -30,6 +31,7 @@ namespace LibraryManagement.Services
             _readerRepo = readerRepo;
             _borrowRepo = borrowRepo;
             _bookRepo = bookRepo;
+            _eligibilityService = new ReaderEligibilityService(readerRepo, borrowRepo);
         }
 
         public int AddReader(Reader reader)
@@ -171,7 +173,7 @@ namespace LibraryManagement.Services
                 throw new BusinessRuleException("Độc giả không tồn tại.");
 
             var records = _borrowRepo.GetHistory(readerId: readerId);
-            var history = records.Select(record => new ReaderBorrowHistoryItem
+            var history = records.Take(5).Select(record => new ReaderBorrowHistoryItem
             {
                 BorrowId = record.BorrowId,
                 BookTitle = _bookRepo.GetById(record.BookId)?.Title ?? $"Book #{record.BookId}",
@@ -183,6 +185,7 @@ namespace LibraryManagement.Services
             return new ReaderProfile
             {
                 Reader = reader,
+                Eligibility = _eligibilityService.Evaluate(reader, records),
                 BorrowingHistory = history,
                 CurrentlyBorrowing = records.Count(r => string.Equals(r.Status, "Borrowing", StringComparison.OrdinalIgnoreCase)),
                 TotalBorrowed = records.Count,

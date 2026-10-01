@@ -25,6 +25,7 @@ namespace LibraryManagement.Models
     public sealed class ReaderProfile
     {
         public Reader Reader { get; init; } = new();
+        public ReaderEligibilityResult Eligibility { get; init; } = new();
         public IReadOnlyList<ReaderBorrowHistoryItem> BorrowingHistory { get; init; } = Array.Empty<ReaderBorrowHistoryItem>();
         public int CurrentlyBorrowing { get; init; }
         public int TotalBorrowed { get; init; }

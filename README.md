@@ -107,9 +107,12 @@ Dữ liệu mẫu đã được mã hóa bằng **BCrypt Hash** an toàn:
    - Tìm kiếm sách theo tiêu đề hoặc tác giả.
    - Thêm mới, chỉnh sửa và xóa sách có kiểm tra ràng buộc số lượng sách đang lưu hành.
 4. **Quản lý Độc giả (Readers Directory):**
-   - Quản lý danh bạ thành viên thư viện, kiểm tra định dạng email và số điện thoại.
+   - Quản lý chung độc giả Student/External, hồ sơ, trạng thái, tìm kiếm, lọc, sắp xếp và phân trang.
+   - Tính `Reader Eligibility` theo thời gian thực từ trạng thái, sách đang mượn, sách quá hạn và giới hạn mượn; không lưu cột trạng thái dễ lỗi thời.
+   - Reader Detail hiển thị tổng quan và tối đa 5 hoạt động gần nhất; lịch sử đầy đủ thuộc Circulation History.
 5. **Mượn & Trả sách (Circulation Desk):**
    - Thực hiện mượn sách với giao dịch Transaction an toàn (ACID).
+   - Kiểm tra lại Reader Eligibility ngay khi xác nhận mượn và từ chối nếu độc giả bị khóa, có sách quá hạn hoặc đã đạt giới hạn.
    - Trả sách, cập nhật số lượng tồn kho khả dụng (`AvailableQuantity`) và tính toán ngày trả thực tế.
 6. **Lịch sử mượn/trả (Circulation History):**
    - Lọc lịch sử theo trạng thái (Borrowing/Returned) và khoảng thời gian (From/To Date).
