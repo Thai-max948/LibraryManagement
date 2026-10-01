@@ -58,7 +58,9 @@ namespace LibraryManagement.Services
             {
                 reasons.Add(reader.IsSuspended
                     ? "Độc giả đang bị tạm khóa (Suspended)."
-                    : "Độc giả không ở trạng thái hoạt động.");
+                    : reader.IsInactive
+                        ? "Độc giả đã ngừng hoạt động (Inactive)."
+                        : "Độc giả không ở trạng thái hoạt động.");
             }
 
             if (overdueLoans > 0)

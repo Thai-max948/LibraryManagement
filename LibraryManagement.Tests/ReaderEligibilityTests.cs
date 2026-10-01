@@ -42,6 +42,19 @@ namespace LibraryManagement.Tests
         }
 
         [Fact]
+        public void Evaluate_InactiveReader_IsNotEligible()
+        {
+            var service = CreateService();
+
+            var result = service.Evaluate(
+                new Reader { ReaderId = 1, Status = "Inactive" },
+                Array.Empty<BorrowRecord>());
+
+            Assert.False(result.IsEligible);
+            Assert.Contains(result.Reasons, reason => reason.Contains("Inactive"));
+        }
+
+        [Fact]
         public void Evaluate_ReaderWithOverdueBook_IsNotEligible()
         {
             var service = CreateService();

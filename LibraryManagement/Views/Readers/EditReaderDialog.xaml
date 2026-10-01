@@ -90,6 +90,7 @@
                             <ComboBox x:Name="StatusComboBox" Padding="8,6" BorderBrush="{StaticResource TechBorderBrush}" SelectionChanged="Status_SelectionChanged">
                                 <ComboBoxItem Content="Active" IsSelected="True"/>
                                 <ComboBoxItem Content="Suspended"/>
+                                <ComboBoxItem Content="Inactive"/>
                             </ComboBox>
                         </StackPanel>
                     </Grid>

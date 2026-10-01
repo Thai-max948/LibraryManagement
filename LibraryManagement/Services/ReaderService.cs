@@ -37,6 +37,9 @@ namespace LibraryManagement.Services
         public int AddReader(Reader reader)
         {
             Validate(reader);
+            reader.Status = "Active";
+            reader.SuspensionReason = string.Empty;
+            reader.SuspendedDate = null;
             EnsureIdentificationIsUnique(reader);
             return _readerRepo.Add(reader);
         }
@@ -52,6 +55,7 @@ namespace LibraryManagement.Services
             }
 
             EnsureIdentificationIsUnique(reader);
+            ValidateLifecycleTransition(reader, existing);
             ApplyStatusAudit(reader, existing);
 
             if (!_readerRepo.Update(reader))
@@ -68,10 +72,17 @@ namespace LibraryManagement.Services
                 throw new BusinessRuleException("Độc giả không tồn tại.");
             }
 
-            bool hasActiveBorrow = _borrowRepo.GetBorrowingRecords().Any(r => r.ReaderId == readerId);
+            bool hasActiveBorrow = (_borrowRepo.GetBorrowingRecords() ?? new List<BorrowRecord>())
+                .Any(r => r.ReaderId == readerId);
             if (hasActiveBorrow)
             {
                 throw new BusinessRuleException("Không thể xóa độc giả đang có sách chưa trả.");
+            }
+
+            bool hasHistory = (_borrowRepo.GetHistory(readerId: readerId) ?? new List<BorrowRecord>()).Count > 0;
+            if (hasHistory)
+            {
+                throw new BusinessRuleException("Độc giả đã có lịch sử mượn trả. Hãy chuyển trạng thái sang Inactive thay vì xóa.");
             }
 
             if (!_readerRepo.Delete(readerId))
@@ -88,7 +99,7 @@ namespace LibraryManagement.Services
                 throw new BusinessRuleException("Độc giả không tồn tại.");
             }
 
-            if (reader.IsSuspended)
+            if (reader.IsSuspended || reader.IsInactive)
             {
                 reader.Status = "Active";
                 reader.SuspensionReason = string.Empty;
@@ -106,6 +117,46 @@ namespace LibraryManagement.Services
             {
                 throw new BusinessRuleException("Cập nhật trạng thái độc giả thất bại.");
             }
+        }
+
+        public void DeactivateReader(int readerId)
+        {
+            var reader = _readerRepo.GetById(readerId);
+            if (reader == null || reader.IsDeleted)
+                throw new BusinessRuleException("Độc giả không tồn tại.");
+
+            if (reader.IsInactive)
+                return;
+            if (!reader.IsActive)
+                throw new BusinessRuleException($"Không thể chuyển trạng thái từ {reader.Status} sang Inactive.");
+
+            if ((_borrowRepo.GetBorrowingRecords() ?? new List<BorrowRecord>())
+                .Any(record => record.ReaderId == readerId))
+                throw new BusinessRuleException("Không thể chuyển Inactive khi độc giả còn sách chưa trả.");
+
+            reader.Status = "Inactive";
+            reader.SuspensionReason = string.Empty;
+            reader.SuspendedDate = null;
+            if (!_readerRepo.Update(reader))
+                throw new BusinessRuleException("Cập nhật trạng thái độc giả thất bại.");
+        }
+
+        public void ReactivateReader(int readerId)
+        {
+            var reader = _readerRepo.GetById(readerId);
+            if (reader == null || reader.IsDeleted)
+                throw new BusinessRuleException("Độc giả không tồn tại.");
+
+            if (reader.IsActive)
+                return;
+            if (!reader.IsSuspended && !reader.IsInactive)
+                throw new BusinessRuleException($"Không thể kích hoạt độc giả từ trạng thái {reader.Status}.");
+
+            reader.Status = "Active";
+            reader.SuspensionReason = string.Empty;
+            reader.SuspendedDate = null;
+            if (!_readerRepo.Update(reader))
+                throw new BusinessRuleException("Cập nhật trạng thái độc giả thất bại.");
         }
 
         public Reader? GetReaderById(int readerId)
@@ -224,6 +275,23 @@ namespace LibraryManagement.Services
                 ? existing.SuspendedDate : DateTime.Now;
         }
 
+        private void ValidateLifecycleTransition(Reader reader, Reader existing)
+        {
+            if (string.Equals(reader.Status, existing.Status, StringComparison.OrdinalIgnoreCase))
+                return;
+
+            bool transitionAllowed = (existing.IsActive && reader.Status is "Suspended" or "Inactive")
+                || (existing.IsSuspended && reader.Status == "Active")
+                || (existing.IsInactive && reader.Status == "Active");
+            if (!transitionAllowed)
+                throw new BusinessRuleException($"Không thể chuyển trạng thái từ {existing.Status} sang {reader.Status}.");
+
+            if (reader.Status == "Inactive"
+                && (_borrowRepo.GetBorrowingRecords() ?? new List<BorrowRecord>())
+                    .Any(record => record.ReaderId == reader.ReaderId))
+                throw new BusinessRuleException("Không thể chuyển Inactive khi độc giả còn sách chưa trả.");
+        }
+
         private static void Validate(Reader reader)
         {
             if (string.IsNullOrWhiteSpace(reader.FullName))
@@ -267,10 +335,13 @@ namespace LibraryManagement.Services
             }
 
             if (!string.Equals(reader.Status, "Active", StringComparison.OrdinalIgnoreCase)
-                && !string.Equals(reader.Status, "Suspended", StringComparison.OrdinalIgnoreCase))
+                && !string.Equals(reader.Status, "Suspended", StringComparison.OrdinalIgnoreCase)
+                && !string.Equals(reader.Status, "Inactive", StringComparison.OrdinalIgnoreCase))
                 throw new BusinessRuleException("Trạng thái độc giả không hợp lệ.");
 
-            reader.Status = string.Equals(reader.Status, "Suspended", StringComparison.OrdinalIgnoreCase) ? "Suspended" : "Active";
+            reader.Status = string.Equals(reader.Status, "Suspended", StringComparison.OrdinalIgnoreCase)
+                ? "Suspended"
+                : string.Equals(reader.Status, "Inactive", StringComparison.OrdinalIgnoreCase) ? "Inactive" : "Active";
             reader.FullName = reader.FullName.Trim();
             reader.Phone = reader.Phone.Trim();
             reader.Email = reader.Email?.Trim() ?? string.Empty;

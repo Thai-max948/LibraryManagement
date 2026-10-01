@@ -34,7 +34,8 @@ namespace LibraryManagement.Views.Readers
             UpdateIdentificationVisibility(isExternal);
 
             bool isSuspended = string.Equals(existing.Status, "Suspended", StringComparison.OrdinalIgnoreCase);
-            StatusComboBox.SelectedIndex = isSuspended ? 1 : 0;
+            bool isInactive = string.Equals(existing.Status, "Inactive", StringComparison.OrdinalIgnoreCase);
+            StatusComboBox.SelectedIndex = isSuspended ? 1 : isInactive ? 2 : 0;
             SuspensionReasonBox.Text = existing.SuspensionReason;
             UpdateSuspensionVisibility(isSuspended);
         }
@@ -101,7 +102,12 @@ namespace LibraryManagement.Views.Readers
                 return;
             }
 
-            string status = StatusComboBox.SelectedIndex == 1 ? "Suspended" : "Active";
+            string status = StatusComboBox.SelectedIndex switch
+            {
+                1 => "Suspended",
+                2 => "Inactive",
+                _ => "Active"
+            };
             if (status == "Suspended" && string.IsNullOrWhiteSpace(SuspensionReasonBox.Text))
             {
                 MessageBox.Show("Vui lòng nhập lý do tạm khóa độc giả.", "Thiếu thông tin");

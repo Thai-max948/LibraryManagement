@@ -175,6 +175,9 @@
                                             <DataTrigger Binding="{Binding Status}" Value="Suspended">
                                                 <Setter Property="Background" Value="#FEE2E2"/>
                                             </DataTrigger>
+                                            <DataTrigger Binding="{Binding Status}" Value="Inactive">
+                                                <Setter Property="Background" Value="#E2E8F0"/>
+                                            </DataTrigger>
                                         </Style.Triggers>
                                     </Style>
                                 </Border.Style>
@@ -187,6 +190,9 @@
                                                 </DataTrigger>
                                                 <DataTrigger Binding="{Binding Status}" Value="Suspended">
                                                     <Setter Property="Foreground" Value="#DC2626"/>
+                                                </DataTrigger>
+                                                <DataTrigger Binding="{Binding Status}" Value="Inactive">
+                                                    <Setter Property="Foreground" Value="#64748B"/>
                                                 </DataTrigger>
                                             </Style.Triggers>
                                         </Style>
