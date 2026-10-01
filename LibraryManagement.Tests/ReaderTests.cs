@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using LibraryManagement.Models;
 using LibraryManagement.Repositories;
 using LibraryManagement.Services;
@@ -437,6 +438,40 @@ namespace LibraryManagement.Tests
             });
         }
 
+        [Fact]
+        public void ReadersViewModel_NextPage_ShowsRemainingReadersAndUpdatesSummary()
+        {
+            var mockReaderRepo = new Mock<ReaderRepository>();
+            var readers = new List<Reader>();
+            for (int i = 1; i <= 25; i++)
+            {
+                readers.Add(new Reader
+                {
+                    ReaderId = i,
+                    FullName = $"Reader {i:D2}",
+                    ReaderType = "Student",
+                    StudentId = $"SV{i:D4}",
+                    Status = "Active"
+                });
+            }
+            mockReaderRepo.Setup(r => r.GetAll(false)).Returns(readers);
+
+            var service = new ReaderService(mockReaderRepo.Object, new Mock<BorrowRepository>().Object);
+
+            StaHelper.RunInSta(() =>
+            {
+                var vm = new ReadersViewModel(service);
+                Assert.Equal(20, vm.Readers.Count);
+                Assert.Equal(2, vm.TotalPages);
+
+                vm.NextPageCommand.Execute(null);
+
+                Assert.Equal(2, vm.CurrentPage);
+                Assert.Equal(5, vm.Readers.Count);
+                Assert.Equal("Trang 2/2 • 25 độc giả", vm.PageSummary);
+            });
+        }
+
         [Theory]
         [InlineData(1, "R000001")]
         [InlineData(125, "R000125")]
@@ -516,6 +551,8 @@ namespace LibraryManagement.Tests
 
             // Assert
             Assert.Equal("Suspended", reader.Status);
+            Assert.Equal("Khóa thủ công", reader.SuspensionReason);
+            Assert.NotNull(reader.SuspendedDate);
             mockReaderRepo.Verify(r => r.Update(reader), Times.Once);
         }
 
@@ -537,6 +574,8 @@ namespace LibraryManagement.Tests
 
             // Assert
             Assert.Equal("Active", reader.Status);
+            Assert.Empty(reader.SuspensionReason);
+            Assert.Null(reader.SuspendedDate);
             mockReaderRepo.Verify(r => r.Update(reader), Times.Once);
         }
 
@@ -582,6 +621,112 @@ namespace LibraryManagement.Tests
                 borrowService.BorrowBook(1, 1, DateTime.Today, DateTime.Today.AddDays(7)));
 
             Assert.Contains("Suspended", ex.Message);
+        }
+
+        [Fact]
+        public void AddReader_DuplicateStudentId_IsRejected()
+        {
+            var readerRepo = new Mock<ReaderRepository>();
+            readerRepo.Setup(r => r.IdentificationExists("Student", "23A12345", 0)).Returns(true);
+            var service = new ReaderService(readerRepo.Object, new Mock<BorrowRepository>().Object);
+            var reader = new Reader { FullName = "Nguyễn Văn An", ReaderType = "Student",
+                StudentId = "23A12345", Phone = "0901234567" };
+
+            var ex = Assert.Throws<BusinessRuleException>(() => service.AddReader(reader));
+            Assert.Contains("Mã sinh viên", ex.Message);
+            readerRepo.Verify(r => r.Add(It.IsAny<Reader>()), Times.Never);
+        }
+
+        [Fact]
+        public void UpdateReader_NewSuspension_RequiresReason()
+        {
+            var readerRepo = new Mock<ReaderRepository>();
+            readerRepo.Setup(r => r.GetById(1)).Returns(new Reader { ReaderId = 1, Status = "Active" });
+            var service = new ReaderService(readerRepo.Object, new Mock<BorrowRepository>().Object);
+            var reader = new Reader { ReaderId = 1, FullName = "Nguyễn Văn An", ReaderType = "Student",
+                StudentId = "23A12345", Phone = "0901234567", Status = "Suspended" };
+
+            var ex = Assert.Throws<BusinessRuleException>(() => service.UpdateReader(reader));
+            Assert.Contains("lý do", ex.Message);
+            readerRepo.Verify(r => r.Update(It.IsAny<Reader>()), Times.Never);
+        }
+
+        [Fact]
+        public void GetReaderPage_SortsAndPaginatesFilteredResults()
+        {
+            var readerRepo = new Mock<ReaderRepository>();
+            readerRepo.Setup(r => r.GetAll(false)).Returns(new List<Reader>
+            {
+                new() { ReaderId = 1, FullName = "An" }, new() { ReaderId = 2, FullName = "Bình" },
+                new() { ReaderId = 3, FullName = "Chi" }, new() { ReaderId = 4, FullName = "Dũng" },
+                new() { ReaderId = 5, FullName = "Giang" }, new() { ReaderId = 6, FullName = "Hà" }
+            });
+            var service = new ReaderService(readerRepo.Object, new Mock<BorrowRepository>().Object);
+
+            var page = service.GetReaderPage("", "All", "All", "Name Z-A", 2, 5);
+
+            Assert.Equal(6, page.TotalCount);
+            Assert.Equal(2, page.PageNumber);
+            Assert.Single(page.Items);
+            Assert.Equal("An", page.Items[0].FullName);
+        }
+
+        [Fact]
+        public void GetReaderProfile_CalculatesSummaryAndBookTitles()
+        {
+            var readerRepo = new Mock<ReaderRepository>();
+            var borrowRepo = new Mock<BorrowRepository>();
+            var bookRepo = new Mock<BookRepository>();
+            readerRepo.Setup(r => r.GetById(7)).Returns(new Reader { ReaderId = 7, FullName = "Mai" });
+            borrowRepo.Setup(r => r.GetHistory(7, null, null, null, null)).Returns(new List<BorrowRecord>
+            {
+                new() { BorrowId = 1, ReaderId = 7, BookId = 11, Status = "Borrowing", DueDate = DateTime.Today.AddDays(-1) },
+                new() { BorrowId = 2, ReaderId = 7, BookId = 12, Status = "Returned", DueDate = DateTime.Today.AddDays(-5), ReturnDate = DateTime.Today.AddDays(-4) }
+            });
+            bookRepo.Setup(r => r.GetById(11)).Returns(new Book { BookId = 11, Title = "Clean Code" });
+            bookRepo.Setup(r => r.GetById(12)).Returns(new Book { BookId = 12, Title = "Refactoring" });
+            var service = new ReaderService(readerRepo.Object, borrowRepo.Object, bookRepo.Object);
+
+            var profile = service.GetReaderProfile(7);
+
+            Assert.Equal(2, profile.TotalBorrowed);
+            Assert.Equal(1, profile.CurrentlyBorrowing);
+            Assert.Equal(1, profile.OverdueCount);
+            Assert.False(profile.Eligibility.IsEligible);
+            Assert.Contains("quá hạn", profile.Eligibility.ReasonSummary);
+            Assert.Contains(profile.BorrowingHistory, h => h.BookTitle == "Clean Code");
+        }
+
+        [Fact]
+        public void GetReaderProfile_ExposesOnlyFiveMostRecentActivities()
+        {
+            var readerRepo = new Mock<ReaderRepository>();
+            var borrowRepo = new Mock<BorrowRepository>();
+            var bookRepo = new Mock<BookRepository>();
+            readerRepo.Setup(repository => repository.GetById(8))
+                .Returns(new Reader { ReaderId = 8, FullName = "Lan", Status = "Active" });
+            var records = Enumerable.Range(1, 6)
+                .Select(id => new BorrowRecord
+                {
+                    BorrowId = id,
+                    ReaderId = 8,
+                    BookId = id,
+                    Status = "Returned",
+                    BorrowDate = DateTime.Today.AddDays(-id),
+                    DueDate = DateTime.Today.AddDays(7 - id),
+                    ReturnDate = DateTime.Today.AddDays(1 - id)
+                })
+                .ToList();
+            borrowRepo.Setup(repository => repository.GetHistory(8, null, null, null, null)).Returns(records);
+            bookRepo.Setup(repository => repository.GetById(It.IsAny<int>()))
+                .Returns<int>(id => new Book { BookId = id, Title = $"Book {id}" });
+            var service = new ReaderService(readerRepo.Object, borrowRepo.Object, bookRepo.Object);
+
+            var profile = service.GetReaderProfile(8);
+
+            Assert.Equal(6, profile.TotalBorrowed);
+            Assert.Equal(5, profile.BorrowingHistory.Count);
+            Assert.DoesNotContain(profile.BorrowingHistory, activity => activity.BorrowId == 6);
         }
     }
 }

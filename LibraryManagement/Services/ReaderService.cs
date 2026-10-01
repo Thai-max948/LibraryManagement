@@ -14,20 +14,30 @@ namespace LibraryManagement.Services
 
         private readonly ReaderRepository _readerRepo;
         private readonly BorrowRepository _borrowRepo;
+        private readonly BookRepository _bookRepo;
+        private readonly ReaderEligibilityService _eligibilityService;
 
-        public ReaderService() : this(new ReaderRepository(), new BorrowRepository())
+        public ReaderService() : this(new ReaderRepository(), new BorrowRepository(), new BookRepository())
         {
         }
 
         public ReaderService(ReaderRepository readerRepo, BorrowRepository borrowRepo)
+            : this(readerRepo, borrowRepo, new BookRepository())
+        {
+        }
+
+        public ReaderService(ReaderRepository readerRepo, BorrowRepository borrowRepo, BookRepository bookRepo)
         {
             _readerRepo = readerRepo;
             _borrowRepo = borrowRepo;
+            _bookRepo = bookRepo;
+            _eligibilityService = new ReaderEligibilityService(readerRepo, borrowRepo);
         }
 
         public int AddReader(Reader reader)
         {
             Validate(reader);
+            EnsureIdentificationIsUnique(reader);
             return _readerRepo.Add(reader);
         }
 
@@ -40,6 +50,9 @@ namespace LibraryManagement.Services
             {
                 throw new BusinessRuleException("Độc giả không tồn tại.");
             }
+
+            EnsureIdentificationIsUnique(reader);
+            ApplyStatusAudit(reader, existing);
 
             if (!_readerRepo.Update(reader))
             {
@@ -67,7 +80,7 @@ namespace LibraryManagement.Services
             }
         }
 
-        public void ToggleStatus(int readerId)
+        public void ToggleStatus(int readerId, string? suspensionReason = null)
         {
             var reader = _readerRepo.GetById(readerId);
             if (reader == null || reader.IsDeleted)
@@ -75,9 +88,19 @@ namespace LibraryManagement.Services
                 throw new BusinessRuleException("Độc giả không tồn tại.");
             }
 
-            reader.Status = string.Equals(reader.Status, "Suspended", StringComparison.OrdinalIgnoreCase)
-                ? "Active"
-                : "Suspended";
+            if (reader.IsSuspended)
+            {
+                reader.Status = "Active";
+                reader.SuspensionReason = string.Empty;
+                reader.SuspendedDate = null;
+            }
+            else
+            {
+                reader.Status = "Suspended";
+                reader.SuspensionReason = string.IsNullOrWhiteSpace(suspensionReason)
+                    ? "Khóa thủ công" : suspensionReason.Trim();
+                reader.SuspendedDate = DateTime.Now;
+            }
 
             if (!_readerRepo.Update(reader))
             {
@@ -116,6 +139,89 @@ namespace LibraryManagement.Services
         public List<Reader> GetAllReaders(bool includeDeleted = false)
         {
             return _readerRepo.GetAll(includeDeleted);
+        }
+
+        public ReaderPage GetReaderPage(string keyword, string typeFilter, string statusFilter,
+            string sortBy, int pageNumber, int pageSize)
+        {
+            pageSize = Math.Clamp(pageSize, 5, 100);
+            var filtered = SearchReader(keyword, typeFilter, statusFilter);
+            IEnumerable<Reader> sorted = sortBy switch
+            {
+                "Name Z-A" => filtered.OrderByDescending(r => r.FullName, StringComparer.CurrentCultureIgnoreCase),
+                "Newest" => filtered.OrderByDescending(r => r.RegistrationDate),
+                "Oldest" => filtered.OrderBy(r => r.RegistrationDate),
+                "Status" => filtered.OrderBy(r => r.Status).ThenBy(r => r.FullName),
+                _ => filtered.OrderBy(r => r.FullName, StringComparer.CurrentCultureIgnoreCase)
+            };
+            int total = filtered.Count;
+            int totalPages = Math.Max(1, (int)Math.Ceiling(total / (double)pageSize));
+            pageNumber = Math.Clamp(pageNumber, 1, totalPages);
+            return new ReaderPage
+            {
+                Items = sorted.Skip((pageNumber - 1) * pageSize).Take(pageSize).ToList(),
+                TotalCount = total,
+                PageNumber = pageNumber,
+                PageSize = pageSize
+            };
+        }
+
+        public ReaderProfile GetReaderProfile(int readerId)
+        {
+            var reader = _readerRepo.GetById(readerId);
+            if (reader == null || reader.IsDeleted)
+                throw new BusinessRuleException("Độc giả không tồn tại.");
+
+            var records = _borrowRepo.GetHistory(readerId: readerId);
+            var history = records.Take(5).Select(record => new ReaderBorrowHistoryItem
+            {
+                BorrowId = record.BorrowId,
+                BookTitle = _bookRepo.GetById(record.BookId)?.Title ?? $"Book #{record.BookId}",
+                BorrowDate = record.BorrowDate,
+                DueDate = record.DueDate,
+                ReturnDate = record.ReturnDate,
+                Status = record.Status
+            }).ToList();
+            return new ReaderProfile
+            {
+                Reader = reader,
+                Eligibility = _eligibilityService.Evaluate(reader, records),
+                BorrowingHistory = history,
+                CurrentlyBorrowing = records.Count(r => string.Equals(r.Status, "Borrowing", StringComparison.OrdinalIgnoreCase)),
+                TotalBorrowed = records.Count,
+                OverdueCount = records.Count(r => string.Equals(r.Status, "Borrowing", StringComparison.OrdinalIgnoreCase)
+                    && r.DueDate.Date < DateTime.Today)
+            };
+        }
+
+        private void EnsureIdentificationIsUnique(Reader reader)
+        {
+            string identification = reader.IsExternal ? reader.IdentityNumber! : reader.StudentId!;
+            if (_readerRepo.IdentificationExists(reader.ReaderType, identification, reader.ReaderId))
+            {
+                string label = reader.IsExternal ? "Số CCCD / Định danh" : "Mã sinh viên";
+                throw new BusinessRuleException($"{label} đã được sử dụng bởi độc giả khác.");
+            }
+        }
+
+        private static void ApplyStatusAudit(Reader reader, Reader existing)
+        {
+            if (!reader.IsSuspended)
+            {
+                reader.SuspensionReason = string.Empty;
+                reader.SuspendedDate = null;
+                return;
+            }
+
+            if (string.IsNullOrWhiteSpace(reader.SuspensionReason))
+            {
+                if (!existing.IsSuspended)
+                    throw new BusinessRuleException("Vui lòng nhập lý do tạm khóa độc giả.");
+                reader.SuspensionReason = existing.SuspensionReason;
+            }
+            reader.SuspensionReason = reader.SuspensionReason.Trim();
+            reader.SuspendedDate = existing.IsSuspended && existing.SuspendedDate.HasValue
+                ? existing.SuspendedDate : DateTime.Now;
         }
 
         private static void Validate(Reader reader)

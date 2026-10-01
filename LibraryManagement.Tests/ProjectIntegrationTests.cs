@@ -25,10 +25,13 @@ public sealed class ProjectIntegrationTests : IClassFixture<SqlIntegrationFixtur
 
         reader.FullName = "Độc giả đã sửa";
         reader.Status = "Suspended";
+        reader.SuspensionReason = "Vi phạm quy định mượn sách";
         readers.UpdateReader(reader);
         var persistedReader = readers.GetReaderById(readerId)!;
         Assert.Equal("Độc giả đã sửa", persistedReader.FullName);
         Assert.Equal("Suspended", persistedReader.Status);
+        Assert.Equal("Vi phạm quy định mượn sách", persistedReader.SuspensionReason);
+        Assert.NotNull(persistedReader.SuspendedDate);
         Assert.Equal("*********788", persistedReader.DisplayIdentification);
         Assert.Empty(readers.SearchReader(reader.FormattedId, "External", "Active"));
 
@@ -40,6 +43,10 @@ public sealed class ProjectIntegrationTests : IClassFixture<SqlIntegrationFixtur
         books.UpdateBook(book);
         Assert.Equal(6, new BookRepository().GetById(bookId)!.AvailableQuantity);
         Assert.Contains(books.SearchBook("Sách tích hợp"), b => b.BookId == bookId);
+
+        var duplicate = new Reader { ReaderType = "External", FullName = "Trùng định danh",
+            IdentityNumber = reader.IdentityNumber, Phone = "0987654321" };
+        Assert.Throws<BusinessRuleException>(() => readers.AddReader(duplicate));
     }
 
     [IntegrationFact]
@@ -73,6 +80,44 @@ public sealed class ProjectIntegrationTests : IClassFixture<SqlIntegrationFixtur
         Assert.Equal(returnedAt, record.ReturnDate);
         Assert.Throws<BusinessRuleException>(() => circulation.ReturnBook(borrowId, returnedAt));
         Assert.Equal(2, new BookRepository().GetById(bookId)!.AvailableQuantity);
+    }
+
+    [IntegrationFact]
+    [Trait("Category", "Integration")]
+    public void ReaderEligibility_OverdueLoanBlocksConfirmAndRefreshesAfterReturn()
+    {
+        var readers = new ReaderService();
+        var circulation = new BorrowService();
+        int readerId = readers.AddReader(new Reader
+        {
+            FullName = "Độc giả kiểm tra eligibility",
+            StudentId = "SV-ELIGIBILITY-1",
+            Phone = "0909876543"
+        });
+        int overdueBookId = new BookService().AddBook(new Book
+        {
+            Title = "Sách quá hạn tích hợp", Author = "Tác giả", PublishYear = 2026, Quantity = 1
+        });
+        int nextBookId = new BookService().AddBook(new Book
+        {
+            Title = "Sách mượn tiếp", Author = "Tác giả", PublishYear = 2026, Quantity = 1
+        });
+
+        int overdueBorrowId = circulation.BorrowBook(
+            readerId, overdueBookId, DateTime.Today.AddDays(-10), DateTime.Today.AddDays(-1));
+
+        var blocked = new ReaderEligibilityService().CheckEligibility(readerId);
+        Assert.False(blocked.IsEligible);
+        Assert.Equal(1, blocked.OverdueLoans);
+        var exception = Assert.Throws<BusinessRuleException>(() =>
+            circulation.BorrowBook(readerId, nextBookId, DateTime.Today, DateTime.Today.AddDays(7)));
+        Assert.Contains("quá hạn", exception.Message);
+        Assert.Equal(1, new BookRepository().GetById(nextBookId)!.AvailableQuantity);
+
+        circulation.ReturnBook(overdueBorrowId, DateTime.Today);
+        Assert.True(new ReaderEligibilityService().CheckEligibility(readerId).IsEligible);
+        circulation.BorrowBook(readerId, nextBookId, DateTime.Today, DateTime.Today.AddDays(7));
+        Assert.Equal(0, new BookRepository().GetById(nextBookId)!.AvailableQuantity);
     }
 
     [IntegrationFact]
