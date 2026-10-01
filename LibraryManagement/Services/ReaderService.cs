@@ -101,17 +101,29 @@ namespace LibraryManagement.Services
 
             if (reader.IsSuspended || reader.IsInactive)
             {
-                reader.Status = "Active";
-                reader.SuspensionReason = string.Empty;
-                reader.SuspendedDate = null;
+                ReactivateReader(readerId);
             }
             else
             {
-                reader.Status = "Suspended";
-                reader.SuspensionReason = string.IsNullOrWhiteSpace(suspensionReason)
-                    ? "Khóa thủ công" : suspensionReason.Trim();
-                reader.SuspendedDate = DateTime.Now;
+                SuspendReader(readerId, string.IsNullOrWhiteSpace(suspensionReason)
+                    ? "Khóa thủ công" : suspensionReason);
             }
+        }
+
+        public void SuspendReader(int readerId, string reason)
+        {
+            if (string.IsNullOrWhiteSpace(reason))
+                throw new BusinessRuleException("Vui lòng nhập lý do tạm khóa độc giả.");
+
+            var reader = _readerRepo.GetById(readerId);
+            if (reader == null || reader.IsDeleted)
+                throw new BusinessRuleException("Độc giả không tồn tại.");
+            if (!reader.IsActive)
+                throw new BusinessRuleException($"Không thể tạm khóa độc giả từ trạng thái {reader.Status}.");
+
+            reader.Status = "Suspended";
+            reader.SuspensionReason = reason.Trim();
+            reader.SuspendedDate = DateTime.Now;
 
             if (!_readerRepo.Update(reader))
             {

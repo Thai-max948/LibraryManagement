@@ -1,7 +1,7 @@
 <Window x:Class="LibraryManagement.Views.Readers.ReaderDetailDialog"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Reader Details" Height="720" Width="780"
+        Title="Reader Details" Height="760" Width="780"
         WindowStartupLocation="CenterOwner" Background="{StaticResource BackgroundBrush}">
     <Grid Margin="16">
         <Grid.RowDefinitions><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
@@ -21,7 +21,18 @@
                         <TextBlock Grid.Row="2" Grid.Column="2" Text="Email" FontWeight="SemiBold" Foreground="{StaticResource SecondaryTextBrush}"/><TextBlock Grid.Row="2" Grid.Column="3" Text="{Binding Reader.Email}"/>
                         <TextBlock Grid.Row="3" Text="Địa chỉ" FontWeight="SemiBold" Foreground="{StaticResource SecondaryTextBrush}"/><TextBlock Grid.Row="3" Grid.Column="1" Grid.ColumnSpan="3" Text="{Binding Reader.Address}" TextWrapping="Wrap"/>
                         <TextBlock Grid.Row="4" Text="Ngày đăng ký" FontWeight="SemiBold" Foreground="{StaticResource SecondaryTextBrush}"/><TextBlock Grid.Row="4" Grid.Column="1" Text="{Binding Reader.RegistrationDate, StringFormat=dd/MM/yyyy}"/>
-                        <TextBlock Grid.Row="4" Grid.Column="2" Text="Trạng thái" FontWeight="SemiBold" Foreground="{StaticResource SecondaryTextBrush}"/><TextBlock Grid.Row="4" Grid.Column="3" Text="{Binding Reader.Status}" FontWeight="Bold"/>
+                        <TextBlock Grid.Row="4" Grid.Column="2" Text="Trạng thái" FontWeight="SemiBold" Foreground="{StaticResource SecondaryTextBrush}"/>
+                        <TextBlock Grid.Row="4" Grid.Column="3" Text="{Binding Reader.Status}" FontWeight="Bold">
+                            <TextBlock.Style>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="Foreground" Value="#059669"/>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding Reader.Status}" Value="Suspended"><Setter Property="Foreground" Value="#DC2626"/></DataTrigger>
+                                        <DataTrigger Binding="{Binding Reader.Status}" Value="Inactive"><Setter Property="Foreground" Value="#64748B"/></DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBlock.Style>
+                        </TextBlock>
                         <TextBlock Grid.Row="5" Text="Lý do tạm khóa" FontWeight="SemiBold" Foreground="{StaticResource SecondaryTextBrush}"/><TextBlock Grid.Row="5" Grid.Column="1" Text="{Binding Reader.SuspensionReason}" TextWrapping="Wrap"/>
                         <TextBlock Grid.Row="5" Grid.Column="2" Text="Ngày tạm khóa" FontWeight="SemiBold" Foreground="{StaticResource SecondaryTextBrush}"/><TextBlock Grid.Row="5" Grid.Column="3" Text="{Binding Reader.SuspendedDate, StringFormat=dd/MM/yyyy HH:mm, TargetNullValue=-}"/>
                     </Grid>
@@ -77,6 +88,17 @@
                 </DataGrid>
             </StackPanel>
         </ScrollViewer>
-        <Button Grid.Row="1" Content="Đóng" Width="100" Height="34" HorizontalAlignment="Right" Margin="0,12,0,0" Style="{StaticResource SecondaryButtonStyle}" Click="Close_Click"/>
+        <Grid Grid.Row="1" Margin="0,12,0,0">
+            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                <TextBlock Text="Quản lý vòng đời:" FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                <StackPanel x:Name="ActiveActionsPanel" Orientation="Horizontal">
+                    <Button Content="Tạm khóa" Width="100" Style="{StaticResource SecondaryButtonStyle}" Margin="0,0,8,0" Click="Suspend_Click"/>
+                    <Button Content="Ngừng hoạt động" Width="130" Style="{StaticResource SecondaryButtonStyle}" Click="Deactivate_Click"/>
+                </StackPanel>
+                <Button x:Name="ReactivateButton" Content="Kích hoạt lại" Width="115" Style="{StaticResource PrimaryButtonStyle}" Visibility="Collapsed" Click="Reactivate_Click"/>
+            </StackPanel>
+            <Button Grid.Column="1" Content="Đóng" Width="100" Height="34" Style="{StaticResource SecondaryButtonStyle}" Click="Close_Click"/>
+        </Grid>
     </Grid>
 </Window>

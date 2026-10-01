@@ -15,7 +15,7 @@
             <!-- Header -->
             <StackPanel Grid.Row="0" Margin="0,0,0,12">
                 <TextBlock Text="✏️ Chỉnh Sửa Độc Giả" FontSize="18" FontWeight="Bold" Foreground="{StaticResource TextBrush}" Margin="0,0,0,4"/>
-                <TextBlock Text="Reader ID là định danh cố định không thể thay đổi" FontSize="12" Foreground="{StaticResource SecondaryTextBrush}"/>
+                <TextBlock Text="Chỉ chỉnh sửa thông tin hồ sơ; trạng thái được quản lý tại Reader Detail" FontSize="12" Foreground="{StaticResource SecondaryTextBrush}"/>
                 <Separator Background="#E2E8F0" Margin="0,10,0,0"/>
             </StackPanel>
 
@@ -74,31 +74,8 @@
                         </StackPanel>
                     </Grid>
 
-                    <!-- Address & Status in 2 columns -->
-                    <Grid Margin="0,0,0,8">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="2*"/>
-                            <ColumnDefinition Width="12"/>
-                            <ColumnDefinition Width="*"/>
-                        </Grid.ColumnDefinitions>
-                        <StackPanel Grid.Column="0">
-                            <TextBlock Text="Địa chỉ (Address)" FontWeight="SemiBold" Foreground="{StaticResource TextBrush}" Margin="0,0,0,4"/>
-                            <TextBox x:Name="AddressBox" Padding="8,6" BorderBrush="{StaticResource TechBorderBrush}"/>
-                        </StackPanel>
-                        <StackPanel Grid.Column="2">
-                            <TextBlock Text="Trạng thái (Status) *" FontWeight="SemiBold" Foreground="{StaticResource TextBrush}" Margin="0,0,0,4"/>
-                            <ComboBox x:Name="StatusComboBox" Padding="8,6" BorderBrush="{StaticResource TechBorderBrush}" SelectionChanged="Status_SelectionChanged">
-                                <ComboBoxItem Content="Active" IsSelected="True"/>
-                                <ComboBoxItem Content="Suspended"/>
-                                <ComboBoxItem Content="Inactive"/>
-                            </ComboBox>
-                        </StackPanel>
-                    </Grid>
-                    <StackPanel x:Name="SuspensionPanel" Visibility="Collapsed" Margin="0,8,0,0">
-                        <TextBlock Text="Lý do tạm khóa *" FontWeight="SemiBold" Foreground="{StaticResource TextBrush}" Margin="0,0,0,4"/>
-                        <TextBox x:Name="SuspensionReasonBox" Padding="8,6" MinHeight="52" TextWrapping="Wrap" AcceptsReturn="True" BorderBrush="{StaticResource TechBorderBrush}"/>
-                        <TextBlock x:Name="SuspendedDateText" Foreground="{StaticResource SecondaryTextBrush}" FontSize="11" Margin="0,4,0,0"/>
-                    </StackPanel>
+                    <TextBlock Text="Địa chỉ (Address)" FontWeight="SemiBold" Foreground="{StaticResource TextBrush}" Margin="0,0,0,4"/>
+                    <TextBox x:Name="AddressBox" Padding="8,6" BorderBrush="{StaticResource TechBorderBrush}"/>
                 </StackPanel>
             </ScrollViewer>
 

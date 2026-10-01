@@ -9,6 +9,8 @@ namespace LibraryManagement.Views.Readers
     {
         private readonly int _readerId;
         private readonly DateTime _registrationDate;
+        private readonly string _status;
+        private readonly string _suspensionReason;
         private readonly DateTime? _suspendedDate;
         public Reader ResultReader { get; private set; } = new();
 
@@ -17,6 +19,8 @@ namespace LibraryManagement.Views.Readers
             InitializeComponent();
             _readerId = existing.ReaderId;
             _registrationDate = existing.RegistrationDate == default ? DateTime.Now : existing.RegistrationDate;
+            _status = existing.Status;
+            _suspensionReason = existing.SuspensionReason;
             _suspendedDate = existing.SuspendedDate;
 
             ReaderIdBox.Text = existing.FormattedId;
@@ -33,25 +37,6 @@ namespace LibraryManagement.Views.Readers
 
             UpdateIdentificationVisibility(isExternal);
 
-            bool isSuspended = string.Equals(existing.Status, "Suspended", StringComparison.OrdinalIgnoreCase);
-            bool isInactive = string.Equals(existing.Status, "Inactive", StringComparison.OrdinalIgnoreCase);
-            StatusComboBox.SelectedIndex = isSuspended ? 1 : isInactive ? 2 : 0;
-            SuspensionReasonBox.Text = existing.SuspensionReason;
-            UpdateSuspensionVisibility(isSuspended);
-        }
-
-        private void Status_SelectionChanged(object sender, SelectionChangedEventArgs e)
-        {
-            if (SuspensionPanel == null) return;
-            UpdateSuspensionVisibility(StatusComboBox.SelectedIndex == 1);
-        }
-
-        private void UpdateSuspensionVisibility(bool isSuspended)
-        {
-            SuspensionPanel.Visibility = isSuspended ? Visibility.Visible : Visibility.Collapsed;
-            SuspendedDateText.Text = _suspendedDate.HasValue
-                ? $"Đã khóa từ: {_suspendedDate:dd/MM/yyyy HH:mm}"
-                : "Ngày khóa sẽ được ghi tự động khi lưu.";
         }
 
         private void ReaderType_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -102,18 +87,6 @@ namespace LibraryManagement.Views.Readers
                 return;
             }
 
-            string status = StatusComboBox.SelectedIndex switch
-            {
-                1 => "Suspended",
-                2 => "Inactive",
-                _ => "Active"
-            };
-            if (status == "Suspended" && string.IsNullOrWhiteSpace(SuspensionReasonBox.Text))
-            {
-                MessageBox.Show("Vui lòng nhập lý do tạm khóa độc giả.", "Thiếu thông tin");
-                return;
-            }
-
             ResultReader = new Reader
             {
                 ReaderId = _readerId,
@@ -125,9 +98,9 @@ namespace LibraryManagement.Views.Readers
                 Email = EmailBox.Text.Trim(),
                 Address = AddressBox.Text.Trim(),
                 RegistrationDate = _registrationDate,
-                Status = status,
-                SuspensionReason = status == "Suspended" ? SuspensionReasonBox.Text.Trim() : string.Empty,
-                SuspendedDate = status == "Suspended" ? _suspendedDate : null
+                Status = _status,
+                SuspensionReason = _suspensionReason,
+                SuspendedDate = _suspendedDate
             };
 
             DialogResult = true;
