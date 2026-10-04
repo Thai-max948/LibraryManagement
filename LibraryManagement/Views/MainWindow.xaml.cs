@@ -11,6 +11,16 @@ namespace LibraryManagement.Views
         public MainWindow()
         {
             InitializeComponent();
+            Loaded += async (_, _) =>
+            {
+                if (DataContext is LibraryManagement.ViewModels.MainViewModel vm)
+                    await vm.Notifications.LoadAsync();
+            };
+            Closed += (_, _) =>
+            {
+                if (DataContext is LibraryManagement.ViewModels.MainViewModel vm)
+                    vm.Notifications.Dispose();
+            };
         }
 
         private void BtnLogout_Click(object sender, RoutedEventArgs e)

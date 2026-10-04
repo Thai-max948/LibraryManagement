@@ -6,22 +6,41 @@ using Microsoft.Data.SqlClient;
 
 namespace LibraryManagement.Repositories
 {
-    public class BorrowRepository
+    public class BorrowRepository : IDueSoonLoanRepository
     {
+        public async Task<IReadOnlyList<DueSoonLoan>> GetActiveLoansDueOnAsync(DateTime targetDate, CancellationToken cancellationToken = default)
+        {
+            await using var connection = Database.GetConnection();
+            await connection.OpenAsync(cancellationToken);
+            await using var command = new SqlCommand(@"SELECT br.BorrowId, br.ReaderId, b.Title, br.DueDate
+                FROM dbo.BorrowRecords br
+                INNER JOIN dbo.Books b ON b.BookId = br.BookId
+                WHERE br.Status = N'Borrowing' AND br.ReturnDate IS NULL
+                  AND br.DueDate >= @StartDate AND br.DueDate < @EndDate
+                ORDER BY br.BorrowId", connection);
+            command.Parameters.Add("@StartDate", System.Data.SqlDbType.DateTime2).Value = targetDate.Date;
+            command.Parameters.Add("@EndDate", System.Data.SqlDbType.DateTime2).Value = targetDate.Date.AddDays(1);
+            var loans = new List<DueSoonLoan>();
+            await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+            while (await reader.ReadAsync(cancellationToken))
+                loans.Add(new DueSoonLoan(reader.GetInt32(0), reader.GetInt32(1), reader.GetString(2), reader.GetDateTime(3)));
+            return loans;
+        }
+
         public virtual List<BorrowRecord> GetAll()
         {
             var records = new List<BorrowRecord>();
             using (var conn = Database.GetConnection())
             {
                 conn.Open();
-                string sql = @"SELECT BorrowId, BookId, ReaderId, BorrowDate, DueDate, ReturnDate, Status
-                               FROM BorrowRecords";
+                string sql = $@"SELECT {SelectColumns(conn, null)}
+                               {FromClause(conn, null)}";
                 using (var cmd = new SqlCommand(sql, conn))
                 using (var reader = cmd.ExecuteReader())
                 {
                     while (reader.Read())
                     {
-                        records.Add(MapToBorrowRecord(reader));
+                        records.Add(BorrowRecordMapper.Map(reader));
                     }
                 }
             }
@@ -39,8 +58,8 @@ namespace LibraryManagement.Repositories
 
         public virtual BorrowRecord? GetById(SqlConnection conn, SqlTransaction? tran, int borrowId)
         {
-            string sql = @"SELECT BorrowId, BookId, ReaderId, BorrowDate, DueDate, ReturnDate, Status
-                           FROM BorrowRecords WHERE BorrowId = @BorrowId";
+            string sql = $@"SELECT {SelectColumns(conn, tran)}
+                           {FromClause(conn, tran)} WHERE br.BorrowId = @BorrowId";
             using (var cmd = new SqlCommand(sql, conn, tran))
             {
                 cmd.Parameters.AddWithValue("@BorrowId", borrowId);
@@ -48,69 +67,87 @@ namespace LibraryManagement.Repositories
                 {
                     if (reader.Read())
                     {
-                        return MapToBorrowRecord(reader);
+                        return BorrowRecordMapper.Map(reader);
                     }
                 }
             }
             return null;
         }
 
-        public virtual int Add(BorrowRecord record)
+        public virtual BorrowRecord? GetActiveByCopyId(int copyId)
         {
-            using (var conn = Database.GetConnection())
-            {
-                conn.Open();
-                return Add(conn, null, record);
-            }
+            using var connection = Database.GetConnection();
+            connection.Open();
+            using var command = new SqlCommand($@"SELECT {SelectColumns(connection, null)}
+                {FromClause(connection, null)} WHERE br.CopyId = @CopyId AND br.Status = 'Borrowing'", connection);
+            command.Parameters.Add("@CopyId", System.Data.SqlDbType.Int).Value = copyId;
+            using var reader = command.ExecuteReader();
+            return reader.Read() ? BorrowRecordMapper.Map(reader) : null;
+        }
+
+        public virtual BorrowRecord? GetByIdForReturn(SqlConnection conn, SqlTransaction tran, int borrowId)
+        {
+            using var command = new SqlCommand(@"SELECT br.BorrowId, br.BookId, br.CopyId AS BookCopyId,
+                br.ReaderId, br.BorrowDate, br.DueDate, br.LoanPeriodDaysApplied,
+                br.ReturnCondition, br.ConditionNote, br.LostDate, br.LostNote, br.ReturnDate, br.Status
+                FROM dbo.BorrowRecords br WITH (UPDLOCK, ROWLOCK)
+                WHERE br.BorrowId = @BorrowId", conn, tran);
+            command.Parameters.Add("@BorrowId", System.Data.SqlDbType.Int).Value = borrowId;
+            using var reader = command.ExecuteReader();
+            return reader.Read() ? BorrowRecordMapper.Map(reader) : null;
+        }
+
+        public virtual BorrowRecord? GetActiveByCopyId(SqlConnection conn, SqlTransaction tran, int copyId)
+        {
+            using var command = new SqlCommand(@"SELECT TOP (1) br.BorrowId, br.BookId, br.CopyId AS BookCopyId,
+                br.ReaderId, br.BorrowDate, br.DueDate, br.LoanPeriodDaysApplied,
+                br.ReturnCondition, br.ConditionNote, br.LostDate, br.LostNote, br.ReturnDate, br.Status
+                FROM dbo.BorrowRecords br WITH (READCOMMITTEDLOCK)
+                WHERE br.CopyId = @CopyId AND br.Status = 'Borrowing'", conn, tran);
+            command.Parameters.Add("@CopyId", System.Data.SqlDbType.Int).Value = copyId;
+            using var reader = command.ExecuteReader();
+            return reader.Read() ? BorrowRecordMapper.Map(reader) : null;
         }
 
         public virtual int Add(SqlConnection conn, SqlTransaction? tran, BorrowRecord record)
         {
-            string sql = @"INSERT INTO BorrowRecords (BookId, ReaderId, BorrowDate, DueDate, ReturnDate, Status)
-                           OUTPUT INSERTED.BorrowId
-                           VALUES (@BookId, @ReaderId, @BorrowDate, @DueDate, @ReturnDate, @Status)";
+            if (tran == null)
+                throw new InvalidOperationException("New loans require the authoritative circulation transaction.");
+            if (!HasCopyIdColumn(conn, tran) || !HasBookCopiesSchema(conn, tran) || !record.BookCopyId.HasValue)
+                throw new InvalidOperationException("A new borrow record must reference a physical BookCopy.");
+            const string sql = @"INSERT INTO dbo.BorrowRecords
+                (BookId, CopyId, ReaderId, BorrowDate, DueDate, LoanPeriodDaysApplied, ReturnDate, Status,
+                 ReaderNameSnapshot, BookTitleSnapshot, BarcodeSnapshot)
+                OUTPUT INSERTED.BorrowId
+                SELECT c.BookId, c.CopyId, r.ReaderId, @BorrowDate, @DueDate, @LoanPeriodDaysApplied, @ReturnDate, @Status,
+                       r.FullName, b.Title, c.Barcode
+                FROM dbo.BookCopies c
+                INNER JOIN dbo.Books b ON b.BookId = c.BookId
+                INNER JOIN dbo.Readers r ON r.ReaderId = @ReaderId
+                WHERE c.CopyId = @CopyId";
             using (var cmd = new SqlCommand(sql, conn, tran))
             {
-                cmd.Parameters.AddWithValue("@BookId", record.BookId);
+                cmd.Parameters.AddWithValue("@CopyId", record.BookCopyId.Value);
                 cmd.Parameters.AddWithValue("@ReaderId", record.ReaderId);
                 cmd.Parameters.AddWithValue("@BorrowDate", record.BorrowDate);
                 cmd.Parameters.AddWithValue("@DueDate", record.DueDate);
+                cmd.Parameters.AddWithValue("@LoanPeriodDaysApplied", (object?)record.LoanPeriodDaysApplied ?? DBNull.Value);
                 cmd.Parameters.AddWithValue("@ReturnDate", (object?)record.ReturnDate ?? DBNull.Value);
                 cmd.Parameters.AddWithValue("@Status", record.Status);
-                return (int)cmd.ExecuteScalar();
+                return cmd.ExecuteScalar() is int borrowId
+                    ? borrowId
+                    : throw new InvalidOperationException("The selected BookCopy no longer exists.");
             }
         }
 
         public virtual bool Update(BorrowRecord record)
         {
-            using (var conn = Database.GetConnection())
-            {
-                conn.Open();
-                return Update(conn, null, record);
-            }
+            throw new NotSupportedException("Circulation history cannot be rewritten through Update. Use the audited Borrow/Return operations.");
         }
 
         public virtual bool Update(SqlConnection conn, SqlTransaction? tran, BorrowRecord record)
         {
-            string sql = @"UPDATE BorrowRecords SET
-                               BookId = @BookId,
-                               ReaderId = @ReaderId,
-                               BorrowDate = @BorrowDate,
-                               DueDate = @DueDate,
-                               ReturnDate = @ReturnDate,
-                               Status = @Status
-                           WHERE BorrowId = @BorrowId";
-            using (var cmd = new SqlCommand(sql, conn, tran))
-            {
-                cmd.Parameters.AddWithValue("@BorrowId", record.BorrowId);
-                cmd.Parameters.AddWithValue("@BookId", record.BookId);
-                cmd.Parameters.AddWithValue("@ReaderId", record.ReaderId);
-                cmd.Parameters.AddWithValue("@BorrowDate", record.BorrowDate);
-                cmd.Parameters.AddWithValue("@DueDate", record.DueDate);
-                cmd.Parameters.AddWithValue("@ReturnDate", (object?)record.ReturnDate ?? DBNull.Value);
-                cmd.Parameters.AddWithValue("@Status", record.Status);
-                return cmd.ExecuteNonQuery() > 0;
-            }
+            throw new NotSupportedException("Circulation history cannot be rewritten through Update. Use the audited Borrow/Return operations.");
         }
 
         public virtual List<BorrowRecord> GetBorrowingRecords()
@@ -119,9 +156,9 @@ namespace LibraryManagement.Repositories
             using (var conn = Database.GetConnection())
             {
                 conn.Open();
-                string sql = @"SELECT BorrowId, BookId, ReaderId, BorrowDate, DueDate, ReturnDate, Status
-                               FROM BorrowRecords
-                               WHERE Status = @Status";
+                string sql = $@"SELECT {SelectColumns(conn, null)}
+                               {FromClause(conn, null)}
+                               WHERE br.Status = @Status";
                 using (var cmd = new SqlCommand(sql, conn))
                 {
                     cmd.Parameters.AddWithValue("@Status", "Borrowing");
@@ -129,7 +166,7 @@ namespace LibraryManagement.Repositories
                     {
                         while (reader.Read())
                         {
-                            records.Add(MapToBorrowRecord(reader));
+                            records.Add(BorrowRecordMapper.Map(reader));
                         }
                     }
                 }
@@ -148,32 +185,32 @@ namespace LibraryManagement.Repositories
             using (var conn = Database.GetConnection())
             {
                 conn.Open();
-                string sql = @"SELECT BorrowId, BookId, ReaderId, BorrowDate, DueDate, ReturnDate, Status
-                               FROM BorrowRecords
+                string sql = $@"SELECT {SelectColumns(conn, null)}
+                               {FromClause(conn, null)}
                                WHERE 1 = 1";
 
                 if (readerId.HasValue)
                 {
-                    sql += " AND ReaderId = @ReaderId";
+                    sql += " AND br.ReaderId = @ReaderId";
                 }
                 if (bookId.HasValue)
                 {
-                    sql += " AND BookId = @BookId";
+                    sql += $" AND {BookIdExpression(conn, null)} = @BookId";
                 }
                 if (!string.IsNullOrEmpty(status))
                 {
-                    sql += " AND Status = @Status";
+                    sql += " AND br.Status = @Status";
                 }
                 if (fromDate.HasValue)
                 {
-                    sql += " AND BorrowDate >= @FromDate";
+                    sql += " AND br.BorrowDate >= @FromDate";
                 }
                 if (toDate.HasValue)
                 {
-                    sql += " AND BorrowDate <= @ToDate";
+                    sql += " AND br.BorrowDate <= @ToDate";
                 }
 
-                sql += " ORDER BY ISNULL(ReturnDate, BorrowDate) DESC, BorrowId DESC";
+                sql += " ORDER BY ISNULL(br.ReturnDate, br.BorrowDate) DESC, br.BorrowId DESC";
 
                 using (var cmd = new SqlCommand(sql, conn))
                 {
@@ -202,7 +239,7 @@ namespace LibraryManagement.Repositories
                     {
                         while (reader.Read())
                         {
-                            records.Add(MapToBorrowRecord(reader));
+                            records.Add(BorrowRecordMapper.Map(reader));
                         }
                     }
                 }
@@ -221,33 +258,122 @@ namespace LibraryManagement.Repositories
             }
         }
 
-        public virtual bool MarkAsReturned(SqlConnection conn, SqlTransaction? tran, int borrowId, DateTime returnDate)
+        public virtual List<BorrowRecord> GetEligibilityRecords(SqlConnection conn, SqlTransaction tran, int readerId)
         {
-            string sql = @"UPDATE BorrowRecords SET Status = @StatusReturned, ReturnDate = @ReturnDate
+            var records = new List<BorrowRecord>();
+            using var command = new SqlCommand(@"
+                SELECT BorrowId, ReaderId, DueDate, Status FROM dbo.BorrowRecords
+                WHERE ReaderId = @ReaderId AND Status = 'Borrowing'", conn, tran);
+            command.Parameters.AddWithValue("@ReaderId", readerId);
+            using var reader = command.ExecuteReader();
+            while (reader.Read()) records.Add(new BorrowRecord
+            {
+                BorrowId = reader.GetInt32(0), ReaderId = reader.GetInt32(1),
+                DueDate = reader.GetDateTime(2), Status = reader.GetString(3)
+            });
+            return records;
+        }
+
+        public virtual bool HasUnresolvedLostByReader(SqlConnection conn, SqlTransaction? tran, int readerId)
+        {
+            using var command = new SqlCommand(
+                "SELECT CASE WHEN EXISTS (SELECT 1 FROM dbo.BorrowRecords WHERE ReaderId = @ReaderId AND Status = 'Lost') THEN 1 ELSE 0 END",
+                conn, tran);
+            command.Parameters.AddWithValue("@ReaderId", readerId);
+            return Convert.ToInt32(command.ExecuteScalar()) == 1;
+        }
+
+        public virtual bool MarkAsReturned(SqlConnection conn, SqlTransaction? tran, int borrowId, DateTime returnDate,
+            ReturnCondition condition, string? note)
+        {
+            string sql = @"UPDATE BorrowRecords SET Status = @StatusReturned, ReturnDate = @ReturnDate,
+                           ReturnCondition = @Condition, ConditionNote = @Note, LostDate = NULL, LostNote = NULL
                            WHERE BorrowId = @BorrowId AND Status = @StatusBorrowing";
             using (var cmd = new SqlCommand(sql, conn, tran))
             {
                 cmd.Parameters.AddWithValue("@BorrowId", borrowId);
                 cmd.Parameters.AddWithValue("@ReturnDate", returnDate);
+                cmd.Parameters.AddWithValue("@Condition", condition.ToString());
+                cmd.Parameters.AddWithValue("@Note", (object?)note ?? DBNull.Value);
                 cmd.Parameters.AddWithValue("@StatusReturned", "Returned");
                 cmd.Parameters.AddWithValue("@StatusBorrowing", "Borrowing");
                 return cmd.ExecuteNonQuery() > 0;
             }
         }
 
-        private static BorrowRecord MapToBorrowRecord(SqlDataReader reader)
+        public virtual bool MarkAsLost(SqlConnection conn, SqlTransaction? tran, int borrowId, DateTime lostDate, string? note)
         {
-            int returnDateOrdinal = reader.GetOrdinal("ReturnDate");
-            return new BorrowRecord
-            {
-                BorrowId = reader.GetInt32(reader.GetOrdinal("BorrowId")),
-                BookId = reader.GetInt32(reader.GetOrdinal("BookId")),
-                ReaderId = reader.GetInt32(reader.GetOrdinal("ReaderId")),
-                BorrowDate = reader.GetDateTime(reader.GetOrdinal("BorrowDate")),
-                DueDate = reader.GetDateTime(reader.GetOrdinal("DueDate")),
-                ReturnDate = reader.IsDBNull(returnDateOrdinal) ? (DateTime?)null : reader.GetDateTime(returnDateOrdinal),
-                Status = reader.GetString(reader.GetOrdinal("Status"))
-            };
+            using var command = new SqlCommand(@"
+                UPDATE dbo.BorrowRecords SET Status = 'Lost', LostDate = @LostDate, LostNote = @LostNote,
+                    ReturnDate = NULL, ReturnCondition = NULL, ConditionNote = NULL
+                WHERE BorrowId = @BorrowId AND Status = 'Borrowing'", conn, tran);
+            command.Parameters.AddWithValue("@BorrowId", borrowId);
+            command.Parameters.AddWithValue("@LostDate", lostDate);
+            command.Parameters.AddWithValue("@LostNote", (object?)note ?? DBNull.Value);
+            return command.ExecuteNonQuery() == 1;
         }
+
+        public virtual bool LinkLegacyBorrowToCopy(SqlConnection conn, SqlTransaction tran, int borrowId, int bookId, int copyId)
+        {
+            const string sql = @"UPDATE dbo.BorrowRecords
+                SET CopyId = @CopyId
+                WHERE BorrowId = @BorrowId AND BookId = @BookId
+                  AND Status = 'Borrowing' AND CopyId IS NULL
+                  AND EXISTS (SELECT 1 FROM dbo.BookCopies c
+                              WHERE c.CopyId = @CopyId AND c.BookId = @BookId AND c.Status = 'Borrowed')";
+            using var command = new SqlCommand(sql, conn, tran);
+            command.Parameters.AddWithValue("@BorrowId", borrowId);
+            command.Parameters.AddWithValue("@BookId", bookId);
+            command.Parameters.AddWithValue("@CopyId", copyId);
+            return command.ExecuteNonQuery() == 1;
+        }
+
+        private static bool HasCopyIdColumn(SqlConnection conn, SqlTransaction? tran)
+        {
+            using var command = new SqlCommand("SELECT CASE WHEN COL_LENGTH('dbo.BorrowRecords', 'CopyId') IS NULL THEN 0 ELSE 1 END", conn, tran);
+            return Convert.ToInt32(command.ExecuteScalar()) == 1;
+        }
+
+        private static bool HasBookCopiesSchema(SqlConnection conn, SqlTransaction? tran)
+        {
+            using var command = new SqlCommand("SELECT CASE WHEN OBJECT_ID('dbo.BookCopies', 'U') IS NOT NULL THEN 1 ELSE 0 END", conn, tran);
+            return Convert.ToInt32(command.ExecuteScalar()) == 1;
+        }
+
+        private static string SelectColumns(SqlConnection conn, SqlTransaction? tran)
+        {
+            bool hasCopySchema = HasCopyIdColumn(conn, tran) && HasBookCopiesSchema(conn, tran);
+            string bookId = hasCopySchema ? "COALESCE(bc.BookId, br.BookId)" : "br.BookId";
+            string copyId = HasCopyIdColumn(conn, tran) ? "br.CopyId" : "CAST(NULL AS INT)";
+            string period = HasLoanPeriodColumn(conn, tran) ? "br.LoanPeriodDaysApplied" : "CAST(NULL AS INT)";
+            bool hasOutcome = HasOutcomeColumns(conn, tran);
+            string condition = hasOutcome ? "br.ReturnCondition" : "CAST(NULL AS NVARCHAR(20))";
+            string note = hasOutcome ? "br.ConditionNote" : "CAST(NULL AS NVARCHAR(500))";
+            string lostDate = hasOutcome ? "br.LostDate" : "CAST(NULL AS DATETIME)";
+            string lostNote = hasOutcome ? "br.LostNote" : "CAST(NULL AS NVARCHAR(500))";
+            return $"br.BorrowId, {bookId} AS BookId, {copyId} AS BookCopyId, br.ReaderId, br.BorrowDate, br.DueDate, {period} AS LoanPeriodDaysApplied, {condition} AS ReturnCondition, {note} AS ConditionNote, {lostDate} AS LostDate, {lostNote} AS LostNote, br.ReturnDate, br.Status";
+        }
+
+        private static bool HasOutcomeColumns(SqlConnection conn, SqlTransaction? tran)
+        {
+            using var command = new SqlCommand("SELECT CASE WHEN COL_LENGTH('dbo.BorrowRecords', 'LostNote') IS NULL THEN 0 ELSE 1 END", conn, tran);
+            return Convert.ToInt32(command.ExecuteScalar()) == 1;
+        }
+
+        private static bool HasLoanPeriodColumn(SqlConnection conn, SqlTransaction? tran)
+        {
+            using var command = new SqlCommand("SELECT CASE WHEN COL_LENGTH('dbo.BorrowRecords', 'LoanPeriodDaysApplied') IS NULL THEN 0 ELSE 1 END", conn, tran);
+            return Convert.ToInt32(command.ExecuteScalar()) == 1;
+        }
+
+        private static string FromClause(SqlConnection conn, SqlTransaction? tran) =>
+            HasCopyIdColumn(conn, tran) && HasBookCopiesSchema(conn, tran)
+                ? "FROM dbo.BorrowRecords br LEFT JOIN dbo.BookCopies bc ON bc.CopyId = br.CopyId"
+                : "FROM dbo.BorrowRecords br";
+
+        private static string BookIdExpression(SqlConnection conn, SqlTransaction? tran) =>
+            HasCopyIdColumn(conn, tran) && HasBookCopiesSchema(conn, tran)
+                ? "COALESCE(bc.BookId, br.BookId)"
+                : "br.BookId";
     }
 }

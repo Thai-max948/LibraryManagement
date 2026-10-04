@@ -8,6 +8,25 @@ namespace LibraryManagement.Repositories
 {
     public class ReaderRepository
     {
+        // Borrow transactions acquire this lock before touching a copy or loan.
+        public virtual bool LockForBorrow(SqlConnection connection, SqlTransaction transaction, int readerId)
+        {
+            using var command = new SqlCommand(
+                "SELECT ReaderId FROM dbo.Readers WITH (UPDLOCK, HOLDLOCK) WHERE ReaderId = @ReaderId",
+                connection, transaction);
+            command.Parameters.AddWithValue("@ReaderId", readerId);
+            return command.ExecuteScalar() != null;
+        }
+
+        public virtual bool ExistsForCirculation(SqlConnection connection, SqlTransaction transaction, int readerId)
+        {
+            using var command = new SqlCommand(
+                "SELECT ReaderId FROM dbo.Readers WITH (HOLDLOCK, ROWLOCK) WHERE ReaderId = @ReaderId",
+                connection, transaction);
+            command.Parameters.AddWithValue("@ReaderId", readerId);
+            return command.ExecuteScalar() != null;
+        }
+
         private static readonly object SchemaLock = new object();
         private static bool _schemaChecked;
 
@@ -19,8 +38,8 @@ namespace LibraryManagement.Repositories
                 conn.Open();
                 EnsureEnhancementColumns(conn);
                 string sql = includeDeleted
-                    ? "SELECT ReaderId, FullName, ReaderType, StudentId, IdentityNumber, Phone, Email, Address, RegistrationDate, Status, SuspensionReason, SuspendedDate, IsDeleted FROM Readers"
-                    : "SELECT ReaderId, FullName, ReaderType, StudentId, IdentityNumber, Phone, Email, Address, RegistrationDate, Status, SuspensionReason, SuspendedDate, IsDeleted FROM Readers WHERE IsDeleted = 0";
+                    ? "SELECT ReaderId, FullName, ReaderType, StudentId, IdentityNumber, Phone, Email, Address, RegistrationDate, MembershipExpiresOn, Status, SuspensionReason, SuspendedDate, IsDeleted FROM Readers"
+                    : "SELECT ReaderId, FullName, ReaderType, StudentId, IdentityNumber, Phone, Email, Address, RegistrationDate, MembershipExpiresOn, Status, SuspensionReason, SuspendedDate, IsDeleted FROM Readers WHERE IsDeleted = 0";
                 using (var cmd = new SqlCommand(sql, conn))
                 using (var reader = cmd.ExecuteReader())
                 {
@@ -39,7 +58,7 @@ namespace LibraryManagement.Repositories
             {
                 conn.Open();
                 EnsureEnhancementColumns(conn);
-                string sql = "SELECT ReaderId, FullName, ReaderType, StudentId, IdentityNumber, Phone, Email, Address, RegistrationDate, Status, SuspensionReason, SuspendedDate, IsDeleted FROM Readers WHERE ReaderId = @ReaderId";
+                string sql = "SELECT ReaderId, FullName, ReaderType, StudentId, IdentityNumber, Phone, Email, Address, RegistrationDate, MembershipExpiresOn, Status, SuspensionReason, SuspendedDate, IsDeleted FROM Readers WHERE ReaderId = @ReaderId";
                 using (var cmd = new SqlCommand(sql, conn))
                 {
                     cmd.Parameters.AddWithValue("@ReaderId", id);
@@ -55,15 +74,27 @@ namespace LibraryManagement.Repositories
             return null;
         }
 
+        public virtual Reader? GetById(SqlConnection connection, SqlTransaction transaction, int readerId)
+        {
+            using var command = new SqlCommand(@"
+                SELECT ReaderId, FullName, ReaderType, StudentId, IdentityNumber, Phone, Email,
+                    Address, RegistrationDate, MembershipExpiresOn, Status, SuspensionReason,
+                    SuspendedDate, IsDeleted
+                FROM dbo.Readers WHERE ReaderId = @ReaderId", connection, transaction);
+            command.Parameters.AddWithValue("@ReaderId", readerId);
+            using var reader = command.ExecuteReader();
+            return reader.Read() ? MapToReader(reader) : null;
+        }
+
         public virtual int Add(Reader reader)
         {
             using (var conn = Database.GetConnection())
             {
                 conn.Open();
                 EnsureEnhancementColumns(conn);
-                string sql = @"INSERT INTO Readers (FullName, ReaderType, StudentId, IdentityNumber, Phone, Email, Address, RegistrationDate, Status, SuspensionReason, SuspendedDate, IsDeleted)
+                string sql = @"INSERT INTO Readers (FullName, ReaderType, StudentId, IdentityNumber, Phone, Email, Address, RegistrationDate, MembershipExpiresOn, Status, SuspensionReason, SuspendedDate, IsDeleted)
                                OUTPUT INSERTED.ReaderId
-                               VALUES (@FullName, @ReaderType, @StudentId, @IdentityNumber, @Phone, @Email, @Address, @RegistrationDate, @Status, @SuspensionReason, @SuspendedDate, 0)";
+                               VALUES (@FullName, @ReaderType, @StudentId, @IdentityNumber, @Phone, @Email, @Address, @RegistrationDate, @MembershipExpiresOn, @Status, @SuspensionReason, @SuspendedDate, 0)";
                 using (var cmd = new SqlCommand(sql, conn))
                 {
                     cmd.Parameters.AddWithValue("@FullName", reader.FullName);
@@ -74,6 +105,7 @@ namespace LibraryManagement.Repositories
                     cmd.Parameters.AddWithValue("@Email", (object?)reader.Email ?? DBNull.Value);
                     cmd.Parameters.AddWithValue("@Address", (object?)reader.Address ?? DBNull.Value);
                     cmd.Parameters.AddWithValue("@RegistrationDate", reader.RegistrationDate == default ? DateTime.Now : reader.RegistrationDate);
+                    cmd.Parameters.AddWithValue("@MembershipExpiresOn", (object?)reader.MembershipExpiresOn?.Date ?? DBNull.Value);
                     cmd.Parameters.AddWithValue("@Status", string.IsNullOrWhiteSpace(reader.Status) ? "Active" : reader.Status);
                     cmd.Parameters.AddWithValue("@SuspensionReason", (object?)reader.SuspensionReason ?? DBNull.Value);
                     cmd.Parameters.AddWithValue("@SuspendedDate", (object?)reader.SuspendedDate ?? DBNull.Value);
@@ -98,6 +130,7 @@ namespace LibraryManagement.Repositories
                                    Phone = @Phone,
                                    Email = @Email,
                                    Address = @Address,
+                                   MembershipExpiresOn = @MembershipExpiresOn,
                                    Status = @Status,
                                    SuspensionReason = @SuspensionReason,
                                    SuspendedDate = @SuspendedDate
@@ -112,6 +145,7 @@ namespace LibraryManagement.Repositories
                     cmd.Parameters.AddWithValue("@Phone", (object?)reader.Phone ?? DBNull.Value);
                     cmd.Parameters.AddWithValue("@Email", (object?)reader.Email ?? DBNull.Value);
                     cmd.Parameters.AddWithValue("@Address", (object?)reader.Address ?? DBNull.Value);
+                    cmd.Parameters.AddWithValue("@MembershipExpiresOn", (object?)reader.MembershipExpiresOn?.Date ?? DBNull.Value);
                     cmd.Parameters.AddWithValue("@Status", string.IsNullOrWhiteSpace(reader.Status) ? "Active" : reader.Status);
                     cmd.Parameters.AddWithValue("@SuspensionReason", (object?)reader.SuspensionReason ?? DBNull.Value);
                     cmd.Parameters.AddWithValue("@SuspendedDate", (object?)reader.SuspendedDate ?? DBNull.Value);
@@ -208,7 +242,7 @@ namespace LibraryManagement.Repositories
                     conditions.Add("Status = @Status");
                 }
 
-                string sql = "SELECT ReaderId, FullName, ReaderType, StudentId, IdentityNumber, Phone, Email, Address, RegistrationDate, Status, SuspensionReason, SuspendedDate, IsDeleted FROM Readers WHERE "
+                string sql = "SELECT ReaderId, FullName, ReaderType, StudentId, IdentityNumber, Phone, Email, Address, RegistrationDate, MembershipExpiresOn, Status, SuspensionReason, SuspendedDate, IsDeleted FROM Readers WHERE "
                     + string.Join(" AND ", conditions);
 
                 using (var cmd = new SqlCommand(sql, conn))
@@ -265,6 +299,7 @@ namespace LibraryManagement.Repositories
             int idNumOrdinal = GetOrdinalOrDefault(reader, "IdentityNumber");
             int addressOrdinal = GetOrdinalOrDefault(reader, "Address");
             int regDateOrdinal = GetOrdinalOrDefault(reader, "RegistrationDate");
+            int membershipOrdinal = GetOrdinalOrDefault(reader, "MembershipExpiresOn");
             int statusOrdinal = GetOrdinalOrDefault(reader, "Status");
             int suspensionReasonOrdinal = GetOrdinalOrDefault(reader, "SuspensionReason");
             int suspendedDateOrdinal = GetOrdinalOrDefault(reader, "SuspendedDate");
@@ -281,6 +316,7 @@ namespace LibraryManagement.Repositories
                 Email = emailOrdinal >= 0 && !reader.IsDBNull(emailOrdinal) ? reader.GetString(emailOrdinal) : string.Empty,
                 Address = addressOrdinal >= 0 && !reader.IsDBNull(addressOrdinal) ? reader.GetString(addressOrdinal) : string.Empty,
                 RegistrationDate = regDateOrdinal >= 0 && !reader.IsDBNull(regDateOrdinal) ? reader.GetDateTime(regDateOrdinal) : DateTime.Now,
+                MembershipExpiresOn = membershipOrdinal >= 0 && !reader.IsDBNull(membershipOrdinal) ? reader.GetDateTime(membershipOrdinal) : null,
                 Status = statusOrdinal >= 0 && !reader.IsDBNull(statusOrdinal) ? reader.GetString(statusOrdinal) : "Active",
                 SuspensionReason = suspensionReasonOrdinal >= 0 && !reader.IsDBNull(suspensionReasonOrdinal) ? reader.GetString(suspensionReasonOrdinal) : string.Empty,
                 SuspendedDate = suspendedDateOrdinal >= 0 && !reader.IsDBNull(suspendedDateOrdinal) ? reader.GetDateTime(suspendedDateOrdinal) : null,
@@ -307,7 +343,9 @@ namespace LibraryManagement.Repositories
                         ALTER TABLE dbo.Readers ADD SuspensionReason NVARCHAR(500) NULL;
 
                     IF COL_LENGTH('dbo.Readers', 'SuspendedDate') IS NULL
-                        ALTER TABLE dbo.Readers ADD SuspendedDate DATETIME NULL;";
+                        ALTER TABLE dbo.Readers ADD SuspendedDate DATETIME NULL;
+                    IF COL_LENGTH('dbo.Readers', 'MembershipExpiresOn') IS NULL
+                        ALTER TABLE dbo.Readers ADD MembershipExpiresOn DATE NULL;";
 
                 using var command = new SqlCommand(sql, connection);
                 command.ExecuteNonQuery();

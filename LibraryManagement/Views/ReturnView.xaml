@@ -3,8 +3,27 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="clr-namespace:LibraryManagement.ViewModels">
 
+    <UserControl.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVis"/>
+    </UserControl.Resources>
+
+    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
     <StackPanel Margin="10">
         <TextBlock Text="↩ Return Book" FontSize="22" FontWeight="Bold" Foreground="{StaticResource TextBrush}" Margin="0,0,0,16"/>
+
+        <TextBlock Text="Scan / nhập barcode bản sách" Foreground="{StaticResource TextBrush}" Margin="0,0,0,6"/>
+        <DockPanel Margin="0,0,0,8">
+            <Button DockPanel.Dock="Right" Content="Tra barcode" Command="{Binding LookupBarcodeCommand}"
+                    Style="{StaticResource PrimaryButtonStyle}" Margin="8,0,0,0"/>
+            <TextBox x:Name="BarcodeInput" Text="{Binding Barcode, UpdateSourceTrigger=PropertyChanged}" MaxLength="100">
+                <TextBox.InputBindings>
+                    <KeyBinding Key="Enter" Command="{Binding LookupBarcodeCommand}"/>
+                </TextBox.InputBindings>
+            </TextBox>
+        </DockPanel>
+        <TextBlock Text="{Binding LookupMessage}" TextWrapping="Wrap" Foreground="{StaticResource TextBrush}" Margin="0,0,0,8"/>
+        <TextBlock Text="{Binding ResultMessage}" TextWrapping="Wrap" Foreground="{StaticResource TextBrush}" Margin="0,0,0,8"/>
+        <TextBlock Text="Tìm theo tên để đối chiếu khi cần" Foreground="{StaticResource TextBrush}" Margin="0,0,0,6"/>
 
         <TextBox Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}"
                  Margin="0,0,0,10"
@@ -18,17 +37,45 @@
             <DataGrid.Columns>
                 <DataGridTextColumn Header="Reader" Binding="{Binding ReaderName}" Width="*"/>
                 <DataGridTextColumn Header="Book" Binding="{Binding BookTitle}" Width="*"/>
+                <DataGridTextColumn Header="Barcode" Binding="{Binding CopyBarcode}" Width="160"/>
                 <DataGridTextColumn Header="Borrow Date" Binding="{Binding BorrowDate}" Width="120"/>
                 <DataGridTextColumn Header="Due Date" Binding="{Binding DueDate}" Width="120"/>
+                <DataGridTextColumn Header="Overdue" Binding="{Binding OverdueStatus}" Width="110"/>
             </DataGrid.Columns>
         </DataGrid>
 
         <TextBlock Text="{Binding SelectedRow.BookTitle, StringFormat='Selected: {0}'}"
                    FontWeight="Bold" Foreground="{StaticResource TextBrush}" Margin="0,0,0,10"/>
 
-        <Button Content="↩ Return Book" Command="{Binding ReturnCommand}"
-                Style="{StaticResource PrimaryButtonStyle}"
-                IsEnabled="{Binding IsBusy, Converter={StaticResource InverseBooleanConverter}}"
-                HorizontalAlignment="Right"/>
+        <TextBlock Text="{Binding SelectedRow.ReaderName, StringFormat='Reader: {0}'}" Foreground="{StaticResource TextBrush}"/>
+        <TextBlock Text="{Binding SelectedRow.CopyBarcode, StringFormat='Barcode: {0}'}" Foreground="{StaticResource TextBrush}" Margin="0,0,0,8"/>
+        <TextBlock Text="{Binding SelectedRow.OverdueStatus, StringFormat='Loan status: {0}'}" Foreground="{StaticResource TextBrush}" Margin="0,0,0,8"/>
+        <StackPanel Visibility="{Binding NeedsLegacyMapping, Converter={StaticResource BoolToVis}}" Margin="0,0,0,12">
+            <TextBlock Text="Phiếu cũ chưa xác định bản sách. Đối chiếu bản vật lý; nếu chưa có nhãn, hãy gắn đúng barcode được chọn trước khi liên kết phiếu."
+                       TextWrapping="Wrap" Foreground="{StaticResource TextBrush}" Margin="0,0,0,6"/>
+            <StackPanel Orientation="Horizontal">
+                <ComboBox ItemsSource="{Binding LegacyCopyChoices}" SelectedItem="{Binding SelectedLegacyCopy, Mode=TwoWay}"
+                          DisplayMemberPath="Barcode" Width="220" Margin="0,0,10,0"/>
+                <Button Content="Gắn barcode đã đối chiếu" Command="{Binding LinkLegacyCopyCommand}"
+                        Style="{StaticResource SecondaryButtonStyle}"/>
+            </StackPanel>
+        </StackPanel>
+
+        <TextBlock Text="Ghi chú tình trạng (bắt buộc khi trả sách hỏng/cần sửa; có thể dùng khi báo mất)"
+                   Foreground="{StaticResource TextBrush}" Margin="0,0,0,5"/>
+        <TextBox Text="{Binding ConditionNote, UpdateSourceTrigger=PropertyChanged}"
+                 MaxLength="500" MinHeight="32" Margin="0,0,0,12"/>
+        <WrapPanel HorizontalAlignment="Right"
+                    IsEnabled="{Binding IsBusy, Converter={StaticResource InverseBooleanConverter}}">
+            <Button Content="Trả bình thường" Command="{Binding ReturnCommand}"
+                    Style="{StaticResource PrimaryButtonStyle}" Margin="0,0,8,0"/>
+            <Button Content="Hư hỏng nhẹ (Minor)" Command="{Binding DamagedReturnCommand}"
+                    Style="{StaticResource SecondaryButtonStyle}" Margin="0,0,8,0"/>
+            <Button Content="Hư hỏng nặng / cần sửa chữa (Major)" Command="{Binding NeedsRepairCommand}"
+                    Style="{StaticResource SecondaryButtonStyle}" Margin="0,0,8,0"/>
+            <Button Content="Báo mất" Command="{Binding MarkLostCommand}"
+                    Style="{StaticResource SecondaryButtonStyle}"/>
+        </WrapPanel>
     </StackPanel>
+    </ScrollViewer>
 </UserControl>

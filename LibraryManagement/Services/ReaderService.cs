@@ -41,7 +41,9 @@ namespace LibraryManagement.Services
             reader.SuspensionReason = string.Empty;
             reader.SuspendedDate = null;
             EnsureIdentificationIsUnique(reader);
-            return _readerRepo.Add(reader);
+            int id = _readerRepo.Add(reader);
+            NotificationEvents.PublishAfterSuccess(new(BusinessAction.ReaderCreated, id.ToString()));
+            return id;
         }
 
         public void UpdateReader(Reader reader)
@@ -62,6 +64,7 @@ namespace LibraryManagement.Services
             {
                 throw new BusinessRuleException("Cập nhật độc giả thất bại.");
             }
+            NotificationEvents.PublishAfterSuccess(new(BusinessAction.ReaderUpdated, reader.ReaderId.ToString()));
         }
 
         public void DeleteReader(int readerId)
@@ -129,6 +132,7 @@ namespace LibraryManagement.Services
             {
                 throw new BusinessRuleException("Cập nhật trạng thái độc giả thất bại.");
             }
+            NotificationEvents.PublishAfterSuccess(new(BusinessAction.ReaderSuspended, readerId.ToString()));
         }
 
         public void DeactivateReader(int readerId)
@@ -169,6 +173,7 @@ namespace LibraryManagement.Services
             reader.SuspendedDate = null;
             if (!_readerRepo.Update(reader))
                 throw new BusinessRuleException("Cập nhật trạng thái độc giả thất bại.");
+            NotificationEvents.PublishAfterSuccess(new(BusinessAction.ReaderActivated, readerId.ToString()));
         }
 
         public Reader? GetReaderById(int readerId)

@@ -1,16 +1,357 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
+using System.Reflection;
 using LibraryManagement.Models;
 using LibraryManagement.Repositories;
 using LibraryManagement.Services;
 using LibraryManagement.ViewModels;
 using Moq;
+using System.Windows.Controls;
 using Xunit;
 
 namespace LibraryManagement.Tests
 {
     public class BookTests
     {
+        [Theory]
+        [InlineData("en", "English")]
+        [InlineData("vi", "Vietnamese")]
+        [InlineData("ja", "Japanese")]
+        public void LanguageDisplay_UsesFriendlyNameWithoutChangingStoredCode(string code, string expected)
+        {
+            var book = new Book { Language = code };
+
+            Assert.Equal(expected, book.LanguageDisplay);
+            Assert.Equal(code, book.Language);
+        }
+
+        [Theory]
+        [InlineData(null)]
+        [InlineData("")]
+        [InlineData("   ")]
+        public void LanguageDisplay_HandlesMissingCode(string? code)
+            => Assert.Equal("Unknown", new Book { Language = code }.LanguageDisplay);
+
+        [Fact]
+        public void LanguageDisplay_HandlesUnknownCodeAndBookOptionsKeepStoredValue()
+        {
+            Assert.Equal("xx", new Book { Language = " xx " }.LanguageDisplay);
+
+            var english = Assert.Single(LanguageCatalog.Options, option => option.DisplayName == "English");
+            Assert.Equal("en", english.Code);
+            Assert.Equal("en", LanguageCatalog.ResolveCode(english, english.DisplayName));
+            Assert.Equal("en", LanguageCatalog.ResolveCode(null, " English "));
+            Assert.Equal("xx", LanguageCatalog.ResolveCode(null, " xx "));
+            var editVietnamese = Assert.Single(LanguageCatalog.GetBookOptions("vi"), option => option.Code == "vi");
+            Assert.Equal("Vietnamese", editVietnamese.DisplayName);
+            var editUnknown = Assert.Single(LanguageCatalog.GetBookOptions("xx"), option => option.Code == "xx");
+            Assert.Equal("xx", editUnknown.DisplayName);
+        }
+
+        [Theory]
+        [InlineData(" O'Reilly & Nhà xuất bản Trẻ ", " EN ", "O'Reilly & Nhà xuất bản Trẻ", "en")]
+        [InlineData("   ", "   ", null, null)]
+        [InlineData(null, null, null, null)]
+        public void AddBook_NormalizesOptionalMetadata(string? publisher, string? language, string? expectedPublisher, string? expectedLanguage)
+        {
+            var repository = new Mock<BookRepository>();
+            repository.Setup(repo => repo.AddWithCopies(It.IsAny<Book>(), 0)).Returns(17);
+            var book = new Book { Title = "Book", Author = "Author", PublishYear = 2026,
+                Publisher = publisher, Language = language };
+
+            Assert.Equal(17, new BookService(repository.Object, new Mock<BorrowRepository>().Object).AddBook(book));
+            Assert.Equal(expectedPublisher, book.Publisher);
+            Assert.Equal(expectedLanguage, book.Language);
+            repository.Verify(repo => repo.AddWithCopies(book, 0), Times.Once);
+        }
+
+        [Theory]
+        [InlineData(0, 0)]
+        [InlineData(100000, 5000)]
+        [InlineData(300000, 15000)]
+        [InlineData(199999.99, 10000)]
+        [InlineData(0.10, 0.01)]
+        public void AddBook_DerivesRentalPriceFromBookPrice(decimal bookPrice, decimal expectedRentalPrice)
+        {
+            var repository = new Mock<BookRepository>();
+            repository.Setup(repo => repo.AddWithCopies(It.IsAny<Book>(), 0)).Returns(18);
+            var book = new Book
+            {
+                Title = "Book", Author = "Author", PublishYear = 2026, Quantity = 0,
+                ReplacementValue = bookPrice, RentalPrice = 999m
+            };
+
+            Assert.Equal(18, new BookService(repository.Object, new Mock<BorrowRepository>().Object).AddBook(book));
+            Assert.Equal(expectedRentalPrice, book.RentalPrice);
+            repository.Verify(repo => repo.AddWithCopies(It.Is<Book>(stored =>
+                stored.ReplacementValue == bookPrice && stored.RentalPrice == expectedRentalPrice), 0), Times.Once);
+        }
+
+        [Theory]
+        [InlineData(-1)]
+        [InlineData(1.234)]
+        [InlineData(10000000000000000d)]
+        public void AddBook_RejectsInvalidBookPriceBeforePersistence(decimal bookPrice)
+        {
+            var repository = new Mock<BookRepository>();
+            var book = new Book
+            {
+                Title = "Book", Author = "Author", PublishYear = 2026, Quantity = 0,
+                ReplacementValue = bookPrice
+            };
+
+            Assert.Throws<BusinessRuleException>(() =>
+                new BookService(repository.Object, new Mock<BorrowRepository>().Object).AddBook(book));
+            repository.Verify(repo => repo.AddWithCopies(It.IsAny<Book>(), It.IsAny<int>()), Times.Never);
+        }
+
+        [Fact]
+        public void UpdateBook_PreservesBookPriceAndRecalculatesRentalPriceForOlderCallers()
+        {
+            var repository = new Mock<BookRepository>();
+            repository.Setup(repo => repo.GetById(7)).Returns(new Book
+            {
+                BookId = 7, Quantity = 1, AvailableQuantity = 1,
+                ReplacementValue = 500m, RentalPrice = 25m
+            });
+            repository.Setup(repo => repo.UpdateWithCopies(It.IsAny<Book>())).Returns(true);
+            var update = new Book
+            {
+                BookId = 7, Title = "Book", Author = "Author", PublishYear = 2026,
+                Quantity = 1
+            };
+
+            new BookService(repository.Object, new Mock<BorrowRepository>().Object).UpdateBook(update);
+
+            Assert.Equal(500m, update.ReplacementValue);
+            Assert.Equal(25m, update.RentalPrice);
+            repository.Verify(repo => repo.UpdateWithCopies(update), Times.Once);
+        }
+
+        [Fact]
+        public void UpdateBook_RecalculatesRentalPriceAfterEachBookPriceChange()
+        {
+            var persisted = new Book
+            {
+                BookId = 7, Quantity = 1, AvailableQuantity = 1,
+                ReplacementValue = 100000m, RentalPrice = 5000m
+            };
+            var repository = new Mock<BookRepository>();
+            repository.Setup(repo => repo.GetById(7)).Returns(() => persisted);
+            repository.Setup(repo => repo.UpdateWithCopies(It.IsAny<Book>())).Callback<Book>(book =>
+            {
+                persisted.ReplacementValue = book.ReplacementValue;
+                persisted.RentalPrice = book.RentalPrice;
+            }).Returns(true);
+            var service = new BookService(repository.Object, new Mock<BorrowRepository>().Object);
+
+            foreach (var (bookPrice, rentalPrice) in new[]
+            {
+                (100000m, 5000m),
+                (200000m, 10000m),
+                (300000m, 15000m)
+            })
+            {
+                var update = new Book
+                {
+                    BookId = 7, Title = "Book", Author = "Author", PublishYear = 2026, Quantity = 1,
+                    ReplacementValue = bookPrice, RentalPrice = 999999m
+                };
+
+                service.UpdateBook(update);
+
+                Assert.Equal(rentalPrice, update.RentalPrice);
+                Assert.Equal(rentalPrice, persisted.RentalPrice);
+            }
+        }
+
+        [Fact]
+        public void BookPricingPolicy_UsesConfiguredRateAndCurrencyRounding()
+        {
+            var policy = new BookPricingPolicy(0.04m);
+            var repository = new Mock<BookRepository>();
+            repository.Setup(repo => repo.AddWithCopies(It.IsAny<Book>(), 0)).Returns(19);
+            var book = new Book
+            {
+                Title = "Book", Author = "Author", PublishYear = 2026, Quantity = 0,
+                ReplacementValue = 100000m
+            };
+
+            Assert.Equal(4000m, policy.CalculateRentalPrice(100000m));
+            Assert.Equal(19, new BookService(repository.Object, new Mock<BorrowRepository>().Object, policy).AddBook(book));
+            Assert.Equal(4000m, book.RentalPrice);
+            Assert.Equal(0.01m, BookPricingPolicy.Default.CalculateRentalPrice(0.10m));
+            Assert.Throws<ArgumentOutOfRangeException>(() => new BookPricingPolicy(-0.01m));
+            Assert.Throws<ArgumentOutOfRangeException>(() => new BookPricingPolicy(1.01m));
+        }
+
+        [Fact]
+        public void AddBookDialog_RecalculatesRentalPriceAsBookPriceChangesAndKeepsItReadOnly()
+        {
+            StaHelper.RunInSta(() =>
+            {
+                var dialog = new LibraryManagement.Views.Books.AddBookDialog();
+                var bookPrice = GetTextBox(dialog, "ReplacementValueBox");
+                var rentalPrice = GetTextBox(dialog, "RentalPriceBox");
+
+                Assert.True(rentalPrice.IsReadOnly);
+                bookPrice.Text = "100000";
+                Assert.Equal(5000m, decimal.Parse(rentalPrice.Text, CultureInfo.CurrentCulture));
+                bookPrice.Text = "200000";
+                Assert.Equal(10000m, decimal.Parse(rentalPrice.Text, CultureInfo.CurrentCulture));
+                bookPrice.Text = "-1";
+                Assert.Equal(string.Empty, rentalPrice.Text);
+                bookPrice.Text = "not a price";
+                Assert.Equal(string.Empty, rentalPrice.Text);
+            });
+        }
+
+        [Fact]
+        public void EditBookDialog_RecalculatesRentalPriceWhenBookPriceChanges()
+        {
+            StaHelper.RunInSta(() =>
+            {
+                var dialog = new LibraryManagement.Views.Books.EditBookDialog(new Book
+                {
+                    BookId = 7, Title = "Book", Author = "Author", PublishYear = 2026, Quantity = 0,
+                    ReplacementValue = 300000m, RentalPrice = 15000m
+                });
+                var bookPrice = GetTextBox(dialog, "ReplacementValueBox");
+                var rentalPrice = GetTextBox(dialog, "RentalPriceBox");
+
+                bookPrice.Text = "400000";
+
+                Assert.Equal(20000m, decimal.Parse(rentalPrice.Text, CultureInfo.CurrentCulture));
+                Assert.True(rentalPrice.IsReadOnly);
+            });
+        }
+
+        private static TextBox GetTextBox(object dialog, string name)
+            => (TextBox)(dialog.GetType().GetField(name, BindingFlags.Instance | BindingFlags.NonPublic)?.GetValue(dialog)
+                ?? throw new InvalidOperationException($"Could not find dialog field '{name}'."));
+
+        [Fact]
+        public void UpdateBook_NormalizesMetadataWithoutChangingCopyCount()
+        {
+            var repository = new Mock<BookRepository>();
+            repository.Setup(repo => repo.GetById(7)).Returns(new Book { BookId = 7, Quantity = 2, AvailableQuantity = 2 });
+            repository.Setup(repo => repo.UpdateWithCopies(It.IsAny<Book>())).Returns(true);
+            var book = new Book { BookId = 7, Title = "Book", Author = "Author", PublishYear = 2026,
+                Quantity = 2, Publisher = "  Nhà xuất bản Trẻ  ", Language = " Vi " };
+
+            new BookService(repository.Object, new Mock<BorrowRepository>().Object).UpdateBook(book);
+
+            Assert.Equal("Nhà xuất bản Trẻ", book.Publisher);
+            Assert.Equal("vi", book.Language);
+            Assert.Equal(2, book.Quantity);
+            repository.Verify(repo => repo.UpdateWithCopies(book), Times.Once);
+        }
+
+        [Fact]
+        public void BooksViewModel_FiltersLanguageWithoutChangingRepositoryData()
+        {
+            var repository = new Mock<BookRepository>();
+            var catalog = new List<Book>
+            {
+                new() { BookId = 1, Language = "vi" },
+                new() { BookId = 2, Language = "en" },
+                new() { BookId = 3 }
+            };
+            repository.Setup(repo => repo.GetAll()).Returns(catalog);
+            var service = new BookService(repository.Object, new Mock<BorrowRepository>().Object);
+
+            StaHelper.RunInSta(() =>
+            {
+                var viewModel = new BooksViewModel(service);
+                viewModel.LanguageFilter = " VI ";
+                Assert.Equal(1, Assert.Single(viewModel.Books).BookId);
+                Assert.Equal("en", LanguageCatalog.FilterOptions.Single(option => option.DisplayName == "English").Code);
+                viewModel.LanguageFilter = LanguageCatalog.UnknownFilterCode;
+                Assert.Equal(3, Assert.Single(viewModel.Books).BookId);
+                viewModel.LanguageFilter = "All";
+                Assert.Equal(3, viewModel.Books.Count);
+            });
+        }
+
+        [Fact]
+        public void BooksViewModel_LoadsPublisherValuesForGridIncludingNullAndArchivedBooks()
+        {
+            var repository = new Mock<BookRepository>();
+            var activeBooks = new List<Book>
+            {
+                new() { BookId = 1, Publisher = "Prentice Hall" },
+                new() { BookId = 2, Publisher = null },
+                new() { BookId = 3, Publisher = string.Empty }
+            };
+            var archivedBook = new Book { BookId = 4, Publisher = "O'Reilly Media", Status = BookStatuses.Archived };
+            repository.Setup(repo => repo.GetAll()).Returns(activeBooks);
+            repository.Setup(repo => repo.GetArchived()).Returns(new List<Book> { archivedBook });
+            var service = new BookService(repository.Object, new Mock<BorrowRepository>().Object);
+
+            StaHelper.RunInSta(() =>
+            {
+                var viewModel = new BooksViewModel(service);
+                Assert.Equal("Prentice Hall", viewModel.Books[0].Publisher);
+                Assert.Null(viewModel.Books[1].Publisher);
+                Assert.Equal(string.Empty, viewModel.Books[2].Publisher);
+
+                viewModel.ShowArchived = true;
+                Assert.Equal("O'Reilly Media", Assert.Single(viewModel.Books).Publisher);
+            });
+        }
+        [Theory]
+        [InlineData("978-0-13-235088-4", "9780132350884")]
+        [InlineData("0-13-235088-2", "9780132350884")]
+        [InlineData(" 9780132350884 ", "9780132350884")]
+        [InlineData(null, null)]
+        [InlineData("  ", null)]
+        public void Isbn_NormalizesValidValues(string? input, string? expected)
+        {
+            Assert.Equal(expected, Isbn.Normalize(input));
+        }
+
+        [Theory]
+        [InlineData("9780132350885")]
+        [InlineData("0132350883")]
+        [InlineData("97801323508A4")]
+        [InlineData("123")]
+        public void Isbn_RejectsInvalidValues(string input)
+        {
+            Assert.Throws<BusinessRuleException>(() => Isbn.Normalize(input));
+        }
+
+        [Fact]
+        public void AddBook_ExistingIsbn_OffersExistingBookInsteadOfCreatingDuplicate()
+        {
+            var repository = new Mock<BookRepository>();
+            repository.Setup(repo => repo.GetByIsbn("9780132350884")).Returns(new Book { BookId = 42 });
+            var service = new BookService(repository.Object, new Mock<BorrowRepository>().Object);
+            var book = new Book { Title = "Clean Code", Author = "Robert Martin", PublishYear = 2008,
+                Isbn = "0-13-235088-2", Quantity = 1 };
+
+            var exception = Assert.Throws<DuplicateBookIsbnException>(() => service.AddBook(book));
+            Assert.Equal(42, exception.ExistingBookId);
+            repository.Verify(repo => repo.AddWithCopies(It.IsAny<Book>(), It.IsAny<int>()), Times.Never);
+        }
+
+        [Fact]
+        public void UpdateBook_ExistingIsbnOnAnotherBook_IsRejected()
+        {
+            var repository = new Mock<BookRepository>();
+            repository.Setup(repo => repo.GetById(5)).Returns(new Book { BookId = 5, Quantity = 1, AvailableQuantity = 1 });
+            repository.Setup(repo => repo.GetByIsbn("9780132350884")).Returns(new Book { BookId = 42 });
+            var service = new BookService(repository.Object, new Mock<BorrowRepository>().Object);
+
+            var exception = Assert.Throws<DuplicateBookIsbnException>(() => service.UpdateBook(new Book
+            {
+                BookId = 5, Title = "Another book", Author = "Author", PublishYear = 2026,
+                Quantity = 1, Isbn = "978-0-13-235088-4"
+            }));
+            Assert.Equal(42, exception.ExistingBookId);
+            repository.Verify(repo => repo.UpdateWithCopies(It.IsAny<Book>()), Times.Never);
+        }
+
         [Fact]
         public void AddBook_ValidData_SetsAvailableQuantityAndReturnsId()
         {
@@ -27,7 +368,7 @@ namespace LibraryManagement.Tests
                 Quantity = 5
             };
 
-            mockBookRepo.Setup(r => r.Add(It.IsAny<Book>())).Returns(10);
+            mockBookRepo.Setup(r => r.AddWithCopies(It.IsAny<Book>(), It.IsAny<int>())).Returns(10);
             var service = new BookService(mockBookRepo.Object, mockBorrowRepo.Object);
 
             // Act
@@ -36,7 +377,118 @@ namespace LibraryManagement.Tests
             // Assert
             Assert.Equal(10, newId);
             Assert.Equal(5, book.AvailableQuantity); // AvailableQuantity set equal to Quantity
-            mockBookRepo.Verify(r => r.Add(book), Times.Once);
+            mockBookRepo.Verify(r => r.AddWithCopies(book, 5), Times.Once);
+        }
+
+        [Theory]
+        [InlineData("Available")]
+        [InlineData("Borrowed")]
+        [InlineData("Lost")]
+        [InlineData("Damaged")]
+        [InlineData("UnderRepair")]
+        [InlineData("Retired")]
+        public void BookCopyService_AcceptsCoreStatuses(string status)
+        {
+            Assert.True(BookCopyService.IsValidStatus(status));
+        }
+
+        [Theory]
+        [InlineData("")]
+        [InlineData("Deleted")]
+        [InlineData("available")]
+        public void BookCopyService_RejectsUnknownStatuses(string status)
+        {
+            Assert.False(BookCopyService.IsValidStatus(status));
+        }
+
+        [Fact]
+        public void BookCopyService_AddCopy_UsesGeneratedCopyIdentity()
+        {
+            var books = new Mock<BookRepository>();
+            books.Setup(r => r.GetById(1)).Returns(new Book { BookId = 1, Status = BookStatuses.Active });
+            var copies = new Mock<BookCopyRepository>();
+            copies.Setup(r => r.AddGeneratedCopies(1, 1, BookCopyStatuses.Available, "Good")).Returns(new[] { 42 });
+            var service = new BookCopyService(copies.Object, books.Object);
+
+            Assert.Equal(42, service.AddCopy(1));
+            copies.Verify(r => r.AddGeneratedCopies(1, 1, BookCopyStatuses.Available, "Good"), Times.Once);
+        }
+
+        [Fact]
+        public void BookCopyService_ChangeStatus_RejectsUnknownStatus()
+        {
+            var service = new BookCopyService(new Mock<BookCopyRepository>().Object);
+            Assert.Throws<BusinessRuleException>(() => service.ChangeStatus(1, "OnShelf"));
+        }
+
+        [Fact]
+        public void BookCopyService_ChangeStatus_RejectsBorrowedStatusOutsideCirculation()
+        {
+            var service = new BookCopyService(new Mock<BookCopyRepository>().Object);
+            Assert.Throws<BusinessRuleException>(() => service.ChangeStatus(1, BookCopyStatuses.Borrowed));
+        }
+
+        [Theory]
+        [InlineData(BookCopyStatuses.Available, BookCopyStatuses.Damaged, true)]
+        [InlineData(BookCopyStatuses.Damaged, BookCopyStatuses.UnderRepair, true)]
+        [InlineData(BookCopyStatuses.UnderRepair, BookCopyStatuses.Available, true)]
+        [InlineData(BookCopyStatuses.Lost, BookCopyStatuses.Available, true)]
+        [InlineData(BookCopyStatuses.Damaged, BookCopyStatuses.Available, false)]
+        [InlineData(BookCopyStatuses.Borrowed, BookCopyStatuses.Available, false)]
+        [InlineData(BookCopyStatuses.Retired, BookCopyStatuses.Damaged, false)]
+        [InlineData(BookCopyStatuses.Retired, BookCopyStatuses.Available, false)]
+        [InlineData(BookCopyStatuses.Retired, BookCopyStatuses.Retired, true)]
+        public void BookCopyStatusRules_ManualTransitions(string current, string next, bool allowed)
+        {
+            Assert.Equal(allowed, BookCopyStatusRules.CanChangeManually(current, next));
+        }
+
+        [Fact]
+        public void ReturnCondition_IncludesPhysicalReturnAndLostResolution()
+        {
+            Assert.Equal(new[] { ReturnCondition.Normal, ReturnCondition.Damaged, ReturnCondition.NeedsRepair, ReturnCondition.Lost },
+                Enum.GetValues<ReturnCondition>());
+        }
+
+        [Fact]
+        public void BookCopyInventory_CountsEveryStatusWithoutTreatingRetiredAsActive()
+        {
+            var statuses = new[] { BookCopyStatuses.Available, BookCopyStatuses.Borrowed,
+                BookCopyStatuses.Damaged, BookCopyStatuses.UnderRepair, BookCopyStatuses.Lost,
+                BookCopyStatuses.Retired };
+            var inventory = BookCopyInventory.FromCopies(statuses.Select(status => new BookCopy { Status = status }));
+
+            Assert.Equal(6, inventory.TotalCopies);
+            Assert.Equal(5, inventory.ActiveCopies);
+            Assert.Equal(1, inventory.Available);
+            Assert.Equal(1, inventory.Borrowed);
+            Assert.Equal(2, inventory.DamagedUnderRepair);
+            Assert.Equal(3, inventory.Unavailable);
+            Assert.Equal(1, inventory.Retired);
+            Assert.True(inventory.IsBalanced);
+        }
+
+        [Theory]
+        [InlineData(BookCopyStatuses.Damaged)]
+        [InlineData(BookCopyStatuses.UnderRepair)]
+        public void BookCopyStatusDisplay_UsesMergedLabelAndRepairTarget(string status)
+        {
+            Assert.Equal(@"Damaged\UnderRepair", BookCopyStatusDisplay.GetLabel(status));
+            Assert.Equal(BookCopyStatuses.UnderRepair,
+                BookCopyStatusDisplay.GetStoredStatus(BookCopyStatusDisplay.DamagedUnderRepair));
+        }
+
+        [Fact]
+        public void BookCopyService_AddCopy_DelegatesSingleGeneratedCopy()
+        {
+            var repository = new Mock<BookCopyRepository>();
+            var books = new Mock<BookRepository>();
+            books.Setup(r => r.GetById(3)).Returns(new Book { BookId = 3, Status = BookStatuses.Active });
+            repository.Setup(r => r.AddGeneratedCopies(3, 1, BookCopyStatuses.Available, "Good")).Returns(new[] { 12 });
+            var service = new BookCopyService(repository.Object, books.Object);
+
+            Assert.Equal(12, service.AddCopy(3));
+            repository.Verify(r => r.AddGeneratedCopies(3, 1, BookCopyStatuses.Available, "Good"), Times.Once);
         }
 
         [Theory]
@@ -95,7 +547,7 @@ namespace LibraryManagement.Tests
             // Arrange (TC-BOOK-05)
             var mockBookRepo = new Mock<BookRepository>();
             var mockBorrowRepo = new Mock<BorrowRepository>();
-            mockBookRepo.Setup(r => r.Add(It.IsAny<Book>())).Returns(1);
+            mockBookRepo.Setup(r => r.AddWithCopies(It.IsAny<Book>(), It.IsAny<int>())).Returns(1);
             var service = new BookService(mockBookRepo.Object, mockBorrowRepo.Object);
 
             var book = new Book { Title = "Title", Author = "Author", Category = "", PublishYear = 2020, Quantity = 1 };
@@ -130,7 +582,7 @@ namespace LibraryManagement.Tests
             // Arrange (TC-BOOK-08)
             var mockBookRepo = new Mock<BookRepository>();
             var mockBorrowRepo = new Mock<BorrowRepository>();
-            mockBookRepo.Setup(r => r.Add(It.IsAny<Book>())).Returns(1);
+            mockBookRepo.Setup(r => r.AddWithCopies(It.IsAny<Book>(), It.IsAny<int>())).Returns(1);
             var service = new BookService(mockBookRepo.Object, mockBorrowRepo.Object);
 
             var book = new Book { Title = "Ancient Manuscript", Author = "Author", PublishYear = 1, Quantity = 1 };
@@ -166,7 +618,7 @@ namespace LibraryManagement.Tests
             // Arrange
             var mockBookRepo = new Mock<BookRepository>();
             var mockBorrowRepo = new Mock<BorrowRepository>();
-            mockBookRepo.Setup(r => r.Add(It.IsAny<Book>())).Returns(1);
+            mockBookRepo.Setup(r => r.AddWithCopies(It.IsAny<Book>(), It.IsAny<int>())).Returns(1);
             var service = new BookService(mockBookRepo.Object, mockBorrowRepo.Object);
 
             var book = new Book { Title = "Title", Author = "Author", PublishYear = 2020, Quantity = qty };
@@ -185,7 +637,7 @@ namespace LibraryManagement.Tests
             // Arrange (TC-BOOK-16)
             var mockBookRepo = new Mock<BookRepository>();
             var mockBorrowRepo = new Mock<BorrowRepository>();
-            mockBookRepo.Setup(r => r.Add(It.IsAny<Book>())).Returns(1);
+            mockBookRepo.Setup(r => r.AddWithCopies(It.IsAny<Book>(), It.IsAny<int>())).Returns(1);
             var service = new BookService(mockBookRepo.Object, mockBorrowRepo.Object);
 
             string title255 = new string('A', 255);
@@ -204,7 +656,7 @@ namespace LibraryManagement.Tests
             // Arrange (TC-BOOK-19)
             var mockBookRepo = new Mock<BookRepository>();
             var mockBorrowRepo = new Mock<BorrowRepository>();
-            mockBookRepo.Setup(r => r.Add(It.IsAny<Book>())).Returns(1);
+            mockBookRepo.Setup(r => r.AddWithCopies(It.IsAny<Book>(), It.IsAny<int>())).Returns(1);
             var service = new BookService(mockBookRepo.Object, mockBorrowRepo.Object);
 
             const string specialTitle = "O'Reilly \"C#\"; -- % _";
@@ -224,7 +676,7 @@ namespace LibraryManagement.Tests
             // Arrange (TC-BOOK-20)
             var mockBookRepo = new Mock<BookRepository>();
             var mockBorrowRepo = new Mock<BorrowRepository>();
-            mockBookRepo.Setup(r => r.Add(It.IsAny<Book>())).Returns(1);
+            mockBookRepo.Setup(r => r.AddWithCopies(It.IsAny<Book>(), It.IsAny<int>())).Returns(1);
             var service = new BookService(mockBookRepo.Object, mockBorrowRepo.Object);
 
             const string viTitle = "Lập trình C# căn bản";
@@ -249,7 +701,7 @@ namespace LibraryManagement.Tests
 
             var existing = new Book { BookId = 1, Title = "Old Title", Author = "Author", Quantity = 5, AvailableQuantity = 5 };
             mockBookRepo.Setup(r => r.GetById(1)).Returns(existing);
-            mockBookRepo.Setup(r => r.Update(It.IsAny<Book>())).Returns(true);
+            mockBookRepo.Setup(r => r.UpdateWithCopies(It.IsAny<Book>())).Returns(true);
 
             var service = new BookService(mockBookRepo.Object, mockBorrowRepo.Object);
 
@@ -259,7 +711,7 @@ namespace LibraryManagement.Tests
             service.UpdateBook(updated);
 
             // Assert
-            mockBookRepo.Verify(r => r.Update(It.Is<Book>(b => b.Title == "New Title")), Times.Once);
+            mockBookRepo.Verify(r => r.UpdateWithCopies(It.Is<Book>(b => b.Title == "New Title")), Times.Once);
         }
 
         [Fact]
@@ -293,7 +745,7 @@ namespace LibraryManagement.Tests
             // 5 total, 2 available -> 3 borrowing
             var existing = new Book { BookId = 1, Title = "Title", Author = "Author", Quantity = 5, AvailableQuantity = 2 };
             mockBookRepo.Setup(r => r.GetById(1)).Returns(existing);
-            mockBookRepo.Setup(r => r.Update(It.IsAny<Book>())).Returns(true);
+            mockBookRepo.Setup(r => r.UpdateWithCopies(It.IsAny<Book>())).Returns(true);
 
             var service = new BookService(mockBookRepo.Object, mockBorrowRepo.Object);
 
@@ -305,7 +757,7 @@ namespace LibraryManagement.Tests
 
             // Assert
             Assert.Equal(0, updated.AvailableQuantity); // Available = 3 - 3 = 0
-            mockBookRepo.Verify(r => r.Update(updated), Times.Once);
+            mockBookRepo.Verify(r => r.UpdateWithCopies(updated), Times.Once);
         }
 
         [Fact]
@@ -318,7 +770,7 @@ namespace LibraryManagement.Tests
             // 5 total, 2 available (3 borrowing) -> increase to 8 total
             var existing = new Book { BookId = 1, Title = "Title", Author = "Author", Quantity = 5, AvailableQuantity = 2 };
             mockBookRepo.Setup(r => r.GetById(1)).Returns(existing);
-            mockBookRepo.Setup(r => r.Update(It.IsAny<Book>())).Returns(true);
+            mockBookRepo.Setup(r => r.UpdateWithCopies(It.IsAny<Book>())).Returns(true);
 
             var service = new BookService(mockBookRepo.Object, mockBorrowRepo.Object);
 
@@ -332,6 +784,28 @@ namespace LibraryManagement.Tests
         }
 
         [Fact]
+        public void UpdateBook_UsesActiveLoansInsteadOfAllUnavailableCopies()
+        {
+            var bookRepository = new Mock<BookRepository>();
+            var borrowRepository = new Mock<BorrowRepository>();
+            bookRepository.Setup(repository => repository.GetById(1)).Returns(new Book
+            {
+                BookId = 1, Quantity = 5, AvailableQuantity = 2
+            });
+            bookRepository.Setup(repository => repository.UpdateWithCopies(It.IsAny<Book>())).Returns(true);
+            borrowRepository.Setup(repository => repository.GetBorrowingRecords()).Returns(new List<BorrowRecord>
+            {
+                new() { BookId = 1, Status = "Borrowing" }
+            });
+            var service = new BookService(bookRepository.Object, borrowRepository.Object);
+            var book = new Book { BookId = 1, Title = "Title", Author = "Author", PublishYear = 2025, Quantity = 4 };
+
+            service.UpdateBook(book);
+
+            Assert.Equal(3, book.AvailableQuantity);
+        }
+
+        [Fact]
         public void UpdateBook_DecreaseQuantityWhenNoOneBorrowing_UpdatesAvailableQuantityToNewTotal()
         {
             // Arrange (TC-BOOK-29)
@@ -341,7 +815,7 @@ namespace LibraryManagement.Tests
             // 5 total, 5 available (0 borrowing) -> reduce to 2 total
             var existing = new Book { BookId = 1, Title = "Title", Author = "Author", Quantity = 5, AvailableQuantity = 5 };
             mockBookRepo.Setup(r => r.GetById(1)).Returns(existing);
-            mockBookRepo.Setup(r => r.Update(It.IsAny<Book>())).Returns(true);
+            mockBookRepo.Setup(r => r.UpdateWithCopies(It.IsAny<Book>())).Returns(true);
 
             var service = new BookService(mockBookRepo.Object, mockBorrowRepo.Object);
 
@@ -369,14 +843,14 @@ namespace LibraryManagement.Tests
         }
 
         [Fact]
-        public void DeleteBook_BookWithNoActiveBorrows_DeletesSuccessfully()
+        public void DeleteBook_ArchivesInsteadOfDeleting()
         {
             // Arrange (TC-BOOK-31)
             var mockBookRepo = new Mock<BookRepository>();
             var mockBorrowRepo = new Mock<BorrowRepository>();
 
             mockBorrowRepo.Setup(r => r.GetBorrowingRecords()).Returns(new List<BorrowRecord>());
-            mockBookRepo.Setup(r => r.Delete(1)).Returns(true);
+            mockBookRepo.Setup(r => r.SetArchived(1, true)).Returns(true);
 
             var service = new BookService(mockBookRepo.Object, mockBorrowRepo.Object);
 
@@ -384,24 +858,25 @@ namespace LibraryManagement.Tests
             service.DeleteBook(1);
 
             // Assert
-            mockBookRepo.Verify(r => r.Delete(1), Times.Once);
+            mockBookRepo.Verify(r => r.SetArchived(1, true), Times.Once);
+            mockBookRepo.Verify(r => r.Delete(It.IsAny<int>()), Times.Never);
         }
 
         [Fact]
-        public void DeleteBook_BookCurrentlyBorrowing_ThrowsBusinessRuleException()
+        public void ArchiveBook_WhenRepositoryRejectsActiveLoan_PropagatesReason()
         {
             // Arrange (TC-BOOK-32)
             var mockBookRepo = new Mock<BookRepository>();
             var mockBorrowRepo = new Mock<BorrowRepository>();
 
-            var borrowing = new List<BorrowRecord> { new BorrowRecord { BookId = 1, Status = "Borrowing" } };
-            mockBorrowRepo.Setup(r => r.GetBorrowingRecords()).Returns(borrowing);
+            mockBookRepo.Setup(r => r.SetArchived(1, true))
+                .Throws(new BusinessRuleException("Không thể lưu trữ đầu sách khi còn phiếu mượn đang mở."));
 
             var service = new BookService(mockBookRepo.Object, mockBorrowRepo.Object);
 
             // Act & Assert
-            var ex = Assert.Throws<BusinessRuleException>(() => service.DeleteBook(1));
-            Assert.Equal("Không thể xóa sách đang được mượn.", ex.Message);
+            var ex = Assert.Throws<BusinessRuleException>(() => service.ArchiveBook(1));
+            Assert.Contains("phiếu mượn đang mở", ex.Message);
             mockBookRepo.Verify(r => r.Delete(It.IsAny<int>()), Times.Never);
         }
 
@@ -413,13 +888,40 @@ namespace LibraryManagement.Tests
             var mockBorrowRepo = new Mock<BorrowRepository>();
 
             mockBorrowRepo.Setup(r => r.GetBorrowingRecords()).Returns(new List<BorrowRecord>());
-            mockBookRepo.Setup(r => r.Delete(999)).Returns(false);
+            mockBookRepo.Setup(r => r.SetArchived(999, true)).Returns(false);
 
             var service = new BookService(mockBookRepo.Object, mockBorrowRepo.Object);
 
             // Act & Assert
             var ex = Assert.Throws<BusinessRuleException>(() => service.DeleteBook(999));
             Assert.Equal("Sách không tồn tại.", ex.Message);
+        }
+
+        [Fact]
+        public void RestoreBook_UsesStatusUpdateWithoutDeletingCopies()
+        {
+            var repository = new Mock<BookRepository>();
+            repository.Setup(r => r.SetArchived(7, false)).Returns(true);
+            new BookService(repository.Object, new Mock<BorrowRepository>().Object).RestoreBook(7);
+            repository.Verify(r => r.SetArchived(7, false), Times.Once);
+            repository.Verify(r => r.Delete(It.IsAny<int>()), Times.Never);
+        }
+
+        [Fact]
+        public void BooksViewModel_CanSwitchBetweenActiveAndArchivedCatalogs()
+        {
+            var repository = new Mock<BookRepository>();
+            repository.Setup(r => r.GetAll()).Returns(new List<Book> { new() { BookId = 1, Status = BookStatuses.Active } });
+            repository.Setup(r => r.GetArchived()).Returns(new List<Book> { new() { BookId = 2, Status = BookStatuses.Archived } });
+            var service = new BookService(repository.Object, new Mock<BorrowRepository>().Object);
+
+            StaHelper.RunInSta(() =>
+            {
+                var viewModel = new BooksViewModel(service);
+                Assert.Equal(1, Assert.Single(viewModel.Books).BookId);
+                viewModel.ShowArchived = true;
+                Assert.Equal(2, Assert.Single(viewModel.Books).BookId);
+            });
         }
 
         [Fact]
@@ -508,6 +1010,25 @@ namespace LibraryManagement.Tests
                 Assert.Equal(15, vm.TotalBooks);     // 10 + 5
                 Assert.Equal(10, vm.TotalAvailable); // 6 + 4
                 Assert.Equal(5, vm.TotalBorrowed);   // (10-6) + (5-4) = 5
+            });
+        }
+
+        [Fact]
+        public void BooksViewModel_BorrowedStat_UsesCopyCountWhenAvailable()
+        {
+            var bookRepo = new Mock<BookRepository>();
+            bookRepo.Setup(repository => repository.GetAll()).Returns(new List<Book>
+            {
+                new() { BookId = 1, Quantity = 3, AvailableQuantity = 1, BorrowedCopies = 1 }
+            });
+            var service = new BookService(bookRepo.Object, new Mock<BorrowRepository>().Object);
+
+            StaHelper.RunInSta(() =>
+            {
+                var viewModel = new BooksViewModel(service);
+                Assert.Equal(1, viewModel.TotalBorrowed);
+                Assert.Equal(3, viewModel.TotalBooks);
+                Assert.Equal(1, viewModel.TotalAvailable);
             });
         }
     }

@@ -12,7 +12,7 @@
                 <Border Style="{StaticResource CardStyle}" Padding="18" Margin="0,0,0,12">
                     <Grid>
                         <Grid.ColumnDefinitions><ColumnDefinition Width="150"/><ColumnDefinition Width="*"/><ColumnDefinition Width="150"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-                        <Grid.RowDefinitions><RowDefinition Height="32"/><RowDefinition Height="32"/><RowDefinition Height="32"/><RowDefinition Height="32"/><RowDefinition Height="32"/><RowDefinition Height="42"/></Grid.RowDefinitions>
+                        <Grid.RowDefinitions><RowDefinition Height="32"/><RowDefinition Height="32"/><RowDefinition Height="32"/><RowDefinition Height="32"/><RowDefinition Height="32"/><RowDefinition Height="42"/><RowDefinition Height="32"/></Grid.RowDefinitions>
                         <TextBlock Grid.Row="0" Text="Reader ID" FontWeight="SemiBold" Foreground="{StaticResource SecondaryTextBrush}"/><TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding Reader.FormattedId}" FontWeight="Bold" Foreground="{StaticResource PrimaryBrush}"/>
                         <TextBlock Grid.Row="0" Grid.Column="2" Text="Loại độc giả" FontWeight="SemiBold" Foreground="{StaticResource SecondaryTextBrush}"/><TextBlock Grid.Row="0" Grid.Column="3" Text="{Binding Reader.ReaderType}" FontWeight="Bold"/>
                         <TextBlock Grid.Row="1" Text="Họ và tên" FontWeight="SemiBold" Foreground="{StaticResource SecondaryTextBrush}"/><TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding Reader.FullName}" FontWeight="Bold"/>
@@ -35,6 +35,8 @@
                         </TextBlock>
                         <TextBlock Grid.Row="5" Text="Lý do tạm khóa" FontWeight="SemiBold" Foreground="{StaticResource SecondaryTextBrush}"/><TextBlock Grid.Row="5" Grid.Column="1" Text="{Binding Reader.SuspensionReason}" TextWrapping="Wrap"/>
                         <TextBlock Grid.Row="5" Grid.Column="2" Text="Ngày tạm khóa" FontWeight="SemiBold" Foreground="{StaticResource SecondaryTextBrush}"/><TextBlock Grid.Row="5" Grid.Column="3" Text="{Binding Reader.SuspendedDate, StringFormat=dd/MM/yyyy HH:mm, TargetNullValue=-}"/>
+                        <TextBlock Grid.Row="6" Text="Hạn thẻ thư viện" FontWeight="SemiBold" Foreground="{StaticResource SecondaryTextBrush}"/>
+                        <TextBlock Grid.Row="6" Grid.Column="1" Grid.ColumnSpan="3" Text="{Binding Reader.MembershipValidityText}"/>
                     </Grid>
                 </Border>
                 <Border Padding="16" Margin="0,0,0,12">

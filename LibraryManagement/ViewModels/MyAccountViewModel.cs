@@ -10,6 +10,7 @@ namespace LibraryManagement.ViewModels
     public class MyAccountViewModel : BaseViewModel
     {
         private readonly UserService _userService = new();
+        private readonly IUserDialogService _dialogService;
 
         public User? CurrentUser => AuthService.CurrentUser;
 
@@ -205,8 +206,9 @@ namespace LibraryManagement.ViewModels
         public ICommand ChangePasswordCommand { get; }
         public ICommand ResetProfileFieldsCommand { get; }
 
-        public MyAccountViewModel()
+        public MyAccountViewModel(IUserDialogService dialogService)
         {
+            _dialogService = dialogService ?? throw new ArgumentNullException(nameof(dialogService));
             SelectTabCommand = new RelayCommand(p =>
             {
                 if (p != null && int.TryParse(p.ToString(), out int idx))
@@ -305,7 +307,7 @@ namespace LibraryManagement.ViewModels
                 IsProfileSuccess = true;
                 IsProfileError = false;
                 LoadUserData();
-                MessageBox.Show("Profile updated successfully", "Notification", MessageBoxButton.OK, MessageBoxImage.Information);
+                _dialogService.ShowInformation("Profile updated successfully", "Notification");
                 CurrentSidePanel = ActiveSidePanel.None;
             }
             else
@@ -337,7 +339,7 @@ namespace LibraryManagement.ViewModels
                 CurrentPassword = "";
                 NewPassword = "";
                 ConfirmPassword = "";
-                MessageBox.Show("Password changed successfully", "Notification", MessageBoxButton.OK, MessageBoxImage.Information);
+                _dialogService.ShowInformation("Password changed successfully", "Notification");
                 CurrentSidePanel = ActiveSidePanel.None;
             }
             else

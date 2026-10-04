@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Windows;
 using LibraryManagement.Services;
 
 namespace LibraryManagement.ViewModels
@@ -11,6 +10,7 @@ namespace LibraryManagement.ViewModels
         private readonly BookService _bookService;
         private readonly ReaderService _readerService;
         private readonly BorrowService _borrowService;
+        private readonly IUserDialogService _dialogService;
 
         private int _totalBooks;
         public int TotalBooks
@@ -50,15 +50,18 @@ namespace LibraryManagement.ViewModels
         public List<RecentBorrowRow> RecentBorrowings { get; set; } = new();
         public List<RecentReturnRow> RecentReturnings { get; set; } = new();
 
-        public DashboardViewModel() : this(new BookService(), new ReaderService(), new BorrowService())
+        public DashboardViewModel(IUserDialogService dialogService)
+            : this(new BookService(), new ReaderService(), new BorrowService(), dialogService)
         {
         }
 
-        public DashboardViewModel(BookService bookService, ReaderService readerService, BorrowService borrowService)
+        public DashboardViewModel(BookService bookService, ReaderService readerService, BorrowService borrowService,
+            IUserDialogService dialogService)
         {
             _bookService = bookService;
             _readerService = readerService;
             _borrowService = borrowService;
+            _dialogService = dialogService ?? throw new ArgumentNullException(nameof(dialogService));
             LoadData();
         }
 
@@ -120,7 +123,7 @@ namespace LibraryManagement.ViewModels
             }
             catch (Exception ex)
             {
-                MessageBox.Show("Không thể tải dữ liệu Dashboard: " + ex.Message, "Lỗi");
+                _dialogService.ShowError("Không thể tải dữ liệu Dashboard: " + ex.Message, "Lỗi");
             }
         }
     }

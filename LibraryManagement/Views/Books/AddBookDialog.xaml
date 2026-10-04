@@ -1,11 +1,15 @@
 ﻿<Window x:Class="LibraryManagement.Views.Books.AddBookDialog"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Add New Book" Height="320" Width="380"
+        xmlns:models="clr-namespace:LibraryManagement.Models"
+        Title="Add New Book" Height="550" Width="380"
         WindowStartupLocation="CenterOwner" ResizeMode="NoResize">
     <StackPanel Margin="16">
         <TextBlock Text="Title"/>
         <TextBox x:Name="TitleBox" Margin="0,4,0,10"/>
+
+        <TextBlock Text="ISBN (optional)"/>
+        <TextBox x:Name="IsbnBox" Margin="0,4,0,10"/>
 
         <Grid>
             <Grid.ColumnDefinitions>
@@ -30,6 +34,25 @@
                 <ColumnDefinition Width="*"/>
             </Grid.ColumnDefinitions>
             <StackPanel Grid.Column="0">
+                <TextBlock Text="Publisher"/>
+                <TextBox x:Name="PublisherBox" Margin="0,4,0,10"/>
+            </StackPanel>
+            <StackPanel Grid.Column="2">
+                <TextBlock Text="Language (optional)"/>
+                <ComboBox x:Name="LanguageBox" IsEditable="True" TextSearch.TextPath="DisplayName" Margin="0,4,0,10"
+                          ItemsSource="{x:Static models:LanguageCatalog.BookOptions}"
+                          DisplayMemberPath="DisplayName" SelectedValuePath="Code"
+                          ToolTip="Choose a display name; the corresponding language code is saved"/>
+            </StackPanel>
+        </Grid>
+
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="10"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+            <StackPanel Grid.Column="0">
                 <TextBlock Text="Publish Year"/>
                 <TextBox x:Name="PublishYearBox" Margin="0,4,0,10"/>
             </StackPanel>
@@ -38,6 +61,13 @@
                 <TextBox x:Name="QuantityBox" Margin="0,4,0,10"/>
             </StackPanel>
         </Grid>
+
+        <TextBlock Text="Book Price"/>
+        <TextBox x:Name="ReplacementValueBox" Margin="0,4,0,10" ToolTip="Current book value; nonnegative amount"/>
+
+        <TextBlock Text="Rental Price (calculated)"/>
+        <TextBox x:Name="RentalPriceBox" Margin="0,4,0,10" IsReadOnly="True" IsTabStop="False"
+                 ToolTip="Calculated from Book Price using the Book pricing policy"/>
 
         <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,10,0,0">
             <Button Content="Cancel" Width="80" Margin="0,0,8,0" Click="Cancel_Click"/>

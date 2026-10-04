@@ -28,6 +28,7 @@ namespace LibraryManagement.Views.Readers
             PhoneBox.Text = existing.Phone;
             EmailBox.Text = existing.Email;
             AddressBox.Text = existing.Address;
+            MembershipExpiresOnPicker.SelectedDate = existing.MembershipExpiresOn;
 
             bool isExternal = string.Equals(existing.ReaderType, "External", StringComparison.OrdinalIgnoreCase);
             ReaderTypeComboBox.SelectedIndex = isExternal ? 1 : 0;
@@ -98,6 +99,7 @@ namespace LibraryManagement.Views.Readers
                 Email = EmailBox.Text.Trim(),
                 Address = AddressBox.Text.Trim(),
                 RegistrationDate = _registrationDate,
+                MembershipExpiresOn = MembershipExpiresOnPicker.SelectedDate?.Date,
                 Status = _status,
                 SuspensionReason = _suspensionReason,
                 SuspendedDate = _suspendedDate
