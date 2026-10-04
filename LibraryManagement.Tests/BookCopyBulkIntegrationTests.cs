@@ -189,8 +189,8 @@ public sealed class BookCopyBulkIntegrationTests : IClassFixture<SqlIntegrationF
             END;
             ALTER TABLE dbo.BookCopies DROP COLUMN Condition;
             ALTER TABLE dbo.BookCopies ADD IsLegacyUnverified BIT NOT NULL
-                CONSTRAINT DF_BookCopies_IsLegacyUnverified DEFAULT (0);
-            UPDATE dbo.BookCopies SET IsLegacyUnverified = 1 WHERE CopyId = @CopyId;",
+                CONSTRAINT DF_BookCopies_IsLegacyUnverified DEFAULT (0);");
+        Execute("UPDATE dbo.BookCopies SET IsLegacyUnverified = 1 WHERE CopyId = @CopyId;",
             ("@CopyId", copyId));
 
         BookCopyMigration.Apply();
