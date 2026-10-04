@@ -1,0 +1,101 @@
+<Window x:Class="LibraryManagement.Views.Books.BookDetailDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Book detail" Height="680" Width="960" MinHeight="560" MinWidth="760"
+        WindowStartupLocation="CenterOwner" Background="#F8FAFC">
+    <Window.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVisibility"/>
+    </Window.Resources>
+    <Grid Margin="20">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <StackPanel Grid.Row="0" Margin="0,0,0,14">
+            <DockPanel>
+                <TextBlock Text="{Binding CurrentBook.Title}" FontSize="24" FontWeight="Bold" Foreground="#172033" DockPanel.Dock="Left"/>
+                <TextBlock Text="{Binding CurrentBook.Status}" FontWeight="Bold" Foreground="#2563EB"
+                           HorizontalAlignment="Right" Margin="16,6,0,0"/>
+            </DockPanel>
+            <WrapPanel Margin="0,7,0,0">
+                <TextBlock Text="{Binding CurrentBook.BookId, StringFormat=Book ID: {0}}" Margin="0,0,22,4" Foreground="#526176"/>
+                <TextBlock Text="{Binding CurrentBook.Author, StringFormat=Author: {0}}" Margin="0,0,22,4" Foreground="#526176"/>
+                <TextBlock Text="{Binding CurrentBook.Isbn, TargetNullValue=ISBN: —, StringFormat=ISBN: {0}}" Margin="0,0,22,4" Foreground="#526176"/>
+                <TextBlock Text="{Binding CurrentBook.Category, StringFormat=Category: {0}}" Margin="0,0,22,4" Foreground="#526176"/>
+                <TextBlock Text="{Binding CurrentBook.Publisher, StringFormat=Publisher: {0}}" Margin="0,0,22,4" Foreground="#526176"/>
+                <TextBlock Text="{Binding CurrentBook.LanguageDisplay, StringFormat=Language: {0}}" Margin="0,0,22,4" Foreground="#526176"/>
+                <TextBlock Text="{Binding CurrentBook.PublishYear, StringFormat=Year: {0}}" Margin="0,0,22,4" Foreground="#526176"/>
+                <TextBlock Text="{Binding CurrentBook.ReplacementValue, StringFormat=Book Price: {0:N2}, TargetNullValue=Book Price: Not set}" Margin="0,0,22,4" Foreground="#526176"/>
+                <TextBlock Text="{Binding CurrentBook.RentalPrice, StringFormat=Rental Price: {0:N2}, TargetNullValue=Rental Price: Not set}" Margin="0,0,22,4" Foreground="#526176"/>
+            </WrapPanel>
+            <WrapPanel Margin="0,5,0,0">
+                <TextBlock Text="Record (UTC)" FontWeight="SemiBold" Foreground="#526176" Margin="0,0,16,0"/>
+                <TextBlock Text="{Binding CurrentBook.CreatedAt, StringFormat=Created: {0:yyyy-MM-dd HH:mm}, TargetNullValue=Created: Not recorded}" Foreground="#526176" Margin="0,0,18,0"/>
+                <TextBlock Text="{Binding CurrentBook.UpdatedAt, StringFormat=Updated: {0:yyyy-MM-dd HH:mm}, TargetNullValue=Updated: Never}" Foreground="#526176" Margin="0,0,18,0"/>
+                <TextBlock Text="{Binding CurrentBook.ArchivedAt, StringFormat=Archived: {0:yyyy-MM-dd HH:mm}}" Foreground="#526176"/>
+            </WrapPanel>
+        </StackPanel>
+
+        <WrapPanel Grid.Row="1" Margin="0,0,0,16">
+            <Button Content="Edit book" Click="Edit_Click" IsEnabled="{Binding CanManage}" Padding="12,7" Margin="0,0,8,0"/>
+            <Button Content="Archive" Click="Archive_Click" IsEnabled="{Binding CanManage}" Padding="12,7" Margin="0,0,8,0"/>
+            <Button Content="Restore" Click="Restore_Click" IsEnabled="{Binding IsArchived}" Padding="12,7" Margin="0,0,8,0"/>
+            <Button Content="Refresh" Click="Refresh_Click" Padding="12,7"/>
+        </WrapPanel>
+
+        <Border Grid.Row="2" Background="White" BorderBrush="#DFE5EC" BorderThickness="1" CornerRadius="8" Padding="14" Margin="0,0,0,16">
+            <StackPanel>
+                <TextBlock Text="Inventory from physical copies" FontWeight="Bold" Foreground="#172033" Margin="0,0,0,8"/>
+                <UniformGrid Columns="4">
+                    <TextBlock Text="{Binding Inventory.TotalCopies, StringFormat=Total: {0}}" Margin="0,3"/>
+                    <TextBlock Text="{Binding Inventory.ActiveCopies, StringFormat=Active: {0}}" Margin="0,3"/>
+                    <TextBlock Text="{Binding Inventory.Available, StringFormat=Available: {0}}" Margin="0,3"/>
+                    <TextBlock Text="{Binding Inventory.Borrowed, StringFormat=Borrowed: {0}}" Margin="0,3"/>
+                    <TextBlock Text="{Binding Inventory.DamagedUnderRepair, StringFormat=Damaged\UnderRepair: {0}}" Margin="0,3"/>
+                    <TextBlock Text="{Binding Inventory.Lost, StringFormat=Lost: {0}}" Margin="0,3"/>
+                    <TextBlock Text="{Binding Inventory.Retired, StringFormat=Retired: {0}}" Margin="0,3"/>
+                </UniformGrid>
+            </StackPanel>
+        </Border>
+
+        <Grid Grid.Row="3">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+            <TextBlock Text="Physical copies" FontSize="16" FontWeight="Bold" Foreground="#172033" Margin="0,0,0,8"/>
+            <Grid Grid.Row="1">
+                <DataGrid ItemsSource="{Binding Copies}" SelectedItem="{Binding SelectedCopy}"
+                          AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" SelectionMode="Single">
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="Barcode" Binding="{Binding Barcode}" Width="*"/>
+                        <DataGridTextColumn Header="Status" Binding="{Binding StatusDisplay}" Width="190"/>
+                        <DataGridTextColumn Header="Condition" Binding="{Binding Condition}" Width="150"/>
+                        <DataGridTextColumn Header="Created (UTC)" Binding="{Binding CreatedAt, StringFormat={}{0:yyyy-MM-dd HH:mm}}" Width="170"/>
+                    </DataGrid.Columns>
+                </DataGrid>
+                <TextBlock Text="No physical copies have been added yet." FontStyle="Italic" Foreground="#526176"
+                           HorizontalAlignment="Center" VerticalAlignment="Center" IsHitTestVisible="False"
+                           Visibility="{Binding HasNoCopies, Converter={StaticResource BoolToVisibility}}"/>
+            </Grid>
+        </Grid>
+
+        <DockPanel Grid.Row="4" Margin="0,14,0,0">
+            <Button Content="Close" Click="Close_Click" DockPanel.Dock="Right" Padding="15,7"/>
+            <WrapPanel>
+                <TextBlock Text="Quantity" VerticalAlignment="Center" Margin="0,0,7,0"/>
+                <TextBox x:Name="QuantityBox" Width="75" Height="32" Padding="7" VerticalContentAlignment="Center"
+                         ToolTip="Enter 1 to 100; barcode is generated automatically" IsEnabled="{Binding CanManage}"/>
+                <Button Content="Add copy" Click="AddCopy_Click" IsEnabled="{Binding CanManage}" Padding="12,6" Margin="7,0,16,0"/>
+                <ComboBox x:Name="StatusBox" ItemsSource="{Binding ManualTransitions}" Width="190" Height="32"
+                          IsEnabled="{Binding CanManage}"/>
+                <Button Content="Change status" Click="ChangeStatus_Click" IsEnabled="{Binding CanManage}" Padding="12,6" Margin="7,0,7,0"/>
+                <Button Content="Retire copy" Click="RetireCopy_Click" IsEnabled="{Binding CanManage}" Padding="12,6"/>
+            </WrapPanel>
+        </DockPanel>
+    </Grid>
+</Window>

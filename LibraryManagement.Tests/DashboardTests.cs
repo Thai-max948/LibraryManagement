@@ -12,6 +12,24 @@ namespace LibraryManagement.Tests
     public class DashboardTests
     {
         [Fact]
+        public void LoadData_WhenRepositoryFails_ReportsErrorThroughDialogService()
+        {
+            var mockBookRepo = new Mock<BookRepository>();
+            var mockReaderRepo = new Mock<ReaderRepository>();
+            var mockBorrowRepo = new Mock<BorrowRepository>();
+            var dialog = new Mock<IUserDialogService>();
+            mockBookRepo.Setup(r => r.GetAll()).Throws(new InvalidOperationException("database unavailable"));
+
+            var bookService = new BookService(mockBookRepo.Object, mockBorrowRepo.Object);
+            var readerService = new ReaderService(mockReaderRepo.Object, mockBorrowRepo.Object);
+            var borrowService = new BorrowService(mockBookRepo.Object, mockBorrowRepo.Object, mockReaderRepo.Object);
+
+            _ = new DashboardViewModel(bookService, readerService, borrowService, dialog.Object);
+
+            dialog.Verify(d => d.ShowError("Không thể tải dữ liệu Dashboard: database unavailable", "Lỗi"), Times.Once);
+        }
+
+        [Fact]
         public void LoadData_MatchesDatabaseCalculations()
         {
             // Arrange (TC-DASH-01)
@@ -46,7 +64,7 @@ namespace LibraryManagement.Tests
             var borrowService = new BorrowService(mockBookRepo.Object, mockBorrowRepo.Object, mockReaderRepo.Object);
 
             // Act
-            var vm = new DashboardViewModel(bookService, readerService, borrowService);
+            var vm = new DashboardViewModel(bookService, readerService, borrowService, Mock.Of<IUserDialogService>());
 
             // Assert
             Assert.Equal(15, vm.TotalBooks); // 10 + 5
@@ -80,7 +98,7 @@ namespace LibraryManagement.Tests
             var borrowService = new BorrowService(mockBookRepo.Object, mockBorrowRepo.Object, mockReaderRepo.Object);
 
             // Act
-            var vm = new DashboardViewModel(bookService, readerService, borrowService);
+            var vm = new DashboardViewModel(bookService, readerService, borrowService, Mock.Of<IUserDialogService>());
 
             // Assert
             Assert.Equal(1, vm.OverdueBooks); // Only yesterday is strictly < DateTime.Now.Date
@@ -104,7 +122,7 @@ namespace LibraryManagement.Tests
             var borrowService = new BorrowService(mockBookRepo.Object, mockBorrowRepo.Object, mockReaderRepo.Object);
 
             // Act
-            var vm = new DashboardViewModel(bookService, readerService, borrowService);
+            var vm = new DashboardViewModel(bookService, readerService, borrowService, Mock.Of<IUserDialogService>());
 
             // Assert
             Assert.Equal(0, vm.TotalBooks);
@@ -136,7 +154,7 @@ namespace LibraryManagement.Tests
             var readerService = new ReaderService(mockReaderRepo.Object, mockBorrowRepo.Object);
             var borrowService = new BorrowService(mockBookRepo.Object, mockBorrowRepo.Object, mockReaderRepo.Object);
 
-            var vm = new DashboardViewModel(bookService, readerService, borrowService);
+            var vm = new DashboardViewModel(bookService, readerService, borrowService, Mock.Of<IUserDialogService>());
             Assert.Equal(5, vm.AvailableBooks);
             Assert.Equal(0, vm.CurrentlyBorrowed);
 
@@ -172,7 +190,7 @@ namespace LibraryManagement.Tests
             var readerService = new ReaderService(mockReaderRepo.Object, mockBorrowRepo.Object);
             var borrowService = new BorrowService(mockBookRepo.Object, mockBorrowRepo.Object, mockReaderRepo.Object);
 
-            var vm = new DashboardViewModel(bookService, readerService, borrowService);
+            var vm = new DashboardViewModel(bookService, readerService, borrowService, Mock.Of<IUserDialogService>());
             Assert.Equal(4, vm.AvailableBooks);
             Assert.Equal(1, vm.CurrentlyBorrowed);
 
@@ -220,7 +238,7 @@ namespace LibraryManagement.Tests
             var borrowService = new BorrowService(mockBookRepo.Object, mockBorrowRepo.Object, mockReaderRepo.Object);
 
             // Act
-            var vm = new DashboardViewModel(bookService, readerService, borrowService);
+            var vm = new DashboardViewModel(bookService, readerService, borrowService, Mock.Of<IUserDialogService>());
 
             // Assert
             Assert.Single(vm.RecentBorrowings);
@@ -260,7 +278,7 @@ namespace LibraryManagement.Tests
             var borrowService = new BorrowService(mockBookRepo.Object, mockBorrowRepo.Object, mockReaderRepo.Object);
 
             // Act
-            var vm = new DashboardViewModel(bookService, readerService, borrowService);
+            var vm = new DashboardViewModel(bookService, readerService, borrowService, Mock.Of<IUserDialogService>());
 
             // Assert
             Assert.Equal(5, vm.RecentReturnings.Count);

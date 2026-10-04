@@ -11,7 +11,7 @@ namespace LibraryManagement.Views
             InitializeComponent();
             if (!DesignerProperties.GetIsInDesignMode(this))
             {
-                DataContext = new DashboardViewModel();
+                DataContext = new DashboardViewModel(new MessageBoxDialogService());
             }
         }
     }

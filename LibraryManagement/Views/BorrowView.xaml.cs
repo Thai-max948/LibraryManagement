@@ -11,7 +11,8 @@ namespace LibraryManagement.Views
             InitializeComponent();
             if (!DesignerProperties.GetIsInDesignMode(this))
             {
-                DataContext = new BorrowViewModel();
+                DataContext = new BorrowViewModel(new MessageBoxDialogService());
+                Loaded += (_, _) => BarcodeInputBox.Focus();
             }
         }
     }

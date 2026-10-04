@@ -786,7 +786,7 @@ namespace LibraryManagement.Tests
 
             // Act & Assert
             var ex = Assert.Throws<BusinessRuleException>(() =>
-                borrowService.BorrowBook(1, 1, DateTime.Today, DateTime.Today.AddDays(7)));
+                borrowService.BorrowBook(1, 1));
 
             Assert.Contains("Suspended", ex.Message);
         }

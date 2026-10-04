@@ -46,6 +46,14 @@ namespace LibraryManagement.Models
 
         public DateTime RegistrationDate { get; set; } = DateTime.Now;
 
+        // NULL means no expiry has been configured for this reader.
+        public DateTime? MembershipExpiresOn { get; set; }
+        public string MembershipValidityText => MembershipExpiresOn is null
+            ? "Chưa cấu hình ngày hết hạn"
+            : MembershipExpiresOn.Value.Date < DateTime.Today
+                ? $"Đã hết hạn ({MembershipExpiresOn:dd/MM/yyyy})"
+                : $"Còn hiệu lực đến {MembershipExpiresOn:dd/MM/yyyy}";
+
         public string Status { get; set; } = "Active";
 
         public string SuspensionReason { get; set; } = string.Empty;

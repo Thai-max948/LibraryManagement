@@ -3,6 +3,7 @@ using System.Windows.Controls;
 using System.Windows.Media;
 using LibraryManagement.ViewModels;
 using LibraryManagement.Helpers;
+using LibraryManagement.Views;
 
 namespace LibraryManagement.Views.Accounts
 {
@@ -48,7 +49,7 @@ namespace LibraryManagement.Views.Accounts
 
             if (!System.ComponentModel.DesignerProperties.GetIsInDesignMode(this))
             {
-                DataContext = new MyAccountViewModel();
+                DataContext = new MyAccountViewModel(new MessageBoxDialogService());
             }
             else if (DataContext is MyAccountViewModel vm)
             {

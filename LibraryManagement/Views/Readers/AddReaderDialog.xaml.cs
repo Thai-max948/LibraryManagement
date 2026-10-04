@@ -66,6 +66,7 @@ namespace LibraryManagement.Views.Readers
                 Email = EmailBox.Text.Trim(),
                 Address = AddressBox.Text.Trim(),
                 RegistrationDate = DateTime.Now,
+                MembershipExpiresOn = MembershipExpiresOnPicker.SelectedDate?.Date,
                 Status = "Active"
             };
 

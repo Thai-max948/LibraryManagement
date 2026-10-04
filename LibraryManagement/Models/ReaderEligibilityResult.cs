@@ -10,6 +10,8 @@ namespace LibraryManagement.Models
         public int CurrentLoans { get; init; }
         public int OverdueLoans { get; init; }
         public int BorrowLimit { get; init; }
+        public DateTime? MembershipExpiresOn { get; init; }
+        public decimal OutstandingAmount { get; init; }
 
         public string StatusText => IsEligible ? "Eligible ✓" : "Not Eligible ✕";
         public string LoanSummary => $"Đang mượn {CurrentLoans}/{BorrowLimit} sách • Quá hạn {OverdueLoans}";

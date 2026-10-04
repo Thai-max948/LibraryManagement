@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.Text.RegularExpressions;
+using LibraryManagement.Repositories;
 using LibraryManagement.Services;
 using Microsoft.Data.SqlClient;
 using Xunit;
@@ -30,10 +31,14 @@ public sealed class SqlIntegrationFixture : IDisposable
             ?? throw new InvalidOperationException("Integration SQL connection was not configured.");
 
         var builder = new SqlConnectionStringBuilder(_masterConnection);
-        if (!string.Equals(builder.InitialCatalog, "master", StringComparison.OrdinalIgnoreCase)
-            || !(builder.DataSource.Contains("localdb", StringComparison.OrdinalIgnoreCase)
-                || builder.DataSource.StartsWith(".", StringComparison.Ordinal)
-                || builder.DataSource.StartsWith("localhost", StringComparison.OrdinalIgnoreCase)))
+        string server = builder.DataSource;
+        if (server.StartsWith("lpc:", StringComparison.OrdinalIgnoreCase) || server.StartsWith("tcp:", StringComparison.OrdinalIgnoreCase))
+            server = server[4..];
+        string host = server.Split('\\', ',')[0];
+        bool isLocal = server.StartsWith("(localdb)\\", StringComparison.OrdinalIgnoreCase)
+            || host == "." || host == "127.0.0.1" || host == "[::1]"
+            || host.Equals("localhost", StringComparison.OrdinalIgnoreCase);
+        if (!string.Equals(builder.InitialCatalog, "master", StringComparison.OrdinalIgnoreCase) || !isLocal)
             throw new InvalidOperationException("Integration tests require a local SQL Server master connection.");
 
         _previousOverride = Environment.GetEnvironmentVariable("LIBRARY_TEST_DB_CONNECTION_STRING");
@@ -53,6 +58,7 @@ public sealed class SqlIntegrationFixture : IDisposable
 
             builder.InitialCatalog = _databaseName;
             Environment.SetEnvironmentVariable("LIBRARY_TEST_DB_CONNECTION_STRING", builder.ConnectionString);
+            AuthService.CurrentUser = new UserRepository().GetById(1);
         }
         catch
         {

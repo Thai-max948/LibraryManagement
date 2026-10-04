@@ -76,6 +76,9 @@
 
                     <TextBlock Text="Địa chỉ (Address)" FontWeight="SemiBold" Foreground="{StaticResource TextBrush}" Margin="0,0,0,4"/>
                     <TextBox x:Name="AddressBox" Padding="8,6" BorderBrush="{StaticResource TechBorderBrush}"/>
+                    <TextBlock Text="Thẻ thư viện còn hiệu lực đến (để trống nếu chưa cấu hình)"
+                               FontWeight="SemiBold" Foreground="{StaticResource TextBrush}" Margin="8,0,0,4"/>
+                    <DatePicker x:Name="MembershipExpiresOnPicker" Margin="0,0,0,8"/>
                 </StackPanel>
             </ScrollViewer>
 

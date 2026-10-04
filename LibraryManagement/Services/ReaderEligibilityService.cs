@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using LibraryManagement.Models;
 using LibraryManagement.Repositories;
+using Microsoft.Data.SqlClient;
 
 namespace LibraryManagement.Services
 {
@@ -12,6 +13,8 @@ namespace LibraryManagement.Services
 
         private readonly ReaderRepository _readerRepository;
         private readonly BorrowRepository _borrowRepository;
+        private readonly IReaderFinancialStandingProvider _financialStandingProvider;
+        private readonly TimeProvider _timeProvider;
 
         public ReaderEligibilityService()
             : this(new ReaderRepository(), new BorrowRepository())
@@ -19,9 +22,17 @@ namespace LibraryManagement.Services
         }
 
         public ReaderEligibilityService(ReaderRepository readerRepository, BorrowRepository borrowRepository)
+            : this(readerRepository, borrowRepository, new NoFinancialStandingProvider())
+        {
+        }
+
+        public ReaderEligibilityService(ReaderRepository readerRepository, BorrowRepository borrowRepository,
+            IReaderFinancialStandingProvider financialStandingProvider, TimeProvider? timeProvider = null)
         {
             _readerRepository = readerRepository;
             _borrowRepository = borrowRepository;
+            _financialStandingProvider = financialStandingProvider;
+            _timeProvider = timeProvider ?? TimeProvider.System;
         }
 
         public ReaderEligibilityResult CheckEligibility(int readerId)
@@ -34,18 +45,30 @@ namespace LibraryManagement.Services
 
             var currentBorrowings = (_borrowRepository.GetBorrowingRecords() ?? new List<BorrowRecord>())
                 .Where(record => record.ReaderId == readerId);
-            return Evaluate(reader, currentBorrowings);
+            var standing = _financialStandingProvider.GetStanding(readerId);
+            return Evaluate(reader, currentBorrowings, financialStanding: standing);
+        }
+
+        public ReaderEligibilityResult CheckEligibility(SqlConnection connection, SqlTransaction transaction, int readerId)
+        {
+            var reader = _readerRepository.GetById(connection, transaction, readerId);
+            if (reader == null || reader.IsDeleted)
+                return Evaluate(reader, Array.Empty<BorrowRecord>());
+            var records = _borrowRepository.GetEligibilityRecords(connection, transaction, readerId);
+            var standing = _financialStandingProvider.GetStanding(connection, transaction, readerId);
+            return Evaluate(reader, records, financialStanding: standing);
         }
 
         public ReaderEligibilityResult Evaluate(
             Reader? reader,
             IEnumerable<BorrowRecord> currentBorrowings,
-            DateTime? asOf = null)
+            DateTime? asOf = null,
+            ReaderFinancialStanding? financialStanding = null)
         {
             var activeLoans = currentBorrowings
                 .Where(record => string.Equals(record.Status, "Borrowing", StringComparison.OrdinalIgnoreCase))
                 .ToList();
-            DateTime evaluationDate = (asOf ?? DateTime.Now).Date;
+            DateTime evaluationDate = (asOf ?? _timeProvider.GetLocalNow().DateTime).Date;
             int overdueLoans = activeLoans.Count(record =>
                 record.DueDate != default && record.DueDate.Date < evaluationDate);
             var reasons = new List<string>();
@@ -63,10 +86,18 @@ namespace LibraryManagement.Services
                         : "Độc giả không ở trạng thái hoạt động.");
             }
 
+            if (reader?.MembershipExpiresOn?.Date < evaluationDate)
+                reasons.Add("Thẻ thư viện đã hết hạn.");
+
             if (overdueLoans > 0)
             {
                 reasons.Add($"Có {overdueLoans} sách đang quá hạn.");
             }
+
+            if (financialStanding?.BlocksBorrowing == true)
+                reasons.Add(financialStanding.OutstandingAmount > 0
+                    ? $"Còn khoản phí chưa thanh toán: {financialStanding.OutstandingAmount:N0}đ."
+                    : "Còn nghĩa vụ tài chính chưa được xử lý.");
 
             if (activeLoans.Count >= BorrowLimit)
             {
@@ -79,7 +110,9 @@ namespace LibraryManagement.Services
                 Reasons = reasons,
                 CurrentLoans = activeLoans.Count,
                 OverdueLoans = overdueLoans,
-                BorrowLimit = BorrowLimit
+                BorrowLimit = BorrowLimit,
+                MembershipExpiresOn = reader?.MembershipExpiresOn,
+                OutstandingAmount = financialStanding?.OutstandingAmount ?? 0
             };
         }
     }

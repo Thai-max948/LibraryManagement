@@ -11,6 +11,24 @@ namespace LibraryManagement.Tests
     public class BorrowTests
     {
         [Fact]
+        public void CanBorrow_ArchivedBook_IsRejectedEvenIfInventorySaysAvailable()
+        {
+            var books = new Mock<BookRepository>();
+            var borrows = new Mock<BorrowRepository>();
+            var readers = new Mock<ReaderRepository>();
+            readers.Setup(repository => repository.GetById(1)).Returns(new Reader { ReaderId = 1 });
+            books.Setup(repository => repository.GetById(2)).Returns(new Book
+            {
+                BookId = 2, Status = BookStatuses.Archived, AvailableQuantity = 1
+            });
+            borrows.Setup(repository => repository.GetBorrowingRecords()).Returns(new List<BorrowRecord>());
+            var service = new BorrowService(books.Object, borrows.Object, readers.Object);
+
+            Assert.False(service.CanBorrow(1, 2, out string reason));
+            Assert.Contains("lưu trữ", reason);
+        }
+
+        [Fact]
         public void CanBorrow_ValidConditions_ReturnsTrue()
         {
             // Arrange (TC-BORROW-01)
@@ -229,36 +247,33 @@ namespace LibraryManagement.Tests
         }
 
         [Fact]
-        public void BorrowBook_DueDateEqualToBorrowDate_ThrowsBusinessRuleException()
+        public void LoanPolicy_Student_CalculatesFourteenCalendarDays()
         {
-            // Arrange (TC-BORROW-09: BVA Due == Borrow)
-            var mockBookRepo = new Mock<BookRepository>();
-            var mockBorrowRepo = new Mock<BorrowRepository>();
-            var mockReaderRepo = new Mock<ReaderRepository>();
-
-            var service = new BorrowService(mockBookRepo.Object, mockBorrowRepo.Object, mockReaderRepo.Object);
-            var date = new DateTime(2026, 10, 1);
-
-            // Act & Assert
-            var ex = Assert.Throws<BusinessRuleException>(() => service.BorrowBook(1, 1, date, date));
-            Assert.Equal("Ngày hẹn trả phải sau ngày mượn.", ex.Message);
+            var dueDate = LoanPolicyService.CalculateDueDate(
+                new LoanPolicy { ReaderType = "Student", LoanPeriodDays = 14 },
+                new DateTime(2026, 10, 2, 15, 30, 0));
+            Assert.Equal(new DateTime(2026, 10, 16), dueDate);
         }
 
         [Fact]
-        public void BorrowBook_DueDateEarlierThanBorrowDate_ThrowsBusinessRuleException()
+        public void LoanPolicy_External_CalculatesSevenCalendarDays()
         {
-            // Arrange (TC-BORROW-11: BVA Due < Borrow)
-            var mockBookRepo = new Mock<BookRepository>();
-            var mockBorrowRepo = new Mock<BorrowRepository>();
-            var mockReaderRepo = new Mock<ReaderRepository>();
+            var dueDate = LoanPolicyService.CalculateDueDate(
+                new LoanPolicy { ReaderType = "External", LoanPeriodDays = 7 },
+                new DateTime(2026, 10, 2));
+            Assert.Equal(new DateTime(2026, 10, 9), dueDate);
+        }
 
-            var service = new BorrowService(mockBookRepo.Object, mockBorrowRepo.Object, mockReaderRepo.Object);
-            var borrowDate = new DateTime(2026, 10, 10);
-            var dueDate = new DateTime(2026, 10, 5);
-
-            // Act & Assert
-            var ex = Assert.Throws<BusinessRuleException>(() => service.BorrowBook(1, 1, borrowDate, dueDate));
-            Assert.Equal("Ngày hẹn trả phải sau ngày mượn.", ex.Message);
+        [Fact]
+        public void LoanPolicy_RejectsMissingOrInvalidConfiguration()
+        {
+            var repository = new Mock<LoanPolicyRepository>();
+            repository.Setup(r => r.GetActiveByReaderType("Teacher")).Returns((LoanPolicy?)null);
+            var service = new LoanPolicyService(repository.Object);
+            Assert.Contains("Teacher", Assert.Throws<BusinessRuleException>(() =>
+                service.GetPolicyFor(new Reader { ReaderType = "Teacher" })).Message);
+            Assert.Throws<BusinessRuleException>(() => LoanPolicyService.CalculateDueDate(
+                new LoanPolicy { LoanPeriodDays = 0 }, DateTime.Today));
         }
 
         [Fact]
@@ -272,11 +287,8 @@ namespace LibraryManagement.Tests
             mockReaderRepo.Setup(r => r.GetById(1)).Returns(new Reader { ReaderId = 1, IsDeleted = true });
 
             var service = new BorrowService(mockBookRepo.Object, mockBorrowRepo.Object, mockReaderRepo.Object);
-            var borrowDate = DateTime.Today;
-            var dueDate = DateTime.Today.AddDays(7);
-
             // Act & Assert
-            var ex = Assert.Throws<BusinessRuleException>(() => service.BorrowBook(1, 1, borrowDate, dueDate));
+            var ex = Assert.Throws<BusinessRuleException>(() => service.BorrowBook(1, 1));
             Assert.Equal("Độc giả không tồn tại hoặc đã bị xóa.", ex.Message);
         }
 

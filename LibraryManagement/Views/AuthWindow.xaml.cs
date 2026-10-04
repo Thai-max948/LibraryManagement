@@ -7,7 +7,9 @@ using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
 using LibraryManagement.Models;
+using LibraryManagement.Data;
 using LibraryManagement.ViewModels;
+using LibraryManagement.Services;
 
 namespace LibraryManagement.Views
 {
@@ -104,8 +106,25 @@ namespace LibraryManagement.Views
             ApplyAuthMode(false);
         }
 
-        private void OnLoginSuccessful(User user)
+        private async void OnLoginSuccessful(User user)
         {
+            try
+            {
+                // Complete schema upgrades in dependency order before constructing MainWindow.
+                var migrationResult = LibraryDatabaseStartupMigration.ApplyWithResult();
+                if (Application.Current is LibraryManagement.App app)
+                    app.SetStartupBookCopyMigration(migrationResult);
+            }
+            catch (Exception exception)
+            {
+                MessageBox.Show("Không thể cập nhật database cho các module của ứng dụng: " + exception.Message,
+                    "Cập nhật database thất bại", MessageBoxButton.OK, MessageBoxImage.Error);
+                return;
+            }
+
+            // The startup scan runs after schema migration and is isolated from login if it fails.
+            await NotificationRuntime.CheckDueSoonSafelyAsync();
+
             // Open MainWindow and close this window
             var mainWindow = new MainWindow();
             mainWindow.Show();

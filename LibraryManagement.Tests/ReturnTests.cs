@@ -12,6 +12,15 @@ namespace LibraryManagement.Tests
     public class ReturnTests
     {
         [Fact]
+        public void DamagedReturn_RequiresConditionNoteBeforeDatabaseWork()
+        {
+            var service = new BorrowService();
+            var error = Assert.Throws<BusinessRuleException>(() =>
+                service.ReturnBook(1, ReturnCondition.Damaged, "  "));
+            Assert.Contains("ghi chú", error.Message);
+        }
+
+        [Fact]
         public void ReturnViewModel_Load_PopulatesActiveBorrowings()
         {
             // Arrange (TC-RETURN-01 / TC-RETURN-06)
@@ -35,6 +44,7 @@ namespace LibraryManagement.Tests
             };
 
             mockBookRepo.Setup(r => r.GetAll()).Returns(books);
+            mockBookRepo.Setup(r => r.GetAllIncludingArchived()).Returns(books);
             mockReaderRepo.Setup(r => r.GetAll(true)).Returns(readers);
             mockBorrowRepo.Setup(r => r.GetBorrowingRecords()).Returns(activeBorrows);
 
@@ -45,7 +55,7 @@ namespace LibraryManagement.Tests
             // Act & Assert
             StaHelper.RunInSta(() =>
             {
-                var vm = new ReturnViewModel(borrowService, bookService, readerService);
+                var vm = new ReturnViewModel(borrowService, bookService, readerService, new Mock<IUserDialogService>().Object);
                 Assert.Single(vm.ActiveBorrowings);
                 Assert.Equal(10, vm.ActiveBorrowings[0].BorrowId);
                 Assert.Equal("Refactoring", vm.ActiveBorrowings[0].BookTitle);
@@ -78,6 +88,7 @@ namespace LibraryManagement.Tests
             };
 
             mockBookRepo.Setup(r => r.GetAll()).Returns(books);
+            mockBookRepo.Setup(r => r.GetAllIncludingArchived()).Returns(books);
             mockReaderRepo.Setup(r => r.GetAll(true)).Returns(readers);
             mockBorrowRepo.Setup(r => r.GetBorrowingRecords()).Returns(activeBorrows);
 
@@ -87,7 +98,7 @@ namespace LibraryManagement.Tests
 
             StaHelper.RunInSta(() =>
             {
-                var vm = new ReturnViewModel(borrowService, bookService, readerService);
+                var vm = new ReturnViewModel(borrowService, bookService, readerService, new Mock<IUserDialogService>().Object);
                 Assert.Equal(2, vm.ActiveBorrowings.Count);
 
                 // Act: Search for "Clean"
@@ -115,6 +126,7 @@ namespace LibraryManagement.Tests
             var mockBorrowRepo = new Mock<BorrowRepository>();
 
             mockBookRepo.Setup(r => r.GetAll()).Returns(new List<Book>());
+            mockBookRepo.Setup(r => r.GetAllIncludingArchived()).Returns(new List<Book>());
             mockReaderRepo.Setup(r => r.GetAll(true)).Returns(new List<Reader>());
             mockBorrowRepo.Setup(r => r.GetBorrowingRecords()).Returns(new List<BorrowRecord>());
 
@@ -124,7 +136,7 @@ namespace LibraryManagement.Tests
 
             StaHelper.RunInSta(() =>
             {
-                var vm = new ReturnViewModel(borrowService, bookService, readerService);
+                var vm = new ReturnViewModel(borrowService, bookService, readerService, new Mock<IUserDialogService>().Object);
                 vm.SelectedRow = null;
 
                 // Act & Assert
@@ -133,44 +145,86 @@ namespace LibraryManagement.Tests
         }
 
         [Fact]
-        public void ReturnOperation_OverdueRecord_AllowsReturnWithReturnDateGreaterThanDueDate()
+        public void ReturnViewModel_ConfirmedReturn_DelegatesSuccessMessage()
         {
-            // Arrange (TC-RETURN-07)
-            var record = new BorrowRecord
+            StaHelper.RunInSta(() =>
             {
-                BorrowId = 1,
-                BookId = 1,
-                ReaderId = 1,
-                BorrowDate = DateTime.Today.AddDays(-14),
-                DueDate = DateTime.Today.AddDays(-7), // Due 7 days ago
-                Status = "Borrowing"
-            };
+                var h = CreateReturnViewModel();
+                var result = new ReturnResult(10, 2, 3, 4, DateTime.Today, DateTime.Today, ReturnCondition.Normal);
+                h.Circulation.Setup(x => x.ReturnBook(10, ReturnCondition.Normal, string.Empty)).Returns(result);
+                h.Dialog.Setup(x => x.Confirm(It.IsAny<string>(), "Xác nhận trả sách", false)).Returns(true);
+                h.ViewModel.SelectedRow = new ActiveBorrowRow
+                {
+                    BorrowId = 10, BookId = 3, BookCopyId = 4, CopyBarcode = "BC-4",
+                    BookTitle = "Clean Code", ReaderName = "An"
+                };
 
-            // Act: Return today
-            record.ReturnDate = DateTime.Now;
-            record.Status = "Returned";
+                h.ViewModel.ReturnCommand.Execute(null);
 
-            // Assert
-            Assert.Equal("Returned", record.Status);
-            Assert.True(record.ReturnDate > record.DueDate);
+                h.Circulation.Verify(x => x.ReturnBook(10, ReturnCondition.Normal, string.Empty), Times.Once);
+                h.Dialog.Verify(x => x.ShowInfo(It.Is<string>(message => message.Contains("phiếu #10")), "Kết quả trả sách"), Times.Once);
+            });
         }
 
         [Fact]
-        public void ReturnOperation_QuantityAlteredBeforeReturn_AvailableCalculatedFromNewQuantity()
+        public void ReturnViewModel_RejectedReturnDoesNotCallService()
         {
-            // Arrange (TC-RETURN-09: DT rule)
-            // Book had Qty 5, 1 borrowed -> edited Qty to 4 (Avail 3).
-            int editedQuantity = 4;
-            int currentlyBorrowing = 1; // 1 book is still borrowed
-            int currentAvailable = editedQuantity - currentlyBorrowing; // 3
+            StaHelper.RunInSta(() =>
+            {
+                var h = CreateReturnViewModel();
+                h.Dialog.Setup(x => x.Confirm(It.IsAny<string>(), "Xác nhận trả sách", false)).Returns(false);
+                h.ViewModel.SelectedRow = new ActiveBorrowRow
+                {
+                    BorrowId = 10, BookId = 3, BookCopyId = 4, CopyBarcode = "BC-4",
+                    BookTitle = "Clean Code", ReaderName = "An"
+                };
 
-            // Act: Return the borrowed book
-            currentlyBorrowing--;
-            currentAvailable++;
+                h.ViewModel.ReturnCommand.Execute(null);
 
-            // Assert: Available is now 4, which equals the new Quantity and does not exceed it
-            Assert.Equal(4, currentAvailable);
-            Assert.Equal(editedQuantity, currentAvailable);
+                h.Circulation.Verify(x => x.ReturnBook(It.IsAny<int>(), It.IsAny<ReturnCondition>(), It.IsAny<string?>()), Times.Never);
+                h.Dialog.Verify(x => x.ShowInfo(It.IsAny<string>(), It.IsAny<string>()), Times.Never);
+            });
         }
+
+        [Fact]
+        public void ReturnViewModel_ReturnErrorIsDelegatedToDialogService()
+        {
+            StaHelper.RunInSta(() =>
+            {
+                var h = CreateReturnViewModel();
+                h.Dialog.Setup(x => x.Confirm(It.IsAny<string>(), "Xác nhận trả sách", false)).Returns(true);
+                h.Circulation.Setup(x => x.ReturnBook(10, ReturnCondition.Normal, string.Empty))
+                    .Throws(new BusinessRuleException("Không thể trả phiếu này."));
+                h.ViewModel.SelectedRow = new ActiveBorrowRow
+                {
+                    BorrowId = 10, BookId = 3, BookCopyId = 4, CopyBarcode = "BC-4",
+                    BookTitle = "Clean Code", ReaderName = "An"
+                };
+
+                h.ViewModel.ReturnCommand.Execute(null);
+
+                h.Dialog.Verify(x => x.ShowError("Không thể trả phiếu này.", "Không thể trả sách"), Times.Once);
+            });
+        }
+
+        private static (ReturnViewModel ViewModel, Mock<IReturnCirculationService> Circulation,
+            Mock<IUserDialogService> Dialog) CreateReturnViewModel()
+        {
+            var circulation = new Mock<IReturnCirculationService>();
+            circulation.Setup(x => x.GetBorrowingBooks()).Returns(new List<BorrowRecord>());
+
+            var books = new Mock<BookRepository>();
+            books.Setup(x => x.GetAllIncludingArchived()).Returns(new List<Book>());
+            var readers = new Mock<ReaderRepository>();
+            readers.Setup(x => x.GetAll(true)).Returns(new List<Reader>());
+            var repositoryBorrowing = new Mock<BorrowRepository>();
+            repositoryBorrowing.Setup(x => x.GetBorrowingRecords()).Returns(new List<BorrowRecord>());
+            var bookService = new BookService(books.Object, repositoryBorrowing.Object);
+            var readerService = new ReaderService(readers.Object, repositoryBorrowing.Object);
+            var dialog = new Mock<IUserDialogService>();
+            var viewModel = new ReturnViewModel(circulation.Object, bookService, readerService, dialog.Object);
+            return (viewModel, circulation, dialog);
+        }
+
     }
 }

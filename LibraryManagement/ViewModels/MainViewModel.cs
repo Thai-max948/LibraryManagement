@@ -22,6 +22,7 @@ namespace LibraryManagement.ViewModels
             "Borrow" => new BorrowView(),
             "Return" => new ReturnView(),
             "History" => new HistoryView(),
+            "Fees" => new FeesView(),
             "MyAccount" => new MyAccountView(),
             "Accounts" => new AccountsView(),
             _ => throw new ArgumentOutOfRangeException(nameof(name))
@@ -65,8 +66,10 @@ namespace LibraryManagement.ViewModels
         public ICommand ShowBorrowCommand { get; }
         public ICommand ShowReturnCommand { get; }
         public ICommand ShowHistoryCommand { get; }
+        public ICommand ShowFeesCommand { get; }
         public ICommand ShowMyAccountCommand { get; }
         public ICommand ShowAccountsCommand { get; }
+        public NotificationViewModel Notifications { get; } = new();
 
         public MainViewModel() : this(CreateDefaultView)
         {
@@ -81,6 +84,7 @@ namespace LibraryManagement.ViewModels
             ShowBorrowCommand = new RelayCommand(ShowBorrow);
             ShowReturnCommand = new RelayCommand(ShowReturn);
             ShowHistoryCommand = new RelayCommand(ShowHistory);
+            ShowFeesCommand = new RelayCommand(ShowFees);
             ShowMyAccountCommand = new RelayCommand(ShowMyAccount);
             ShowAccountsCommand = new RelayCommand(_ => ShowAccounts(), _ => IsAccountsVisible);
 
@@ -121,6 +125,12 @@ namespace LibraryManagement.ViewModels
         {
             CurrentViewName = "History";
             CurrentView = _createView("History");
+        }
+
+        private void ShowFees()
+        {
+            CurrentViewName = "Fees";
+            CurrentView = _createView("Fees");
         }
 
         private void ShowMyAccount()

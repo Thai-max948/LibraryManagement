@@ -61,12 +61,15 @@
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="10"/>
-                <ColumnDefinition Width="140"/>
+                <ColumnDefinition Width="150"/>
+                <ColumnDefinition Width="10"/>
+                <ColumnDefinition Width="150"/>
             </Grid.ColumnDefinitions>
             <TextBox Grid.Column="0" Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}"
-                     Tag="Search reader / book..."
+                     Tag="Search reader / book / barcode..."
                      Style="{StaticResource PlaceholderTextBoxStyle}"/>
             <ComboBox Grid.Column="2" ItemsSource="{Binding StatusOptions}" SelectedItem="{Binding SelectedStatus}" Padding="6"/>
+            <ComboBox Grid.Column="4" ItemsSource="{Binding DateFilterOptions}" SelectedItem="{Binding SelectedDateFilter}" Padding="6"/>
         </Grid>
 
         <Grid Margin="0,0,0,16">
@@ -85,14 +88,18 @@
             </StackPanel>
         </Grid>
 
-        <DataGrid ItemsSource="{Binding Records}" AutoGenerateColumns="False" IsReadOnly="True"
-                  Style="{StaticResource AppDataGridStyle}" Height="400">
+        <TextBlock Text="{Binding ErrorMessage}" Foreground="{StaticResource TechAccentRose}" TextWrapping="Wrap" Margin="0,0,0,8"/>
+
+        <DataGrid ItemsSource="{Binding Records}" SelectedItem="{Binding SelectedRecord}" AutoGenerateColumns="False" IsReadOnly="True"
+                  Style="{StaticResource AppDataGridStyle}" Height="330">
             <DataGrid.Columns>
                 <DataGridTextColumn Header="Reader" Binding="{Binding ReaderName}" Width="*"/>
                 <DataGridTextColumn Header="Book" Binding="{Binding BookTitle}" Width="*"/>
-                <DataGridTextColumn Header="Borrow" Binding="{Binding BorrowDate}" Width="110"/>
-                <DataGridTextColumn Header="Return" Binding="{Binding ReturnDate}" Width="110"/>
-                <DataGridTemplateColumn Header="Status" Width="125" SortMemberPath="Status">
+                <DataGridTextColumn Header="Copy / Barcode" Binding="{Binding CopyLabel}" Width="170"/>
+                <DataGridTextColumn Header="Borrow" Binding="{Binding BorrowDate}" Width="100"/>
+                <DataGridTextColumn Header="Due" Binding="{Binding DueDate}" Width="100"/>
+                <DataGridTextColumn Header="Return" Binding="{Binding ReturnDate}" Width="100"/>
+                <DataGridTemplateColumn Header="Status" Width="180" SortMemberPath="Status">
                     <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate>
                             <Border x:Name="StatusBadge" CornerRadius="4" Padding="8,3" HorizontalAlignment="Left" VerticalAlignment="Center"
@@ -112,11 +119,31 @@
                                     <Setter TargetName="StatusBadge" Property="Background" Value="#FFE4E6"/>
                                     <Setter TargetName="StatusText" Property="Foreground" Value="{StaticResource TechAccentRose}"/>
                                 </DataTrigger>
+                                <DataTrigger Binding="{Binding Status}" Value="Lost">
+                                    <Setter TargetName="StatusBadge" Property="Background" Value="#FFE4E6"/>
+                                    <Setter TargetName="StatusText" Property="Foreground" Value="{StaticResource TechAccentRose}"/>
+                                </DataTrigger>
                             </DataTemplate.Triggers>
                         </DataTemplate>
                     </DataGridTemplateColumn.CellTemplate>
                 </DataGridTemplateColumn>
             </DataGrid.Columns>
         </DataGrid>
+
+        <DockPanel Margin="0,10,0,0" LastChildFill="False">
+            <Button DockPanel.Dock="Left" Content="Clear filters" Command="{Binding ClearFiltersCommand}" Padding="10,5" Margin="0,0,8,0"/>
+            <Button DockPanel.Dock="Right" Content="Next ›" Command="{Binding NextPageCommand}" IsEnabled="{Binding HasNextPage}" Padding="12,5"/>
+            <Button DockPanel.Dock="Right" Content="‹ Previous" Command="{Binding PreviousPageCommand}" IsEnabled="{Binding HasPreviousPage}" Padding="12,5" Margin="0,0,8,0"/>
+            <TextBlock DockPanel.Dock="Right" Text="{Binding PageSummary}" VerticalAlignment="Center" Margin="0,0,12,0"/>
+        </DockPanel>
+
+        <Border Margin="0,12,0,0" Padding="12" CornerRadius="6"
+                Background="#F8FAFC" BorderBrush="{StaticResource TechBorderBrush}" BorderThickness="1">
+            <StackPanel>
+                <TextBlock Text="Circulation events" FontWeight="Bold" Foreground="{StaticResource TextBrush}" Margin="0,0,0,6"/>
+                <TextBlock Text="{Binding SelectedRecord.AuditTimeline, TargetNullValue='Select a record to view its events.'}"
+                           Foreground="{StaticResource SecondaryTextBrush}" TextWrapping="Wrap"/>
+            </StackPanel>
+        </Border>
     </StackPanel>
 </UserControl>

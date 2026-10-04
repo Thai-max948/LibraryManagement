@@ -2,6 +2,7 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="clr-namespace:LibraryManagement.ViewModels"
+        xmlns:views="clr-namespace:LibraryManagement.Views"
         Title="Library Management System" Height="700" Width="1120"
         WindowStartupLocation="CenterScreen"
         Background="{StaticResource BackgroundBrush}">
@@ -47,6 +48,7 @@
                     <Button Content="📖  Borrow"    Command="{Binding ShowBorrowCommand}"    Style="{StaticResource SidebarButtonStyle}"/>
                     <Button Content="↩  Return"     Command="{Binding ShowReturnCommand}"    Style="{StaticResource SidebarButtonStyle}"/>
                     <Button Content="📋  History"       Command="{Binding ShowHistoryCommand}"   Style="{StaticResource SidebarButtonStyle}"/>
+                    <Button Content="💰  Fees"          Command="{Binding ShowFeesCommand}"      Style="{StaticResource SidebarButtonStyle}"/>
                     <Button Content="👤  My Account"    Command="{Binding ShowMyAccountCommand}" Style="{StaticResource SidebarButtonStyle}"/>
                     <Button Content="⚙  User Accounts" Command="{Binding ShowAccountsCommand}"  Style="{StaticResource SidebarButtonStyle}" Visibility="{Binding AccountsVisibility}"/>
                 </StackPanel>
@@ -69,7 +71,24 @@
 
         <!-- Content Area -->
         <Grid Grid.Column="1" Background="{StaticResource BackgroundBrush}">
-            <ContentControl Content="{Binding CurrentView}" Margin="20"/>
+            <Grid.RowDefinitions><RowDefinition Height="48"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+            <Button Grid.Row="0" Command="{Binding Notifications.ToggleCenterCommand}" HorizontalAlignment="Right" Margin="0,6,20,0"
+                    Style="{StaticResource SecondaryButtonStyle}" Padding="10,5" ToolTip="Mở thông báo">
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock Text="🔔" FontSize="16"/>
+                    <Border Background="{StaticResource DangerBrush}" CornerRadius="10" Padding="6,1" Margin="6,0,0,0">
+                        <Border.Style><Style TargetType="Border"><Setter Property="Background" Value="{StaticResource DangerBrush}"/><Style.Triggers><DataTrigger Binding="{Binding Notifications.HasUnread}" Value="False"><Setter Property="Visibility" Value="Collapsed"/></DataTrigger></Style.Triggers></Style></Border.Style>
+                        <TextBlock Text="{Binding Notifications.UnreadCount}" Foreground="White" FontSize="11" FontWeight="Bold"/>
+                    </Border>
+                </StackPanel>
+            </Button>
+            <ContentControl Grid.Row="1" Content="{Binding CurrentView}" Margin="20,0,20,20"/>
+            <views:NotificationCenterView Grid.RowSpan="2" Width="370" HorizontalAlignment="Right" DataContext="{Binding Notifications}" Panel.ZIndex="2">
+                <views:NotificationCenterView.Style><Style TargetType="views:NotificationCenterView"><Setter Property="Visibility" Value="Collapsed"/><Style.Triggers><DataTrigger Binding="{Binding IsCenterOpen}" Value="True"><Setter Property="Visibility" Value="Visible"/></DataTrigger></Style.Triggers></Style></views:NotificationCenterView.Style>
+            </views:NotificationCenterView>
+            <views:NotificationToastView Grid.RowSpan="2" Width="320" Margin="0,0,20,20" HorizontalAlignment="Right" VerticalAlignment="Bottom" DataContext="{Binding Notifications}" Panel.ZIndex="3">
+                <views:NotificationToastView.Style><Style TargetType="views:NotificationToastView"><Setter Property="Visibility" Value="Collapsed"/><Style.Triggers><DataTrigger Binding="{Binding IsToastVisible}" Value="True"><Setter Property="Visibility" Value="Visible"/></DataTrigger></Style.Triggers></Style></views:NotificationToastView.Style>
+            </views:NotificationToastView>
         </Grid>
     </Grid>
 </Window>
