@@ -11,6 +11,10 @@ public sealed class HistoryMigrationIntegrationTests : IClassFixture<SqlIntegrat
     [Trait("Category", "Integration")]
     public void LegacyReturnWithoutRecordedConditionIsBackfilledAsGenericReturnOnce()
     {
+        ReturnOutcomeMigration.Apply();
+        CirculationAuditMigration.Apply();
+        HistorySchemaMigration.Apply();
+
         int readerId = new ReaderService().AddReader(new Reader
         {
             FullName = "Legacy event reader",
@@ -29,6 +33,14 @@ public sealed class HistoryMigrationIntegrationTests : IClassFixture<SqlIntegrat
         using (var connection = Database.GetConnection())
         {
             connection.Open();
+            using (var resetBackfill = new SqlCommand(@"
+                DELETE FROM dbo.HistoryMigrationState
+                WHERE MigrationKey = @MigrationKey;", connection))
+            {
+                resetBackfill.Parameters.AddWithValue("@MigrationKey", "HistoryCirculationFactsV1");
+                resetBackfill.ExecuteNonQuery();
+            }
+
             using var command = new SqlCommand(@"
                 INSERT INTO dbo.BorrowRecords (BookId, ReaderId, BorrowDate, DueDate, ReturnDate, Status)
                 VALUES (@BookId, @ReaderId, DATEADD(day, -5, GETDATE()), DATEADD(day, -1, GETDATE()), GETDATE(), 'Returned');
@@ -37,6 +49,8 @@ public sealed class HistoryMigrationIntegrationTests : IClassFixture<SqlIntegrat
             command.Parameters.AddWithValue("@ReaderId", readerId);
             borrowId = Convert.ToInt32(command.ExecuteScalar());
         }
+
+        HistorySchemaMigration.Apply();
 
         var history = new HistoryService();
         var firstRead = Assert.Single(history.GetPage(new HistoryQuery { SearchText = "Legacy return event" }).Records);

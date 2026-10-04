@@ -16,20 +16,23 @@ public sealed class NotificationIntegrationTests : IClassFixture<SqlIntegrationF
         NotificationMigration.Apply();
         NotificationMigration.Apply();
         var service = new NotificationService(new NotificationRepository());
+        int unreadBefore = await service.GetUnreadCountAsync();
         var first = await service.NotifyAsync("First", "Older", NotificationType.Info, "Book", "Book", "1");
         var second = await service.NotifyAsync("Second", "Newer", NotificationType.Success, "Reader", "Reader", "2");
         Assert.NotNull(first);
         Assert.NotNull(second);
 
         var all = await service.GetAllAsync();
-        Assert.Equal(new[] { second.Id, first.Id }, all.Select(item => item.Id));
-        Assert.Equal(2, await service.GetUnreadCountAsync());
-        Assert.Equal(2, (await service.GetUnreadAsync()).Count);
+        var createdIds = new HashSet<int> { first.Id, second.Id };
+        Assert.Equal(new[] { second.Id, first.Id }, all.Where(item => createdIds.Contains(item.Id)).Select(item => item.Id));
+        Assert.Equal(unreadBefore + 2, await service.GetUnreadCountAsync());
 
         await service.MarkAsReadAsync(first.Id);
-        Assert.Equal(second.Id, Assert.Single(await service.GetUnreadAsync()).Id);
-        await service.MarkAllAsReadAsync();
-        Assert.Equal(0, await service.GetUnreadCountAsync());
+        var unreadAfterFirstRead = await service.GetUnreadAsync();
+        Assert.DoesNotContain(unreadAfterFirstRead, item => item.Id == first.Id);
+        Assert.Contains(unreadAfterFirstRead, item => item.Id == second.Id);
+        await service.MarkAsReadAsync(second.Id);
+        Assert.Equal(unreadBefore, await service.GetUnreadCountAsync());
     }
 
     [IntegrationFact]

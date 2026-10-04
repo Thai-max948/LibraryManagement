@@ -182,7 +182,11 @@ public sealed class BookCopyBulkIntegrationTests : IClassFixture<SqlIntegrationF
             INNER JOIN sys.columns c ON c.object_id = dc.parent_object_id AND c.column_id = dc.parent_column_id
             WHERE dc.parent_object_id = OBJECT_ID('dbo.BookCopies') AND c.name = 'Condition';
             IF @ConditionDefaultConstraint IS NOT NULL
-                EXEC(N'ALTER TABLE dbo.BookCopies DROP CONSTRAINT ' + QUOTENAME(@ConditionDefaultConstraint));
+            BEGIN
+                DECLARE @DropConditionDefaultSql nvarchar(max) =
+                    N'ALTER TABLE dbo.BookCopies DROP CONSTRAINT ' + QUOTENAME(@ConditionDefaultConstraint);
+                EXEC sys.sp_executesql @DropConditionDefaultSql;
+            END;
             ALTER TABLE dbo.BookCopies DROP COLUMN Condition;
             ALTER TABLE dbo.BookCopies ADD IsLegacyUnverified BIT NOT NULL
                 CONSTRAINT DF_BookCopies_IsLegacyUnverified DEFAULT (0);

@@ -81,7 +81,9 @@ public sealed class ReturnOutcomeIntegrationTests : IClassFixture<SqlIntegration
         Assert.Null(loan.ReturnCondition);
         Assert.Equal(BookCopyStatuses.Lost, CopyStatus(copyId));
         Assert.Equal(0, new BookRepository().GetById(bookId)!.AvailableQuantity);
-        Assert.False(new ReaderEligibilityService().CheckEligibility(readerId).IsEligible);
+        var eligibility = service.GetReaderEligibility(readerId);
+        Assert.False(eligibility.IsEligible);
+        Assert.Contains(eligibility.Reasons, reason => reason.Contains("chưa thanh toán"));
         Assert.Throws<BusinessRuleException>(() => service.ReturnBook(loanId, ReturnCondition.Normal));
         Assert.Throws<BusinessRuleException>(() => service.MarkAsLost(loanId));
     }
