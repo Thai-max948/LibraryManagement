@@ -19,7 +19,10 @@ namespace LibraryManagement.Views
             Closed += (_, _) =>
             {
                 if (DataContext is LibraryManagement.ViewModels.MainViewModel vm)
+                {
+                    vm.Dispose();
                     vm.Notifications.Dispose();
+                }
             };
         }
 

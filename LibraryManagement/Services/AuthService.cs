@@ -8,10 +8,16 @@ namespace LibraryManagement.Services
     public class AuthService
     {
         private static User? _currentUser;
+        public static event Action<User?>? CurrentUserChanged;
+
         public static User? CurrentUser
         {
             get => _currentUser;
-            set => _currentUser = value;
+            set
+            {
+                _currentUser = value;
+                CurrentUserChanged?.Invoke(value);
+            }
         }
 
         private readonly UserRepository _userRepository;

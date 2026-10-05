@@ -1,144 +1,185 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
+using System.Diagnostics;
+using System.Windows.Input;
+using LibraryManagement.Commands;
+using LibraryManagement.Models;
 using LibraryManagement.Services;
 
-namespace LibraryManagement.ViewModels
+namespace LibraryManagement.ViewModels;
+
+public sealed class DashboardViewModel : BaseViewModel
 {
-    public class DashboardViewModel : BaseViewModel
+    private readonly IDashboardService _dashboardService;
+    private readonly IUserDialogService _dialogService;
+    private readonly TimeProvider _timeProvider;
+    private DashboardData? _data;
+    private bool _isLoading;
+    private bool _hasLoaded;
+    private DateTimeOffset? _lastUpdated;
+    private int _refreshGate;
+
+    public DashboardViewModel(IUserDialogService dialogService)
+        : this(new DashboardService(), dialogService, TimeProvider.System)
     {
-        private readonly BookService _bookService;
-        private readonly ReaderService _readerService;
-        private readonly BorrowService _borrowService;
-        private readonly IUserDialogService _dialogService;
+    }
 
-        private int _totalBooks;
-        public int TotalBooks
+    public DashboardViewModel(
+        IDashboardService dashboardService,
+        IUserDialogService dialogService,
+        TimeProvider? timeProvider = null)
+    {
+        _dashboardService = dashboardService ?? throw new ArgumentNullException(nameof(dashboardService));
+        _dialogService = dialogService ?? throw new ArgumentNullException(nameof(dialogService));
+        _timeProvider = timeProvider ?? TimeProvider.System;
+        RefreshCommand = new RelayCommand(async () => await RefreshAsync());
+        InitialLoadTask = RefreshAsync();
+    }
+
+    public Task InitialLoadTask { get; }
+
+    public ICommand RefreshCommand { get; }
+
+    public DashboardData? Data => _data;
+
+    public bool IsLoading
+    {
+        get => _isLoading;
+        private set
         {
-            get => _totalBooks;
-            set => SetProperty(ref _totalBooks, value);
-        }
-
-        private int _totalReaders;
-        public int TotalReaders
-        {
-            get => _totalReaders;
-            set => SetProperty(ref _totalReaders, value);
-        }
-
-        private int _availableBooks;
-        public int AvailableBooks
-        {
-            get => _availableBooks;
-            set => SetProperty(ref _availableBooks, value);
-        }
-
-        private int _currentlyBorrowed;
-        public int CurrentlyBorrowed
-        {
-            get => _currentlyBorrowed;
-            set => SetProperty(ref _currentlyBorrowed, value);
-        }
-
-        private int _overdueBooks;
-        public int OverdueBooks
-        {
-            get => _overdueBooks;
-            set => SetProperty(ref _overdueBooks, value);
-        }
-
-        public List<RecentBorrowRow> RecentBorrowings { get; set; } = new();
-        public List<RecentReturnRow> RecentReturnings { get; set; } = new();
-
-        public DashboardViewModel(IUserDialogService dialogService)
-            : this(new BookService(), new ReaderService(), new BorrowService(), dialogService)
-        {
-        }
-
-        public DashboardViewModel(BookService bookService, ReaderService readerService, BorrowService borrowService,
-            IUserDialogService dialogService)
-        {
-            _bookService = bookService;
-            _readerService = readerService;
-            _borrowService = borrowService;
-            _dialogService = dialogService ?? throw new ArgumentNullException(nameof(dialogService));
-            LoadData();
-        }
-
-        public void LoadData()
-        {
-            try
+            if (SetProperty(ref _isLoading, value))
             {
-                var books = _bookService.GetAllBooks();
-                var activeReaders = _readerService.GetAllReaders();
-                var allReaders = _readerService.GetAllReaders(includeDeleted: true);
-                var borrowing = _borrowService.GetBorrowingBooks();
-                var allHistory = _borrowService.GetHistory();
-
-                TotalBooks = books.Sum(b => b.Quantity);
-                TotalReaders = activeReaders.Count;
-                AvailableBooks = books.Sum(b => b.AvailableQuantity);
-                CurrentlyBorrowed = borrowing.Count;
-                OverdueBooks = borrowing.Count(r => r.DueDate.Date < DateTime.Now.Date);
-
-                RecentBorrowings = allHistory
-                    .OrderByDescending(r => r.BorrowId)
-                    .Take(5)
-                    .Select(r =>
-                    {
-                        var book = books.FirstOrDefault(b => b.BookId == r.BookId);
-                        var reader = allReaders.FirstOrDefault(x => x.ReaderId == r.ReaderId);
-                        return new RecentBorrowRow
-                        {
-                            ReaderName = reader != null
-                                ? (reader.IsDeleted ? $"{reader.FullName} (Đã xóa)" : reader.FullName)
-                                : "?",
-                            BookTitle = book?.Title ?? "?",
-                            BorrowDate = r.BorrowDate.ToString("dd/MM/yyyy")
-                        };
-                    })
-                    .ToList();
-
-                RecentReturnings = allHistory
-                    .Where(r => r.Status == "Returned" && r.ReturnDate.HasValue)
-                    .OrderByDescending(r => r.ReturnDate)
-                    .Take(5)
-                    .Select(r =>
-                    {
-                        var book = books.FirstOrDefault(b => b.BookId == r.BookId);
-                        var reader = allReaders.FirstOrDefault(x => x.ReaderId == r.ReaderId);
-                        return new RecentReturnRow
-                        {
-                            ReaderName = reader != null
-                                ? (reader.IsDeleted ? $"{reader.FullName} (Đã xóa)" : reader.FullName)
-                                : "?",
-                            BookTitle = book?.Title ?? "?",
-                            ReturnDate = r.ReturnDate?.ToString("dd/MM/yyyy") ?? "-"
-                        };
-                    })
-                    .ToList();
-
-                OnPropertyChanged(nameof(RecentBorrowings));
-                OnPropertyChanged(nameof(RecentReturnings));
-            }
-            catch (Exception ex)
-            {
-                _dialogService.ShowError("Không thể tải dữ liệu Dashboard: " + ex.Message, "Lỗi");
+                OnPropertyChanged(nameof(RefreshButtonText));
+                OnPropertyChanged(nameof(DashboardLoadMessage));
+                OnPropertyChanged(nameof(RecentBorrowingsEmptyMessage));
+                OnPropertyChanged(nameof(RecentReturningsEmptyMessage));
             }
         }
     }
 
-    public class RecentBorrowRow
+    public bool HasLoaded
     {
-        public string ReaderName { get; set; } = string.Empty;
-        public string BookTitle { get; set; } = string.Empty;
-        public string BorrowDate { get; set; } = string.Empty;
+        get => _hasLoaded;
+        private set
+        {
+            if (SetProperty(ref _hasLoaded, value))
+            {
+                OnPropertyChanged(nameof(DashboardLoadMessage));
+                OnPropertyChanged(nameof(RecentBorrowingsEmptyMessage));
+                OnPropertyChanged(nameof(RecentReturningsEmptyMessage));
+            }
+        }
     }
 
-    public class RecentReturnRow
+    public DateTimeOffset? LastUpdated
     {
-        public string ReaderName { get; set; } = string.Empty;
-        public string BookTitle { get; set; } = string.Empty;
-        public string ReturnDate { get; set; } = string.Empty;
+        get => _lastUpdated;
+        private set
+        {
+            if (SetProperty(ref _lastUpdated, value))
+                OnPropertyChanged(nameof(LastUpdatedText));
+        }
+    }
+
+    public string LastUpdatedText => LastUpdated?.ToString("HH:mm") ?? "—";
+    public string RefreshButtonText => IsLoading ? "Refreshing…" : "Refresh";
+    public string DashboardLoadMessage => HasLoaded
+        ? string.Empty
+        : IsLoading ? "Loading dashboard data…" : "Dashboard data is unavailable.";
+
+    public int? ActiveReaders => _data?.Snapshot.ActiveReaders;
+    public int? TotalCopies => _data?.Snapshot.TotalCopies;
+    public int? AvailableCopies => _data?.Snapshot.AvailableCopies;
+    public int? BorrowedCopies => _data?.Snapshot.BorrowedCopies;
+    public int? DamagedCopies => _data?.Snapshot.DamagedCopies;
+    public int? UnderRepairCopies => _data?.Snapshot.UnderRepairCopies;
+    public int? DamagedOrRepairCopies => _data?.Snapshot.DamagedOrRepairCopies;
+    public int? LostCopies => _data?.Snapshot.LostCopies;
+    public int? RetiredCopies => _data?.Snapshot.RetiredCopies;
+    public int? ActiveLoans => _data?.Snapshot.ActiveLoans;
+    public int? DueSoonLoans => _data?.Snapshot.DueSoonLoans;
+    public int? OverdueLoans => _data?.Snapshot.OverdueLoans;
+    public decimal? OutstandingFees => _data?.Snapshot.OutstandingFees;
+    public string OutstandingFeesText => OutstandingFees is decimal value ? $"{value:N0} ₫" : "—";
+
+    public IReadOnlyList<DashboardRecentBorrow> RecentBorrowings =>
+        _data?.RecentBorrowings ?? Array.Empty<DashboardRecentBorrow>();
+
+    public IReadOnlyList<DashboardRecentReturn> RecentReturnings =>
+        _data?.RecentReturns ?? Array.Empty<DashboardRecentReturn>();
+
+    public string RecentBorrowingsEmptyMessage => !HasLoaded
+        ? DashboardLoadMessage
+        : "No recent borrow records to show.";
+
+    public string RecentReturningsEmptyMessage => !HasLoaded
+        ? DashboardLoadMessage
+        : "No recent return records to show.";
+
+    public IReadOnlyList<DashboardCirculationPoint> Circulation =>
+        _data?.Circulation ?? Array.Empty<DashboardCirculationPoint>();
+
+    public double CirculationMaximum => _data is null
+        ? 1
+        : Math.Max(1, _data.Circulation
+            .Select(point => Math.Max(point.BorrowCount, point.ReturnCount))
+            .DefaultIfEmpty()
+            .Max());
+
+    // Backward-compatible aliases for any existing bindings or callers.
+    public int? TotalBooks => TotalCopies;
+    public int? TotalReaders => ActiveReaders;
+    public int? AvailableBooks => AvailableCopies;
+    public int? CurrentlyBorrowed => ActiveLoans;
+    public int? OverdueBooks => OverdueLoans;
+
+    public async Task RefreshAsync()
+    {
+        if (Interlocked.CompareExchange(ref _refreshGate, 1, 0) != 0)
+            return;
+
+        IsLoading = true;
+        try
+        {
+            DashboardData refreshed = await _dashboardService.GetDashboardDataAsync();
+            _data = refreshed;
+            OnPropertyChanged(nameof(Data));
+            OnPropertyChanged(nameof(ActiveReaders));
+            OnPropertyChanged(nameof(TotalCopies));
+            OnPropertyChanged(nameof(AvailableCopies));
+            OnPropertyChanged(nameof(BorrowedCopies));
+            OnPropertyChanged(nameof(DamagedCopies));
+            OnPropertyChanged(nameof(UnderRepairCopies));
+            OnPropertyChanged(nameof(DamagedOrRepairCopies));
+            OnPropertyChanged(nameof(LostCopies));
+            OnPropertyChanged(nameof(RetiredCopies));
+            OnPropertyChanged(nameof(ActiveLoans));
+            OnPropertyChanged(nameof(DueSoonLoans));
+            OnPropertyChanged(nameof(OverdueLoans));
+            OnPropertyChanged(nameof(OutstandingFees));
+            OnPropertyChanged(nameof(OutstandingFeesText));
+            OnPropertyChanged(nameof(RecentBorrowings));
+            OnPropertyChanged(nameof(RecentReturnings));
+            OnPropertyChanged(nameof(RecentBorrowingsEmptyMessage));
+            OnPropertyChanged(nameof(RecentReturningsEmptyMessage));
+            OnPropertyChanged(nameof(Circulation));
+            OnPropertyChanged(nameof(CirculationMaximum));
+            OnPropertyChanged(nameof(TotalBooks));
+            OnPropertyChanged(nameof(TotalReaders));
+            OnPropertyChanged(nameof(AvailableBooks));
+            OnPropertyChanged(nameof(CurrentlyBorrowed));
+            OnPropertyChanged(nameof(OverdueBooks));
+
+            LastUpdated = _timeProvider.GetLocalNow();
+            HasLoaded = true;
+        }
+        catch (Exception exception)
+        {
+            Trace.TraceError($"Dashboard refresh failed: {exception}");
+            _dialogService.ShowError("Không thể tải dữ liệu Dashboard: " + exception.Message, "Lỗi");
+        }
+        finally
+        {
+            IsLoading = false;
+            Volatile.Write(ref _refreshGate, 0);
+        }
     }
 }

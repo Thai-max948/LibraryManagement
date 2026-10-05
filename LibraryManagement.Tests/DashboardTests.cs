@@ -1,289 +1,200 @@
-using System;
-using System.Collections.Generic;
 using LibraryManagement.Models;
 using LibraryManagement.Repositories;
 using LibraryManagement.Services;
 using LibraryManagement.ViewModels;
 using Moq;
-using Xunit;
 
-namespace LibraryManagement.Tests
+namespace LibraryManagement.Tests;
+
+public sealed class DashboardTests
 {
-    public class DashboardTests
+    private static readonly DateTime Today = new(2026, 10, 5);
+
+    [Fact]
+    public async Task DashboardService_UsesSharedDueSoonDate_FeeAggregate_AndSevenDayWindow()
     {
-        [Fact]
-        public void LoadData_WhenRepositoryFails_ReportsErrorThroughDialogService()
+        var repository = new Mock<IDashboardRepository>();
+        var fees = new Mock<IFeeBalanceReader>();
+        DashboardDateRange? requestedRange = null;
+        var snapshot = new DashboardSnapshot(3, 12, 4, 5, 1, 1, 1, 0, 6, 2, 1, 0m);
+        var repositoryData = new DashboardRepositoryData(
+            snapshot,
+            new[] { new DashboardRecentBorrow(1, "Reader", "Book", "BK-1", Today) },
+            Array.Empty<DashboardRecentReturn>(),
+            new[] { new DashboardCirculationCount(Today, 2, 1) });
+
+        repository
+            .Setup(repo => repo.GetDashboardDataAsync(It.IsAny<DashboardDateRange>(), It.IsAny<CancellationToken>()))
+            .Callback<DashboardDateRange, CancellationToken>((range, _) => requestedRange = range)
+            .ReturnsAsync(repositoryData);
+        fees.Setup(service => service.GetTotalOutstandingBalanceAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(1250m);
+
+        var service = new DashboardService(repository.Object, fees.Object, new FixedTimeProvider(Today.AddHours(18)));
+        DashboardData result = await service.GetDashboardDataAsync();
+
+        Assert.NotNull(requestedRange);
+        Assert.Equal(Today, requestedRange!.Today);
+        Assert.Equal(DueSoonDatePolicy.GetTargetDate(Today), requestedRange.DueSoonDate);
+        Assert.Equal(Today.AddDays(-6), requestedRange.CirculationStart);
+        Assert.Equal(Today.AddDays(1), requestedRange.CirculationEndExclusive);
+        Assert.Equal(1250m, result.Snapshot.OutstandingFees);
+        Assert.Equal(7, result.Circulation.Count);
+        Assert.Equal(Today.AddDays(-6), result.Circulation[0].Date);
+        Assert.Equal(Today, result.Circulation[^1].Date);
+        Assert.All(result.Circulation.Where(point => point.Date != Today), point =>
         {
-            var mockBookRepo = new Mock<BookRepository>();
-            var mockReaderRepo = new Mock<ReaderRepository>();
-            var mockBorrowRepo = new Mock<BorrowRepository>();
-            var dialog = new Mock<IUserDialogService>();
-            mockBookRepo.Setup(r => r.GetAll()).Throws(new InvalidOperationException("database unavailable"));
+            Assert.Equal(0, point.BorrowCount);
+            Assert.Equal(0, point.ReturnCount);
+        });
+        Assert.Equal((2, 1), (result.Circulation[^1].BorrowCount, result.Circulation[^1].ReturnCount));
+        Assert.Equal("MON", new DashboardCirculationPoint(new DateTime(2026, 10, 5), 0, 0).DayLabel);
+        fees.Verify(service => service.GetTotalOutstandingBalanceAsync(It.IsAny<CancellationToken>()), Times.Once);
+    }
 
-            var bookService = new BookService(mockBookRepo.Object, mockBorrowRepo.Object);
-            var readerService = new ReaderService(mockReaderRepo.Object, mockBorrowRepo.Object);
-            var borrowService = new BorrowService(mockBookRepo.Object, mockBorrowRepo.Object, mockReaderRepo.Object);
+    [Fact]
+    public async Task DashboardService_EmptyRepositoryResult_ReturnsZeroSnapshotAndSevenZeroPoints()
+    {
+        var repository = new Mock<IDashboardRepository>();
+        var fees = new Mock<IFeeBalanceReader>();
+        repository.Setup(repo => repo.GetDashboardDataAsync(It.IsAny<DashboardDateRange>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new DashboardRepositoryData(
+                DashboardSnapshot.Empty,
+                Array.Empty<DashboardRecentBorrow>(),
+                Array.Empty<DashboardRecentReturn>(),
+                Array.Empty<DashboardCirculationCount>()));
+        fees.Setup(service => service.GetTotalOutstandingBalanceAsync(It.IsAny<CancellationToken>())).ReturnsAsync(0m);
 
-            _ = new DashboardViewModel(bookService, readerService, borrowService, dialog.Object);
+        var service = new DashboardService(repository.Object, fees.Object, new FixedTimeProvider(Today));
+        DashboardData result = await service.GetDashboardDataAsync();
 
-            dialog.Verify(d => d.ShowError("Không thể tải dữ liệu Dashboard: database unavailable", "Lỗi"), Times.Once);
-        }
-
-        [Fact]
-        public void LoadData_MatchesDatabaseCalculations()
+        Assert.Equal(DashboardSnapshot.Empty, result.Snapshot);
+        Assert.Empty(result.RecentBorrowings);
+        Assert.Empty(result.RecentReturns);
+        Assert.Equal(7, result.Circulation.Count);
+        Assert.All(result.Circulation, point =>
         {
-            // Arrange (TC-DASH-01)
-            var mockBookRepo = new Mock<BookRepository>();
-            var mockReaderRepo = new Mock<ReaderRepository>();
-            var mockBorrowRepo = new Mock<BorrowRepository>();
+            Assert.Equal(0, point.BorrowCount);
+            Assert.Equal(0, point.ReturnCount);
+        });
+    }
 
-            var books = new List<Book>
-            {
-                new Book { BookId = 1, Title = "C# 10", Quantity = 10, AvailableQuantity = 7 },
-                new Book { BookId = 2, Title = "SQL", Quantity = 5, AvailableQuantity = 3 }
-            };
-            var readers = new List<Reader>
-            {
-                new Reader { ReaderId = 1, FullName = "Reader 1", IsDeleted = false },
-                new Reader { ReaderId = 2, FullName = "Reader 2", IsDeleted = false }
-            };
-            var activeBorrows = new List<BorrowRecord>
-            {
-                new BorrowRecord { BorrowId = 101, Status = "Borrowing", DueDate = DateTime.Now.AddDays(3) },
-                new BorrowRecord { BorrowId = 102, Status = "Borrowing", DueDate = DateTime.Now.AddDays(5) }
-            };
+    [Fact]
+    public void DueSoonDatePolicy_MatchesNotificationTargetAndUsesHalfOpenDayWindow()
+    {
+        DateTime target = DueSoonDatePolicy.GetTargetDate(Today.AddHours(23));
+        DueSoonDayWindow window = DueSoonDatePolicy.GetDayWindow(target);
 
-            mockBookRepo.Setup(r => r.GetAll()).Returns(books);
-            mockReaderRepo.Setup(r => r.GetAll(false)).Returns(readers);
-            mockReaderRepo.Setup(r => r.GetAll(true)).Returns(readers);
-            mockBorrowRepo.Setup(r => r.GetBorrowingRecords()).Returns(activeBorrows);
-            mockBorrowRepo.Setup(r => r.GetHistory(null, null, null, null, null)).Returns(new List<BorrowRecord>());
+        Assert.Equal(Today.AddDays(2), target);
+        Assert.Equal(target, window.StartInclusive);
+        Assert.Equal(target.AddDays(1), window.EndExclusive);
+    }
 
-            var bookService = new BookService(mockBookRepo.Object, mockBorrowRepo.Object);
-            var readerService = new ReaderService(mockReaderRepo.Object, mockBorrowRepo.Object);
-            var borrowService = new BorrowService(mockBookRepo.Object, mockBorrowRepo.Object, mockReaderRepo.Object);
+    [Fact]
+    public async Task ViewModel_LoadsOnConstruction_AndManualRefreshReplacesSnapshotAndTimestamp()
+    {
+        var first = DataWithSnapshot(new DashboardSnapshot(1, 5, 2, 2, 0, 1, 0, 0, 2, 1, 0, 100m));
+        var second = DataWithSnapshot(new DashboardSnapshot(2, 7, 3, 3, 1, 0, 0, 0, 3, 0, 1, 250m));
+        var service = new Mock<IDashboardService>();
+        service.SetupSequence(mock => mock.GetDashboardDataAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(first)
+            .ReturnsAsync(second);
+        var time = new MutableTimeProvider(new DateTimeOffset(Today.AddHours(8), TimeSpan.Zero));
+        var viewModel = new DashboardViewModel(service.Object, Mock.Of<IUserDialogService>(), time);
 
-            // Act
-            var vm = new DashboardViewModel(bookService, readerService, borrowService, Mock.Of<IUserDialogService>());
+        await viewModel.InitialLoadTask;
+        Assert.True(viewModel.HasLoaded);
+        Assert.Equal(1, viewModel.ActiveReaders);
+        Assert.Equal(5, viewModel.TotalCopies);
+        Assert.Equal(Today.AddHours(8), viewModel.LastUpdated!.Value.DateTime);
 
-            // Assert
-            Assert.Equal(15, vm.TotalBooks); // 10 + 5
-            Assert.Equal(10, vm.AvailableBooks); // 7 + 3
-            Assert.Equal(2, vm.TotalReaders); // 2 readers
-            Assert.Equal(2, vm.CurrentlyBorrowed); // 2 records
-        }
+        time.SetNow(new DateTimeOffset(Today.AddHours(9), TimeSpan.Zero));
+        await viewModel.RefreshAsync();
 
-        [Fact]
-        public void LoadData_OverdueCalculation_OnlyCountsPastDueDates()
-        {
-            // Arrange (TC-DASH-02)
-            var mockBookRepo = new Mock<BookRepository>();
-            var mockReaderRepo = new Mock<ReaderRepository>();
-            var mockBorrowRepo = new Mock<BorrowRepository>();
+        Assert.Equal(2, viewModel.ActiveReaders);
+        Assert.Equal(7, viewModel.TotalCopies);
+        Assert.Equal(250m, viewModel.OutstandingFees);
+        Assert.Equal(Today.AddHours(9), viewModel.LastUpdated!.Value.DateTime);
+        service.Verify(mock => mock.GetDashboardDataAsync(It.IsAny<CancellationToken>()), Times.Exactly(2));
+    }
 
-            var activeBorrows = new List<BorrowRecord>
-            {
-                new BorrowRecord { BorrowId = 1, DueDate = DateTime.Today.AddDays(-1), Status = "Borrowing" }, // Overdue
-                new BorrowRecord { BorrowId = 2, DueDate = DateTime.Today, Status = "Borrowing" },            // Today (not overdue)
-                new BorrowRecord { BorrowId = 3, DueDate = DateTime.Today.AddDays(1), Status = "Borrowing" }   // Tomorrow (not overdue)
-            };
+    [Fact]
+    public async Task ViewModel_ReportsInitialLoadFailureWithoutThrowing()
+    {
+        var service = new Mock<IDashboardService>();
+        var dialog = new Mock<IUserDialogService>();
+        service.Setup(mock => mock.GetDashboardDataAsync(It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new InvalidOperationException("database unavailable"));
 
-            mockBookRepo.Setup(r => r.GetAll()).Returns(new List<Book>());
-            mockReaderRepo.Setup(r => r.GetAll(It.IsAny<bool>())).Returns(new List<Reader>());
-            mockBorrowRepo.Setup(r => r.GetBorrowingRecords()).Returns(activeBorrows);
-            mockBorrowRepo.Setup(r => r.GetHistory(null, null, null, null, null)).Returns(new List<BorrowRecord>());
+        var viewModel = new DashboardViewModel(service.Object, dialog.Object, new FixedTimeProvider(Today));
+        await viewModel.InitialLoadTask;
 
-            var bookService = new BookService(mockBookRepo.Object, mockBorrowRepo.Object);
-            var readerService = new ReaderService(mockReaderRepo.Object, mockBorrowRepo.Object);
-            var borrowService = new BorrowService(mockBookRepo.Object, mockBorrowRepo.Object, mockReaderRepo.Object);
+        Assert.False(viewModel.HasLoaded);
+        Assert.Null(viewModel.Data);
+        Assert.False(viewModel.IsLoading);
+        Assert.Equal("Dashboard data is unavailable.", viewModel.DashboardLoadMessage);
+        dialog.Verify(mock => mock.ShowError("Không thể tải dữ liệu Dashboard: database unavailable", "Lỗi"), Times.Once);
+    }
 
-            // Act
-            var vm = new DashboardViewModel(bookService, readerService, borrowService, Mock.Of<IUserDialogService>());
+    [Fact]
+    public async Task ViewModel_RefreshFailureKeepsLastCompleteSnapshotAndTimestamp()
+    {
+        var service = new Mock<IDashboardService>();
+        service.SetupSequence(mock => mock.GetDashboardDataAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(DataWithSnapshot(new DashboardSnapshot(1, 4, 2, 1, 0, 0, 0, 1, 1, 0, 0, 50m)))
+            .ThrowsAsync(new InvalidOperationException("temporary outage"));
+        var dialog = new Mock<IUserDialogService>();
+        var time = new MutableTimeProvider(new DateTimeOffset(Today.AddHours(10), TimeSpan.Zero));
+        var viewModel = new DashboardViewModel(service.Object, dialog.Object, time);
+        await viewModel.InitialLoadTask;
+        DateTimeOffset originalTimestamp = viewModel.LastUpdated!.Value;
 
-            // Assert
-            Assert.Equal(1, vm.OverdueBooks); // Only yesterday is strictly < DateTime.Now.Date
-        }
+        time.SetNow(originalTimestamp.AddHours(1));
+        await viewModel.RefreshAsync();
 
-        [Fact]
-        public void LoadData_EmptyDatabase_AllStatsZeroAndNoException()
-        {
-            // Arrange (TC-DASH-03)
-            var mockBookRepo = new Mock<BookRepository>();
-            var mockReaderRepo = new Mock<ReaderRepository>();
-            var mockBorrowRepo = new Mock<BorrowRepository>();
+        Assert.True(viewModel.HasLoaded);
+        Assert.Equal(4, viewModel.TotalCopies);
+        Assert.Equal(originalTimestamp, viewModel.LastUpdated);
+        dialog.Verify(mock => mock.ShowError("Không thể tải dữ liệu Dashboard: temporary outage", "Lỗi"), Times.Once);
+    }
 
-            mockBookRepo.Setup(r => r.GetAll()).Returns(new List<Book>());
-            mockReaderRepo.Setup(r => r.GetAll(It.IsAny<bool>())).Returns(new List<Reader>());
-            mockBorrowRepo.Setup(r => r.GetBorrowingRecords()).Returns(new List<BorrowRecord>());
-            mockBorrowRepo.Setup(r => r.GetHistory(null, null, null, null, null)).Returns(new List<BorrowRecord>());
+    [Fact]
+    public async Task ViewModel_DeduplicatesOverlappingRefreshCalls()
+    {
+        var pending = new TaskCompletionSource<DashboardData>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var service = new Mock<IDashboardService>();
+        service.Setup(mock => mock.GetDashboardDataAsync(It.IsAny<CancellationToken>())).Returns(pending.Task);
+        var viewModel = new DashboardViewModel(service.Object, Mock.Of<IUserDialogService>(), new FixedTimeProvider(Today));
 
-            var bookService = new BookService(mockBookRepo.Object, mockBorrowRepo.Object);
-            var readerService = new ReaderService(mockReaderRepo.Object, mockBorrowRepo.Object);
-            var borrowService = new BorrowService(mockBookRepo.Object, mockBorrowRepo.Object, mockReaderRepo.Object);
+        await viewModel.RefreshAsync();
 
-            // Act
-            var vm = new DashboardViewModel(bookService, readerService, borrowService, Mock.Of<IUserDialogService>());
+        Assert.True(viewModel.IsLoading);
+        service.Verify(mock => mock.GetDashboardDataAsync(It.IsAny<CancellationToken>()), Times.Once);
+        pending.SetResult(DataWithSnapshot(DashboardSnapshot.Empty));
+        await viewModel.InitialLoadTask;
+        Assert.False(viewModel.IsLoading);
+    }
 
-            // Assert
-            Assert.Equal(0, vm.TotalBooks);
-            Assert.Equal(0, vm.AvailableBooks);
-            Assert.Equal(0, vm.TotalReaders);
-            Assert.Equal(0, vm.CurrentlyBorrowed);
-            Assert.Equal(0, vm.OverdueBooks);
-            Assert.Empty(vm.RecentBorrowings);
-            Assert.Empty(vm.RecentReturnings);
-        }
+    private static DashboardData DataWithSnapshot(DashboardSnapshot snapshot) => new(
+        snapshot,
+        Array.Empty<DashboardRecentBorrow>(),
+        Array.Empty<DashboardRecentReturn>(),
+        Enumerable.Range(0, 7)
+            .Select(offset => new DashboardCirculationPoint(Today.AddDays(offset - 6), 0, 0))
+            .ToArray());
 
-        [Fact]
-        public void LoadData_AfterBorrowOperation_CountersReflectStateChange()
-        {
-            // Arrange (TC-DASH-04)
-            var mockBookRepo = new Mock<BookRepository>();
-            var mockReaderRepo = new Mock<ReaderRepository>();
-            var mockBorrowRepo = new Mock<BorrowRepository>();
+    private sealed class FixedTimeProvider(DateTime utcNow) : TimeProvider
+    {
+        private readonly DateTimeOffset _utcNow = new(DateTime.SpecifyKind(utcNow, DateTimeKind.Utc));
+        public override TimeZoneInfo LocalTimeZone => TimeZoneInfo.Utc;
+        public override DateTimeOffset GetUtcNow() => _utcNow;
+    }
 
-            var books = new List<Book> { new Book { BookId = 1, Quantity = 5, AvailableQuantity = 5 } };
-            var activeBorrows = new List<BorrowRecord>();
-
-            mockBookRepo.Setup(r => r.GetAll()).Returns(books);
-            mockReaderRepo.Setup(r => r.GetAll(It.IsAny<bool>())).Returns(new List<Reader>());
-            mockBorrowRepo.Setup(r => r.GetBorrowingRecords()).Returns(activeBorrows);
-            mockBorrowRepo.Setup(r => r.GetHistory(null, null, null, null, null)).Returns(new List<BorrowRecord>());
-
-            var bookService = new BookService(mockBookRepo.Object, mockBorrowRepo.Object);
-            var readerService = new ReaderService(mockReaderRepo.Object, mockBorrowRepo.Object);
-            var borrowService = new BorrowService(mockBookRepo.Object, mockBorrowRepo.Object, mockReaderRepo.Object);
-
-            var vm = new DashboardViewModel(bookService, readerService, borrowService, Mock.Of<IUserDialogService>());
-            Assert.Equal(5, vm.AvailableBooks);
-            Assert.Equal(0, vm.CurrentlyBorrowed);
-
-            // Simulate Borrow (Available - 1, Currently Borrowed + 1)
-            books[0].AvailableQuantity = 4;
-            activeBorrows.Add(new BorrowRecord { BorrowId = 1, Status = "Borrowing", DueDate = DateTime.Now.AddDays(7) });
-
-            // Act
-            vm.LoadData();
-
-            // Assert
-            Assert.Equal(4, vm.AvailableBooks);
-            Assert.Equal(1, vm.CurrentlyBorrowed);
-        }
-
-        [Fact]
-        public void LoadData_AfterReturnOperation_CountersReflectStateChange()
-        {
-            // Arrange (TC-DASH-05)
-            var mockBookRepo = new Mock<BookRepository>();
-            var mockReaderRepo = new Mock<ReaderRepository>();
-            var mockBorrowRepo = new Mock<BorrowRepository>();
-
-            var books = new List<Book> { new Book { BookId = 1, Quantity = 5, AvailableQuantity = 4 } };
-            var activeBorrows = new List<BorrowRecord> { new BorrowRecord { BorrowId = 1, Status = "Borrowing", DueDate = DateTime.Now.AddDays(7) } };
-
-            mockBookRepo.Setup(r => r.GetAll()).Returns(books);
-            mockReaderRepo.Setup(r => r.GetAll(It.IsAny<bool>())).Returns(new List<Reader>());
-            mockBorrowRepo.Setup(r => r.GetBorrowingRecords()).Returns(activeBorrows);
-            mockBorrowRepo.Setup(r => r.GetHistory(null, null, null, null, null)).Returns(new List<BorrowRecord>());
-
-            var bookService = new BookService(mockBookRepo.Object, mockBorrowRepo.Object);
-            var readerService = new ReaderService(mockReaderRepo.Object, mockBorrowRepo.Object);
-            var borrowService = new BorrowService(mockBookRepo.Object, mockBorrowRepo.Object, mockReaderRepo.Object);
-
-            var vm = new DashboardViewModel(bookService, readerService, borrowService, Mock.Of<IUserDialogService>());
-            Assert.Equal(4, vm.AvailableBooks);
-            Assert.Equal(1, vm.CurrentlyBorrowed);
-
-            // Simulate Return (Available + 1, Currently Borrowed - 1)
-            books[0].AvailableQuantity = 5;
-            activeBorrows.Clear();
-
-            // Act
-            vm.LoadData();
-
-            // Assert
-            Assert.Equal(5, vm.AvailableBooks);
-            Assert.Equal(0, vm.CurrentlyBorrowed);
-        }
-
-        [Fact]
-        public void LoadData_RecentBorrowings_RetainsRecordAfterReturned()
-        {
-            // Arrange (TC-DASH-06)
-            var mockBookRepo = new Mock<BookRepository>();
-            var mockReaderRepo = new Mock<ReaderRepository>();
-            var mockBorrowRepo = new Mock<BorrowRepository>();
-
-            var history = new List<BorrowRecord>
-            {
-                new BorrowRecord
-                {
-                    BorrowId = 10,
-                    BookId = 1,
-                    ReaderId = 1,
-                    BorrowDate = DateTime.Now.AddDays(-2),
-                    DueDate = DateTime.Now.AddDays(5),
-                    ReturnDate = DateTime.Now,
-                    Status = "Returned" // Returned record must still appear in RecentBorrowings!
-                }
-            };
-
-            mockBookRepo.Setup(r => r.GetAll()).Returns(new List<Book> { new Book { BookId = 1, Title = "Clean Architecture" } });
-            mockReaderRepo.Setup(r => r.GetAll(It.IsAny<bool>())).Returns(new List<Reader> { new Reader { ReaderId = 1, FullName = "Bob" } });
-            mockBorrowRepo.Setup(r => r.GetBorrowingRecords()).Returns(new List<BorrowRecord>());
-            mockBorrowRepo.Setup(r => r.GetHistory(null, null, null, null, null)).Returns(history);
-
-            var bookService = new BookService(mockBookRepo.Object, mockBorrowRepo.Object);
-            var readerService = new ReaderService(mockReaderRepo.Object, mockBorrowRepo.Object);
-            var borrowService = new BorrowService(mockBookRepo.Object, mockBorrowRepo.Object, mockReaderRepo.Object);
-
-            // Act
-            var vm = new DashboardViewModel(bookService, readerService, borrowService, Mock.Of<IUserDialogService>());
-
-            // Assert
-            Assert.Single(vm.RecentBorrowings);
-            Assert.Equal("Bob", vm.RecentBorrowings[0].ReaderName);
-            Assert.Equal("Clean Architecture", vm.RecentBorrowings[0].BookTitle);
-        }
-
-        [Fact]
-        public void LoadData_RecentReturnings_ReturnsExactly5LatestOrderedByReturnDateDesc()
-        {
-            // Arrange (TC-DASH-07)
-            var mockBookRepo = new Mock<BookRepository>();
-            var mockReaderRepo = new Mock<ReaderRepository>();
-            var mockBorrowRepo = new Mock<BorrowRepository>();
-
-            var now = DateTime.Now;
-            var history = new List<BorrowRecord>();
-            for (int i = 1; i <= 7; i++)
-            {
-                history.Add(new BorrowRecord
-                {
-                    BorrowId = i,
-                    BookId = 1,
-                    ReaderId = 1,
-                    Status = "Returned",
-                    ReturnDate = now.AddDays(i)
-                });
-            }
-
-            mockBookRepo.Setup(r => r.GetAll()).Returns(new List<Book> { new Book { BookId = 1, Title = "C# Mastery" } });
-            mockReaderRepo.Setup(r => r.GetAll(It.IsAny<bool>())).Returns(new List<Reader> { new Reader { ReaderId = 1, FullName = "Alice" } });
-            mockBorrowRepo.Setup(r => r.GetBorrowingRecords()).Returns(new List<BorrowRecord>());
-            mockBorrowRepo.Setup(r => r.GetHistory(null, null, null, null, null)).Returns(history);
-
-            var bookService = new BookService(mockBookRepo.Object, mockBorrowRepo.Object);
-            var readerService = new ReaderService(mockReaderRepo.Object, mockBorrowRepo.Object);
-            var borrowService = new BorrowService(mockBookRepo.Object, mockBorrowRepo.Object, mockReaderRepo.Object);
-
-            // Act
-            var vm = new DashboardViewModel(bookService, readerService, borrowService, Mock.Of<IUserDialogService>());
-
-            // Assert
-            Assert.Equal(5, vm.RecentReturnings.Count);
-            // Latest return was now.AddDays(7), which should be first in the list
-            Assert.Equal(now.AddDays(7).ToString("dd/MM/yyyy"), vm.RecentReturnings[0].ReturnDate);
-        }
+    private sealed class MutableTimeProvider(DateTimeOffset utcNow) : TimeProvider
+    {
+        private DateTimeOffset _utcNow = utcNow;
+        public override TimeZoneInfo LocalTimeZone => TimeZoneInfo.Utc;
+        public override DateTimeOffset GetUtcNow() => _utcNow;
+        public void SetNow(DateTimeOffset value) => _utcNow = value;
     }
 }

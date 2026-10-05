@@ -1,6 +1,5 @@
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Media;
 using LibraryManagement.ViewModels;
 using LibraryManagement.Helpers;
 using LibraryManagement.Views;
@@ -9,12 +8,21 @@ namespace LibraryManagement.Views.Accounts
 {
     public partial class MyAccountView : UserControl
     {
+        private Action _resetCurrentPassword = () => { };
+        private Action _resetNewPassword = () => { };
+        private Action _resetConfirmPassword = () => { };
+
         public MyAccountView()
+            : this(null)
+        {
+        }
+
+        public MyAccountView(MyAccountViewModel? viewModel)
         {
             InitializeComponent();
             DataContextChanged += MyAccountView_DataContextChanged;
 
-            PasswordBoxHelper.SetupPasswordToggle(
+            _resetCurrentPassword = PasswordBoxHelper.SetupPasswordToggle(
                 PwdCurrent,
                 PwdCurrentVisible,
                 BtnTogglePwdCurrent,
@@ -25,7 +33,7 @@ namespace LibraryManagement.Views.Accounts
                     SyncPasswordsToVm();
                 });
 
-            PasswordBoxHelper.SetupPasswordToggle(
+            _resetNewPassword = PasswordBoxHelper.SetupPasswordToggle(
                 PwdNew,
                 PwdNewVisible,
                 BtnTogglePwdNew,
@@ -36,7 +44,7 @@ namespace LibraryManagement.Views.Accounts
                     SyncPasswordsToVm();
                 });
 
-            PasswordBoxHelper.SetupPasswordToggle(
+            _resetConfirmPassword = PasswordBoxHelper.SetupPasswordToggle(
                 PwdConfirm,
                 PwdConfirmVisible,
                 BtnTogglePwdConfirm,
@@ -47,7 +55,11 @@ namespace LibraryManagement.Views.Accounts
                     SyncPasswordsToVm();
                 });
 
-            if (!System.ComponentModel.DesignerProperties.GetIsInDesignMode(this))
+            if (viewModel != null)
+            {
+                DataContext = viewModel;
+            }
+            else if (!System.ComponentModel.DesignerProperties.GetIsInDesignMode(this))
             {
                 DataContext = new MyAccountViewModel(new MessageBoxDialogService());
             }
@@ -69,13 +81,10 @@ namespace LibraryManagement.Views.Accounts
         {
             vm.PropertyChanged += (s, args) =>
             {
-                if (args.PropertyName == nameof(MyAccountViewModel.ProfileMessage))
+                if (args.PropertyName == nameof(MyAccountViewModel.SelectedSection)
+                    && vm.SelectedSection != MyAccountViewModel.AccountSection.Security)
                 {
-                    UpdateProfileAlert(vm);
-                }
-                else if (args.PropertyName == nameof(MyAccountViewModel.PasswordMessage))
-                {
-                    UpdatePasswordAlert(vm);
+                    ClearPasswordFields();
                 }
             };
         }
@@ -113,66 +122,23 @@ namespace LibraryManagement.Views.Accounts
             ClearPasswordFields();
             if (DataContext is MyAccountViewModel vm)
             {
-                vm.CloseSidePanelCommand.Execute(null);
+                vm.SelectProfileCommand.Execute(null);
             }
         }
 
         private void ClearPasswordFields()
         {
-            PwdCurrent.Clear();
-            PwdCurrentVisible.Clear();
-            PwdNew.Clear();
-            PwdNewVisible.Clear();
-            PwdConfirm.Clear();
-            PwdConfirmVisible.Clear();
+            _resetCurrentPassword();
+            _resetNewPassword();
+            _resetConfirmPassword();
             PlaceholderPwdCurrent.Visibility = Visibility.Visible;
             PlaceholderPwdNew.Visibility = Visibility.Visible;
             PlaceholderPwdConfirm.Visibility = Visibility.Visible;
-        }
-
-        private void UpdateProfileAlert(MyAccountViewModel vm)
-        {
-            if (string.IsNullOrWhiteSpace(vm.ProfileMessage))
+            if (DataContext is MyAccountViewModel vm)
             {
-                ProfileAlertBox.Visibility = Visibility.Collapsed;
-                return;
-            }
-
-            ProfileAlertBox.Visibility = Visibility.Visible;
-            if (vm.IsProfileSuccess)
-            {
-                ProfileAlertBox.Background = new SolidColorBrush(Color.FromRgb(220, 252, 231));
-                ProfileAlertBox.BorderBrush = new SolidColorBrush(Color.FromRgb(187, 247, 208));
-                TxtProfileAlert.Foreground = new SolidColorBrush(Color.FromRgb(21, 128, 61));
-            }
-            else
-            {
-                ProfileAlertBox.Background = new SolidColorBrush(Color.FromRgb(254, 226, 226));
-                ProfileAlertBox.BorderBrush = new SolidColorBrush(Color.FromRgb(254, 202, 202));
-                TxtProfileAlert.Foreground = new SolidColorBrush(Color.FromRgb(185, 28, 28));
-            }
-        }
-
-        private void UpdatePasswordAlert(MyAccountViewModel vm)
-        {
-            if (string.IsNullOrWhiteSpace(vm.PasswordMessage))
-            {
-                PasswordAlertBox.Visibility = Visibility.Collapsed;
-                return;
-            }
-
-            PasswordAlertBox.Visibility = Visibility.Visible;
-            if (vm.IsPasswordSuccess)
-            {
-                PasswordAlertBox.Background = new SolidColorBrush(Color.FromRgb(220, 252, 231));
-                PasswordAlertBox.BorderBrush = new SolidColorBrush(Color.FromRgb(187, 247, 208));
-                TxtPasswordAlert.Foreground = new SolidColorBrush(Color.FromRgb(21, 128, 61));
-            }
-            else
-            {
-                PasswordAlertBox.Background = new SolidColorBrush(Color.FromRgb(254, 226, 226));
-                PasswordAlertBox.BorderBrush = new SolidColorBrush(Color.FromRgb(254, 202, 202));
-                TxtPasswordAlert.Foreground = new SolidColorBrush(Color.FromRgb(185, 28, 28));
+                vm.CurrentPassword = string.Empty;
+                vm.NewPassword = string.Empty;
+                vm.ConfirmPassword = string.Empty;
             }
         }
     }

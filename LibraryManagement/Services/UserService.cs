@@ -9,20 +9,26 @@ namespace LibraryManagement.Services
     public class UserService
     {
         private readonly UserRepository _userRepository;
+        private readonly ICurrentUserContext _currentUserContext;
 
-        public UserService() : this(new UserRepository())
+        public UserService() : this(new UserRepository(), new AuthServiceCurrentUserContext())
         {
         }
 
-        public UserService(UserRepository userRepository)
+        public UserService(UserRepository userRepository) : this(userRepository, new AuthServiceCurrentUserContext())
         {
-            _userRepository = userRepository;
+        }
+
+        public UserService(UserRepository userRepository, ICurrentUserContext currentUserContext)
+        {
+            _userRepository = userRepository ?? throw new ArgumentNullException(nameof(userRepository));
+            _currentUserContext = currentUserContext ?? throw new ArgumentNullException(nameof(currentUserContext));
         }
 
         private static void EnsureAdmin()
         {
             var current = AuthService.CurrentUser;
-            if (current == null || !string.Equals(current.Role, "Administrator", StringComparison.OrdinalIgnoreCase))
+            if (!UserPermissions.CanManageUsers(current))
             {
                 throw new BusinessRuleException("Bạn không có quyền thực hiện thao tác này.");
             }
@@ -209,64 +215,94 @@ namespace LibraryManagement.Services
             return _userRepository.Delete(id);
         }
 
-        public (bool Success, string Message) UpdateSelfProfile(int userId, string fullName, string username, string email)
+        public MyAccountProfile GetMyProfile()
         {
+            var user = GetMyAccountFromRepository();
+            return ToProfile(user);
+        }
+
+        public (bool Success, string Message, MyAccountProfile? Profile) UpdateMyProfile(
+            string fullName, string username, string email)
+        {
+            var currentUserId = GetMyUserId();
+
             if (string.IsNullOrWhiteSpace(fullName))
             {
-                return (false, "Please enter your full name.");
+                return (false, "Please enter your full name.", null);
             }
 
             if (string.IsNullOrWhiteSpace(username))
             {
-                return (false, "Please enter your username.");
+                return (false, "Please enter your username.", null);
             }
 
             if (string.IsNullOrWhiteSpace(email) || !email.Contains('@'))
             {
-                return (false, "Please enter a valid email address.");
+                return (false, "Please enter a valid email address.", null);
             }
 
-            if (_userRepository.ExistsByEmail(email, userId))
+            string normalizedUsername = username.Trim().ToLowerInvariant();
+            string normalizedEmail = email.Trim().ToLowerInvariant();
+
+            if (_userRepository.ExistsByEmail(normalizedEmail, currentUserId))
             {
-                return (false, "email này đã được sử dụng!");
+                return (false, "email này đã được sử dụng!", null);
             }
 
-            if (_userRepository.ExistsByUsername(username, userId))
+            if (_userRepository.ExistsByUsername(normalizedUsername, currentUserId))
             {
-                return (false, "An account with this username already exists.");
+                return (false, "An account with this username already exists.", null);
             }
 
-            var existing = _userRepository.GetById(userId);
+            var existing = _userRepository.GetById(currentUserId);
             if (existing == null)
             {
-                return (false, "Account not found.");
+                return (false, "Account not found.", null);
             }
 
             existing.FullName = fullName.Trim();
-            existing.Username = username.Trim().ToLowerInvariant();
-            existing.Email = email.Trim().ToLowerInvariant();
+            existing.Username = normalizedUsername;
+            existing.Email = normalizedEmail;
 
-            bool ok = _userRepository.Update(existing);
+            bool ok = _userRepository.UpdateProfile(
+                existing.Id,
+                existing.FullName,
+                existing.Username,
+                existing.Email);
             if (ok)
             {
-                if (AuthService.CurrentUser != null && AuthService.CurrentUser.Id == userId)
-                {
-                    AuthService.CurrentUser = existing;
-                }
-                return (true, "Profile updated successfully!");
+                AuthService.CurrentUser = existing;
+                return (true, "Profile updated successfully!", ToProfile(existing));
             }
 
-            return (false, "Failed to update profile.");
+            if (_userRepository.ExistsByEmail(normalizedEmail, currentUserId))
+            {
+                return (false, "email này đã được sử dụng!", null);
+            }
+            if (_userRepository.ExistsByUsername(normalizedUsername, currentUserId))
+            {
+                return (false, "An account with this username already exists.", null);
+            }
+
+            return (false, "Failed to update profile.", null);
         }
 
-        public (bool Success, string Message) ChangePassword(int userId, string oldPassword, string newPassword, string confirmPassword)
+        public (bool Success, string Message) ChangeMyPassword(
+            string currentPassword, string newPassword, string confirmPassword)
         {
-            if (string.IsNullOrWhiteSpace(oldPassword))
+            int currentUserId = GetMyUserId();
+
+            if (string.IsNullOrWhiteSpace(currentPassword))
             {
                 return (false, "Please enter your current password.");
             }
 
-            if (string.IsNullOrWhiteSpace(newPassword) || newPassword.Length < 6)
+            if (string.IsNullOrWhiteSpace(newPassword))
+            {
+                return (false, "Please enter a new password.");
+            }
+
+            if (newPassword.Length < 6)
             {
                 return (false, "New password must be at least 6 characters long.");
             }
@@ -276,13 +312,45 @@ namespace LibraryManagement.Services
                 return (false, "New passwords do not match.");
             }
 
-            if (!_userRepository.VerifyPassword(userId, oldPassword))
+            if (!_userRepository.VerifyPassword(currentUserId, currentPassword))
             {
                 return (false, "Current password is incorrect.");
             }
 
-            bool ok = _userRepository.ChangePassword(userId, newPassword);
+            bool ok = _userRepository.ChangePassword(currentUserId, newPassword);
             return ok ? (true, "Password changed successfully!") : (false, "Failed to update password.");
         }
+
+        public AccountAccessInfo GetMyAccess()
+        {
+            var user = GetMyAccountFromRepository();
+            return UserPermissions.Describe(user);
+        }
+
+        private int GetMyUserId()
+        {
+            var currentUser = _currentUserContext.CurrentUser;
+            if (currentUser == null || currentUser.Id <= 0)
+            {
+                throw new BusinessRuleException("No authenticated account is available.");
+            }
+
+            return currentUser.Id;
+        }
+
+        private User GetMyAccountFromRepository()
+        {
+            int currentUserId = GetMyUserId();
+            return _userRepository.GetById(currentUserId)
+                ?? throw new BusinessRuleException("The authenticated account could not be found.");
+        }
+
+        private static MyAccountProfile ToProfile(User user) => new(
+            user.Id,
+            user.FullName,
+            user.Username,
+            user.Email,
+            user.Role,
+            user.CreatedAt);
     }
 }

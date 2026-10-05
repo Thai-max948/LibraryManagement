@@ -27,7 +27,7 @@
         <SolidColorBrush x:Key="TechAccentPurple" Color="#6366F1"/>
         <SolidColorBrush x:Key="TechAccentAmber" Color="#D97706"/>
         <SolidColorBrush x:Key="TechAccentRose" Color="#E11D48"/>
-        
+        <SolidColorBrush x:Key="BookPricingBadgeBrush" Color="#ECFDF5"/>
 
         <!-- Font chung -->
         <Style TargetType="{x:Type Window}">
@@ -50,6 +50,66 @@
                     <DropShadowEffect Color="#0F172A" Opacity="0.06" BlurRadius="12" ShadowDepth="2"/>
                 </Setter.Value>
             </Setter>
+        </Style>
+
+        <!-- Shared Book form and pricing presentation -->
+        <Style x:Key="BookPanelStyle" TargetType="Border" BasedOn="{StaticResource CardStyle}">
+            <Setter Property="Padding" Value="16"/>
+            <Setter Property="Margin" Value="0"/>
+        </Style>
+        <Style x:Key="BookSectionTitleStyle" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Foreground" Value="{StaticResource TextBrush}"/>
+        </Style>
+        <Style x:Key="BookFieldLabelStyle" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Foreground" Value="{StaticResource SecondaryTextBrush}"/>
+            <Setter Property="Margin" Value="0,0,0,4"/>
+        </Style>
+        <Style x:Key="BookFormTextBoxStyle" TargetType="TextBox">
+            <Setter Property="MinHeight" Value="38"/>
+            <Setter Property="Padding" Value="10,8"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="Background" Value="{StaticResource CardBrush}"/>
+            <Setter Property="Foreground" Value="{StaticResource TextBrush}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource TechBorderBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CaretBrush" Value="{StaticResource TechAccentCyan}"/>
+        </Style>
+        <Style x:Key="BookPricingTextBoxStyle" TargetType="TextBox" BasedOn="{StaticResource BookFormTextBoxStyle}">
+            <Setter Property="Padding" Value="30,8,10,8"/>
+        </Style>
+        <Style x:Key="BookPricingReadOnlyTextBoxStyle" TargetType="TextBox" BasedOn="{StaticResource BookPricingTextBoxStyle}">
+            <Setter Property="IsReadOnly" Value="True"/>
+            <Setter Property="IsTabStop" Value="False"/>
+            <Setter Property="Background" Value="{StaticResource BackgroundBrush}"/>
+        </Style>
+        <Style x:Key="BookPricingBadgeStyle" TargetType="Border">
+            <Setter Property="Background" Value="{StaticResource BookPricingBadgeBrush}"/>
+            <Setter Property="CornerRadius" Value="4"/>
+            <Setter Property="Padding" Value="6,2"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+        </Style>
+        <Style x:Key="BookPricingBadgeTextStyle" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="{StaticResource TechAccentGreen}"/>
+            <Setter Property="FontSize" Value="10"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+        </Style>
+        <Style x:Key="BookPricingCurrencySymbolStyle" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="{StaticResource SecondaryTextBrush}"/>
+            <Setter Property="HorizontalAlignment" Value="Left"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="Margin" Value="12,0,0,0"/>
+            <Setter Property="IsHitTestVisible" Value="False"/>
+        </Style>
+        <Style x:Key="BookPricingEmptyMarkerStyle" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="{StaticResource SecondaryTextBrush}"/>
+            <Setter Property="HorizontalAlignment" Value="Left"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="Margin" Value="12,0,0,0"/>
+            <Setter Property="IsHitTestVisible" Value="False"/>
         </Style>
 
         <!-- Primary Button -->

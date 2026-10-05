@@ -1,5 +1,6 @@
 using System;
 using System.Collections.ObjectModel;
+using System.Globalization;
 using System.Linq;
 using System.Windows;
 using System.Windows.Input;
@@ -66,6 +67,7 @@ namespace LibraryManagement.ViewModels
         public int TotalBooks => Books.Sum(b => b.Quantity);
         public int TotalAvailable => Books.Sum(b => b.AvailableQuantity);
         public int TotalBorrowed => _totalBorrowed;
+        public string PricingRateBadge => $"AUTO · {_bookService.PricingPolicy.RentalRate.ToString("P0", CultureInfo.InvariantCulture)}";
 
         public ICommand AddCommand { get; }
         public ICommand EditCommand { get; }

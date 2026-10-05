@@ -1,7 +1,12 @@
 using System;
+using System.Reflection;
+using System.Windows;
+using System.Windows.Controls;
 using LibraryManagement.Models;
 using LibraryManagement.Repositories;
 using LibraryManagement.Services;
+using LibraryManagement.ViewModels;
+using LibraryManagement.Views.Accounts;
 using Moq;
 using Xunit;
 
@@ -21,51 +26,115 @@ namespace LibraryManagement.Tests
             };
         }
 
-        public void Dispose()
+        public void Dispose() => AuthService.CurrentUser = null;
+
+        [Fact]
+        public void GetMyProfile_AuthenticatedUser_ReturnsDatabaseProfile()
+        {
+            var user = StoredUser();
+            var repo = new Mock<UserRepository>();
+            repo.Setup(r => r.GetById(10)).Returns(user);
+
+            var result = CreateService(repo).GetMyProfile();
+
+            Assert.Equal(10, result.UserId);
+            Assert.Equal("Database Name", result.FullName);
+            Assert.Equal("dbuser", result.Username);
+            Assert.Equal("dbuser@library.com", result.Email);
+            Assert.Equal("Librarian", result.Role);
+            Assert.Equal(new DateTime(2024, 1, 2), result.CreatedAt);
+            repo.Verify(r => r.GetById(10), Times.Once);
+        }
+
+        [Fact]
+        public void GetMyProfile_NoCurrentUser_RejectsRequest()
         {
             AuthService.CurrentUser = null;
+            var repo = new Mock<UserRepository>();
+
+            var error = Assert.Throws<BusinessRuleException>(() => CreateService(repo).GetMyProfile());
+
+            Assert.Contains("authenticated", error.Message, StringComparison.OrdinalIgnoreCase);
+            repo.Verify(r => r.GetById(It.IsAny<int>()), Times.Never);
         }
 
         [Fact]
-        public void UpdateSelfProfile_ValidData_UpdatesSuccessfully()
+        public void UpdateMyProfile_ValidData_UpdatesOnlyProfileFieldsAndSession()
         {
-            // Arrange (TC-MYACC-01)
-            var mockUserRepo = new Mock<UserRepository>();
-            var user = new User { Id = 10, Username = "myuser", FullName = "Old Name", Email = "myuser@library.com", Role = "Librarian" };
+            var user = StoredUser();
+            var repo = new Mock<UserRepository>();
+            repo.Setup(r => r.ExistsByEmail("newemail@library.com", 10)).Returns(false);
+            repo.Setup(r => r.ExistsByUsername("newusername", 10)).Returns(false);
+            repo.Setup(r => r.GetById(10)).Returns(user);
+            repo.Setup(r => r.UpdateProfile(10, "New Full Name", "newusername", "newemail@library.com")).Returns(true);
+            int notifications = 0;
+            Action<User?> handler = _ => notifications++;
+            AuthService.CurrentUserChanged += handler;
 
-            mockUserRepo.Setup(r => r.GetById(10)).Returns(user);
-            mockUserRepo.Setup(r => r.ExistsByEmail("newemail@library.com", 10)).Returns(false);
-            mockUserRepo.Setup(r => r.ExistsByUsername("newusername", 10)).Returns(false);
-            mockUserRepo.Setup(r => r.Update(user, null)).Returns(true);
+            try
+            {
+                var result = CreateService(repo).UpdateMyProfile(
+                    " New Full Name ", " NewUserName ", " NEWEMAIL@LIBRARY.COM ");
 
-            var userService = new UserService(mockUserRepo.Object);
+                Assert.True(result.Success);
+                Assert.Equal("New Full Name", result.Profile?.FullName);
+                Assert.Equal("newusername", result.Profile?.Username);
+                Assert.Equal("newemail@library.com", result.Profile?.Email);
+                Assert.Equal("Librarian", user.Role);
+                Assert.Equal(10, AuthService.CurrentUser?.Id);
+                Assert.Equal("New Full Name", AuthService.CurrentUser?.FullName);
+                Assert.Equal(1, notifications);
+                repo.Verify(r => r.UpdateProfile(10, "New Full Name", "newusername", "newemail@library.com"), Times.Once);
+                repo.Verify(r => r.Update(It.IsAny<User>(), It.IsAny<string?>()), Times.Never);
+            }
+            finally
+            {
+                AuthService.CurrentUserChanged -= handler;
+            }
+        }
 
-            // Act
-            var result = userService.UpdateSelfProfile(10, "New Full Name", "newusername", "newemail@library.com");
+        [Fact]
+        public void UpdateMyProfile_AlwaysUsesAuthenticatedAccountId()
+        {
+            var repo = new Mock<UserRepository>();
+            var user = StoredUser();
+            repo.Setup(r => r.ExistsByEmail("same@library.com", 10)).Returns(false);
+            repo.Setup(r => r.ExistsByUsername("dbuser", 10)).Returns(false);
+            repo.Setup(r => r.GetById(10)).Returns(user);
+            repo.Setup(r => r.UpdateProfile(10, "Database Name", "dbuser", "same@library.com")).Returns(true);
 
-            // Assert
+            var result = CreateService(repo).UpdateMyProfile("Database Name", "dbuser", "same@library.com");
+
             Assert.True(result.Success);
-            Assert.Equal("Profile updated successfully!", result.Message);
-            Assert.Equal("New Full Name", user.FullName);
-            Assert.Equal("newusername", user.Username);
-            Assert.Equal("newemail@library.com", user.Email);
+            repo.Verify(r => r.GetById(10), Times.Once);
+            repo.Verify(r => r.UpdateProfile(10, It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()), Times.Once);
+            repo.Verify(r => r.GetById(20), Times.Never);
         }
 
         [Fact]
-        public void UpdateSelfProfile_DuplicateEmailOrUsername_ReturnsFailure()
+        public void UpdateMyProfile_DuplicateEmail_IsRejected()
         {
-            // Arrange (TC-MYACC-02)
-            var mockUserRepo = new Mock<UserRepository>();
-            mockUserRepo.Setup(r => r.ExistsByEmail("existing@library.com", 10)).Returns(true);
+            var repo = new Mock<UserRepository>();
+            repo.Setup(r => r.ExistsByEmail("existing@library.com", 10)).Returns(true);
 
-            var userService = new UserService(mockUserRepo.Object);
+            var result = CreateService(repo).UpdateMyProfile("Name", "uniqueuser", "Existing@Library.com");
 
-            // Act
-            var result = userService.UpdateSelfProfile(10, "Name", "uniqueuser", "existing@library.com");
-
-            // Assert
             Assert.False(result.Success);
             Assert.Equal("email này đã được sử dụng!", result.Message);
+            repo.Verify(r => r.GetById(It.IsAny<int>()), Times.Never);
+        }
+
+        [Fact]
+        public void UpdateMyProfile_DuplicateUsername_IsRejected()
+        {
+            var repo = new Mock<UserRepository>();
+            repo.Setup(r => r.ExistsByEmail("unique@library.com", 10)).Returns(false);
+            repo.Setup(r => r.ExistsByUsername("existinguser", 10)).Returns(true);
+
+            var result = CreateService(repo).UpdateMyProfile("Name", "ExistingUser", "unique@library.com");
+
+            Assert.False(result.Success);
+            Assert.Equal("An account with this username already exists.", result.Message);
         }
 
         [Theory]
@@ -73,125 +142,224 @@ namespace LibraryManagement.Tests
         [InlineData("Name", "", "u@mail.com", "Please enter your username.")]
         [InlineData("Name", "user", "", "Please enter a valid email address.")]
         [InlineData("Name", "user", "invalidemail", "Please enter a valid email address.")]
-        public void UpdateSelfProfile_EmptyOrInvalidFields_ReturnsValidationFailure(string name, string username, string email, string expectedMsg)
+        public void UpdateMyProfile_InvalidFields_ReturnValidationFailure(
+            string fullName, string username, string email, string expectedMessage)
         {
-            // Arrange (TC-MYACC-03)
-            var mockUserRepo = new Mock<UserRepository>();
-            var userService = new UserService(mockUserRepo.Object);
+            var repo = new Mock<UserRepository>();
 
-            // Act
-            var result = userService.UpdateSelfProfile(10, name, username, email);
+            var result = CreateService(repo).UpdateMyProfile(fullName, username, email);
 
-            // Assert
             Assert.False(result.Success);
-            Assert.Equal(expectedMsg, result.Message);
+            Assert.Equal(expectedMessage, result.Message);
+            repo.Verify(r => r.UpdateProfile(It.IsAny<int>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()), Times.Never);
         }
 
         [Fact]
-        public void UpdateSelfProfile_DoesNotModifyUserRole()
+        public void UpdateMyProfile_FailedUpdate_DoesNotChangeSessionOrNotify()
         {
-            // Arrange (TC-MYACC-04: Librarian cannot elevate role via My Account)
-            var mockUserRepo = new Mock<UserRepository>();
-            var librarian = new User { Id = 10, Username = "myuser", Role = "Librarian" };
-            mockUserRepo.Setup(r => r.GetById(10)).Returns(librarian);
-            mockUserRepo.Setup(r => r.Update(librarian, null)).Returns(true);
+            var repo = new Mock<UserRepository>();
+            repo.Setup(r => r.ExistsByEmail("email@library.com", 10)).Returns(true);
+            int notifications = 0;
+            Action<User?> handler = _ => notifications++;
+            AuthService.CurrentUserChanged += handler;
 
-            var userService = new UserService(mockUserRepo.Object);
+            try
+            {
+                var result = CreateService(repo).UpdateMyProfile("Name", "username", "email@library.com");
 
-            // Act: UpdateSelfProfile only accepts name, username, email
-            userService.UpdateSelfProfile(10, "Updated Name", "myuser", "myuser@library.com");
-
-            // Assert
-            Assert.Equal("Librarian", librarian.Role);
+                Assert.False(result.Success);
+                Assert.Equal("My User", AuthService.CurrentUser?.FullName);
+                Assert.Equal(0, notifications);
+            }
+            finally
+            {
+                AuthService.CurrentUserChanged -= handler;
+            }
         }
 
         [Fact]
-        public void ChangePassword_ValidCredentials_ReturnsSuccess()
+        public void ChangeMyPassword_ValidCurrentPassword_UsesAuthenticatedUserId()
         {
-            // Arrange (TC-MYACC-05)
-            var mockUserRepo = new Mock<UserRepository>();
-            mockUserRepo.Setup(r => r.VerifyPassword(10, "oldPass123")).Returns(true);
-            mockUserRepo.Setup(r => r.ChangePassword(10, "newPass123")).Returns(true);
+            var repo = new Mock<UserRepository>();
+            repo.Setup(r => r.VerifyPassword(10, "oldPass123")).Returns(true);
+            repo.Setup(r => r.ChangePassword(10, "newPass123")).Returns(true);
 
-            var userService = new UserService(mockUserRepo.Object);
+            var result = CreateService(repo).ChangeMyPassword("oldPass123", "newPass123", "newPass123");
 
-            // Act
-            var result = userService.ChangePassword(10, "oldPass123", "newPass123", "newPass123");
-
-            // Assert
             Assert.True(result.Success);
             Assert.Equal("Password changed successfully!", result.Message);
+            repo.Verify(r => r.ChangePassword(10, "newPass123"), Times.Once);
+            repo.Verify(r => r.ChangePassword(20, It.IsAny<string>()), Times.Never);
+        }
+
+        [Theory]
+        [InlineData("Administrator")]
+        [InlineData("Librarian")]
+        public void ChangeMyPassword_BothSupportedRolesCanChangeOwnPassword(string role)
+        {
+            AuthService.CurrentUser = new User { Id = 10, Role = role };
+            var repo = new Mock<UserRepository>();
+            repo.Setup(r => r.VerifyPassword(10, "oldPass123")).Returns(true);
+            repo.Setup(r => r.ChangePassword(10, "newPass123")).Returns(true);
+
+            var result = CreateService(repo).ChangeMyPassword("oldPass123", "newPass123", "newPass123");
+
+            Assert.True(result.Success);
+            repo.Verify(r => r.ChangePassword(10, "newPass123"), Times.Once);
         }
 
         [Fact]
-        public void ChangePassword_IncorrectOldPassword_ReturnsFailure()
+        public void ChangeMyPassword_WrongCurrentPassword_IsRejected()
         {
-            // Arrange (TC-MYACC-06)
-            var mockUserRepo = new Mock<UserRepository>();
-            mockUserRepo.Setup(r => r.VerifyPassword(10, "wrongOldPass")).Returns(false);
+            var repo = new Mock<UserRepository>();
+            repo.Setup(r => r.VerifyPassword(10, "wrongPass")).Returns(false);
 
-            var userService = new UserService(mockUserRepo.Object);
+            var result = CreateService(repo).ChangeMyPassword("wrongPass", "newPass123", "newPass123");
 
-            // Act
-            var result = userService.ChangePassword(10, "wrongOldPass", "newPass123", "newPass123");
-
-            // Assert
             Assert.False(result.Success);
             Assert.Equal("Current password is incorrect.", result.Message);
-            mockUserRepo.Verify(r => r.ChangePassword(It.IsAny<int>(), It.IsAny<string>()), Times.Never);
+            repo.Verify(r => r.ChangePassword(It.IsAny<int>(), It.IsAny<string>()), Times.Never);
         }
 
         [Theory]
-        [InlineData("")]
-        [InlineData("   ")]
-        [InlineData(null)]
-        public void ChangePassword_EmptyOldPassword_ReturnsFailure(string? oldPass)
+        [InlineData("", "newPass123", "newPass123", "Please enter your current password.")]
+        [InlineData("oldPass", "", "", "Please enter a new password.")]
+        [InlineData("oldPass", "12345", "12345", "New password must be at least 6 characters long.")]
+        [InlineData("oldPass", "newPass123", "different", "New passwords do not match.")]
+        public void ChangeMyPassword_InvalidFields_AreRejected(
+            string current, string next, string confirm, string expectedMessage)
         {
-            // Arrange (TC-MYACC-07)
-            var mockUserRepo = new Mock<UserRepository>();
-            var userService = new UserService(mockUserRepo.Object);
+            var repo = new Mock<UserRepository>();
 
-            // Act
-            var result = userService.ChangePassword(10, oldPass!, "newPass123", "newPass123");
+            var result = CreateService(repo).ChangeMyPassword(current, next, confirm);
 
-            // Assert
             Assert.False(result.Success);
-            Assert.Equal("Please enter your current password.", result.Message);
-        }
-
-        [Theory]
-        [InlineData("12345", false, "New password must be at least 6 characters long.")] // 5 chars (TC-MYACC-08 BVA)
-        [InlineData("123456", true, "Password changed successfully!")]                    // 6 chars (TC-MYACC-08 BVA)
-        public void ChangePassword_NewPasswordLengthBoundaries(string newPass, bool shouldSucceed, string expectedMsg)
-        {
-            // Arrange (TC-MYACC-08)
-            var mockUserRepo = new Mock<UserRepository>();
-            mockUserRepo.Setup(r => r.VerifyPassword(10, "oldPass")).Returns(true);
-            mockUserRepo.Setup(r => r.ChangePassword(10, newPass)).Returns(true);
-
-            var userService = new UserService(mockUserRepo.Object);
-
-            // Act
-            var result = userService.ChangePassword(10, "oldPass", newPass, newPass);
-
-            // Assert
-            Assert.Equal(shouldSucceed, result.Success);
-            Assert.Equal(expectedMsg, result.Message);
+            Assert.Equal(expectedMessage, result.Message);
+            repo.Verify(r => r.VerifyPassword(It.IsAny<int>(), It.IsAny<string>()), Times.Never);
         }
 
         [Fact]
-        public void ChangePassword_ConfirmPasswordMismatch_ReturnsFailure()
+        public void ChangeMyPassword_NoCurrentUser_IsRejected()
         {
-            // Arrange (TC-MYACC-09)
-            var mockUserRepo = new Mock<UserRepository>();
-            var userService = new UserService(mockUserRepo.Object);
+            AuthService.CurrentUser = null;
 
-            // Act
-            var result = userService.ChangePassword(10, "oldPass", "newPass123", "differentPass");
+            var error = Assert.Throws<BusinessRuleException>(
+                () => CreateService(new Mock<UserRepository>()).ChangeMyPassword("old", "newpass", "newpass"));
 
-            // Assert
-            Assert.False(result.Success);
-            Assert.Equal("New passwords do not match.", result.Message);
+            Assert.Contains("authenticated", error.Message, StringComparison.OrdinalIgnoreCase);
         }
+
+        [Theory]
+        [InlineData("Administrator", true, "Full system access")]
+        [InlineData("Librarian", false, "Library operations")]
+        public void GetMyAccess_UsesDatabaseRoleAndActualUserPermissions(
+            string databaseRole, bool canManageUsers, string expectedAccessLevel)
+        {
+            AuthService.CurrentUser = new User { Id = 10, Role = "stale role" };
+            var repo = new Mock<UserRepository>();
+            repo.Setup(r => r.GetById(10)).Returns(new User { Id = 10, Role = databaseRole });
+
+            var access = CreateService(repo).GetMyAccess();
+
+            Assert.Equal(databaseRole, access.Role);
+            Assert.Equal(expectedAccessLevel, access.AccessLevel);
+            Assert.True(access.CanManageCatalog);
+            Assert.True(access.CanManageReaders);
+            Assert.True(access.CanUseCirculation);
+            Assert.True(access.CanViewFeesAndHistory);
+            Assert.Equal(canManageUsers, access.CanManageUsers);
+            Assert.Equal(canManageUsers, UserPermissions.CanManageUsers(databaseRole));
+        }
+
+        [Fact]
+        public void MyAccountViewModel_NoSession_ShowsPlaceholdersInsteadOfInventedUser()
+        {
+            AuthService.CurrentUser = null;
+            var viewModel = new MyAccountViewModel(Mock.Of<IUserDialogService>(), new UserService(new UserRepository()));
+
+            Assert.Equal("—", viewModel.FullName);
+            Assert.Equal("—", viewModel.Username);
+            Assert.Equal("—", viewModel.Email);
+            Assert.Equal("—", viewModel.Role);
+            Assert.Equal("—", viewModel.MemberSinceFormatted);
+            Assert.Equal("—", viewModel.AccessLevel);
+            Assert.Equal("—", viewModel.Initials);
+            Assert.True(viewModel.IsProfileError);
+        }
+
+        [Fact]
+        public void AccountSections_DefaultToProfile_NavigateAndCancelProfileEdit()
+        {
+            var user = StoredUser();
+            var repo = new Mock<UserRepository>();
+            repo.Setup(r => r.GetById(10)).Returns(user);
+            var service = CreateService(repo);
+            var viewModel = new MyAccountViewModel(Mock.Of<IUserDialogService>(), service);
+
+            Assert.Equal(MyAccountViewModel.AccountSection.Profile, viewModel.SelectedSection);
+            Assert.Equal(Visibility.Visible, viewModel.ProfileSummaryVisibility);
+
+            viewModel.ToggleEditProfileCommand.Execute(null);
+            Assert.Equal(Visibility.Visible, viewModel.EditProfileVisibility);
+            viewModel.EditFullName = "Unsaved name";
+            viewModel.CloseSidePanelCommand.Execute(null);
+            Assert.Equal("Database Name", viewModel.FullName);
+            Assert.Equal(Visibility.Visible, viewModel.ProfileSummaryVisibility);
+
+            viewModel.SelectSecurityCommand.Execute(null);
+            Assert.Equal(MyAccountViewModel.AccountSection.Security, viewModel.SelectedSection);
+            Assert.Equal(Visibility.Visible, viewModel.SecuritySectionVisibility);
+            Assert.Equal("Library operations", viewModel.AccessLevel);
+
+            viewModel.SelectAccessRoleCommand.Execute(null);
+            Assert.Equal(MyAccountViewModel.AccountSection.AccessRole, viewModel.SelectedSection);
+            Assert.Equal(Visibility.Visible, viewModel.AccessRoleSectionVisibility);
+
+            viewModel.SelectProfileCommand.Execute(null);
+            Assert.Equal(MyAccountViewModel.AccountSection.Profile, viewModel.SelectedSection);
+            Assert.Equal(Visibility.Visible, viewModel.ProfileSummaryVisibility);
+        }
+
+        [Fact]
+        public void MyAccountView_PasswordEyeTogglesCurrentPasswordVisibility()
+        {
+            StaHelper.RunInSta(() =>
+            {
+                var repo = new Mock<UserRepository>();
+                repo.Setup(r => r.GetById(10)).Returns(StoredUser());
+                var viewModel = new MyAccountViewModel(
+                    Mock.Of<IUserDialogService>(),
+                    CreateService(repo));
+                var view = new MyAccountView(viewModel);
+                var passwordBox = GetField<PasswordBox>(view, "PwdCurrent");
+                var visiblePasswordBox = GetField<TextBox>(view, "PwdCurrentVisible");
+                var toggle = GetField<Button>(view, "BtnTogglePwdCurrent");
+
+                toggle.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                Assert.Equal(Visibility.Collapsed, passwordBox.Visibility);
+                Assert.Equal(Visibility.Visible, visiblePasswordBox.Visibility);
+
+                toggle.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                Assert.Equal(Visibility.Visible, passwordBox.Visibility);
+                Assert.Equal(Visibility.Collapsed, visiblePasswordBox.Visibility);
+            });
+        }
+
+        private static UserService CreateService(Mock<UserRepository> repository) =>
+            new(repository.Object, new AuthServiceCurrentUserContext());
+
+        private static User StoredUser() => new()
+        {
+            Id = 10,
+            Username = "dbuser",
+            FullName = "Database Name",
+            Email = "dbuser@library.com",
+            Role = "Librarian",
+            CreatedAt = new DateTime(2024, 1, 2)
+        };
+
+        private static T GetField<T>(object target, string name) where T : class
+            => (T)(target.GetType().GetField(name, BindingFlags.Instance | BindingFlags.NonPublic)?.GetValue(target)
+                ?? throw new InvalidOperationException($"Could not find field '{name}'."));
     }
 }
