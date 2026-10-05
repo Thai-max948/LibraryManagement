@@ -77,7 +77,15 @@ public sealed class DashboardRepositoryIntegrationTests : IClassFixture<SqlInteg
         Assert.Equal(activeBookTitle, fallback.BookTitle);
         Assert.Equal("BK-" + verifiedAvailableCopyId.ToString("D6"), fallback.Barcode);
 
-        Assert.Equal(new[] { outsideRangeBorrowId, tiedReturnedId, returnedStateMismatchId, returnedTodayId },
+        Assert.Equal(5, after.RecentReturns.Count);
+        Assert.Equal(new[]
+            {
+                outsideRangeBorrowId,
+                tiedReturnedId,
+                returnedStateMismatchId,
+                returnedTodayId,
+                before.RecentReturns[0].BorrowId
+            },
             after.RecentReturns.Select(item => item.BorrowId));
         Assert.Equal(7, after.CirculationCounts.Count);
         Assert.Equal(today.AddDays(-6), after.CirculationCounts[0].Date);
