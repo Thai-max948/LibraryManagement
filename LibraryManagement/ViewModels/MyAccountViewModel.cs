@@ -9,345 +9,393 @@ namespace LibraryManagement.ViewModels
 {
     public class MyAccountViewModel : BaseViewModel
     {
-        private readonly UserService _userService = new();
+        public enum AccountSection
+        {
+            Profile,
+            Security,
+            AccessRole
+        }
+
+        private readonly UserService _userService;
         private readonly IUserDialogService _dialogService;
+        private MyAccountProfile? _profile;
+        private AccountAccessInfo? _access;
+        private string _editFullName = string.Empty;
+        private string _editUsername = string.Empty;
+        private string _editEmail = string.Empty;
+        private string _profileMessage = string.Empty;
+        private string _passwordMessage = string.Empty;
+        private string _currentPassword = string.Empty;
+        private string _newPassword = string.Empty;
+        private string _confirmPassword = string.Empty;
+        private bool _isProfileSuccess;
+        private bool _isProfileError;
+        private bool _isPasswordSuccess;
+        private bool _isPasswordError;
+        private bool _isEditProfileOpen;
+        private AccountSection _selectedSection = AccountSection.Profile;
 
-        public User? CurrentUser => AuthService.CurrentUser;
+        public MyAccountViewModel(IUserDialogService dialogService, UserService? userService = null)
+        {
+            _dialogService = dialogService ?? throw new ArgumentNullException(nameof(dialogService));
+            _userService = userService ?? new UserService();
 
-        public int UserId => CurrentUser?.Id ?? 0;
-        public string FullName => CurrentUser?.FullName ?? "System User";
-        public string Username => CurrentUser?.Username ?? "user";
-        public string Email => CurrentUser?.Email ?? "user@library.com";
-        public string Role => CurrentUser?.Role ?? "Librarian";
-        public string RoleHeader => $"Role: {Role}";
-        public string CreatedAtFormatted => CurrentUser?.CreatedAt.ToString("yyyy-MM-dd HH:mm") ?? "N/A";
-        public string MemberSinceFormatted => CurrentUser?.CreatedAt.ToString("dd/MM/yyyy") ?? DateTime.Now.ToString("dd/MM/yyyy");
+            SelectProfileCommand = new RelayCommand(_ => SelectSection(AccountSection.Profile));
+            SelectSecurityCommand = new RelayCommand(_ => SelectSection(AccountSection.Security));
+            SelectAccessRoleCommand = new RelayCommand(_ => SelectSection(AccountSection.AccessRole));
+            ToggleEditProfileCommand = new RelayCommand(_ => ToggleEditProfile());
+            CloseSidePanelCommand = new RelayCommand(_ => CloseEditProfile());
+            SaveProfileCommand = new RelayCommand(_ => ExecuteSaveProfile());
+            ChangePasswordCommand = new RelayCommand(_ => ExecuteChangePassword());
+
+            LoadUserData();
+        }
+
+        public string FullName => _profile?.FullName ?? "—";
+        public string Username => _profile?.Username ?? "—";
+        public string Email => _profile?.Email ?? "—";
+        public string IdentityLine => _profile == null ? "—" : $"@{Username} · {Email}";
+        public string Role => _access?.Role ?? _profile?.Role ?? "—";
+        public string MemberSinceFormatted => _profile?.CreatedAt.ToString("dd/MM/yyyy") ?? "—";
+        public string AccessLevel => _access?.AccessLevel ?? "—";
+
+        public AccountSection SelectedSection
+        {
+            get => _selectedSection;
+            set
+            {
+                if (SetProperty(ref _selectedSection, value))
+                {
+                    OnPropertyChanged(nameof(IsProfileSelected));
+                    OnPropertyChanged(nameof(IsSecuritySelected));
+                    OnPropertyChanged(nameof(IsAccessRoleSelected));
+                    OnPropertyChanged(nameof(ProfileSectionVisibility));
+                    OnPropertyChanged(nameof(ProfileSummaryVisibility));
+                    OnPropertyChanged(nameof(EditProfileVisibility));
+                    OnPropertyChanged(nameof(SecuritySectionVisibility));
+                    OnPropertyChanged(nameof(AccessRoleSectionVisibility));
+                }
+            }
+        }
+
+        public bool IsProfileSelected => SelectedSection == AccountSection.Profile;
+        public bool IsSecuritySelected => SelectedSection == AccountSection.Security;
+        public bool IsAccessRoleSelected => SelectedSection == AccountSection.AccessRole;
+        public Visibility ProfileSectionVisibility => IsProfileSelected ? Visibility.Visible : Visibility.Collapsed;
+        public Visibility ProfileSummaryVisibility => IsProfileSelected && !IsEditProfileOpen ? Visibility.Visible : Visibility.Collapsed;
+        public Visibility EditProfileVisibility => IsProfileSelected && IsEditProfileOpen ? Visibility.Visible : Visibility.Collapsed;
+        public Visibility SecuritySectionVisibility => IsSecuritySelected ? Visibility.Visible : Visibility.Collapsed;
+        public Visibility AccessRoleSectionVisibility => IsAccessRoleSelected ? Visibility.Visible : Visibility.Collapsed;
 
         public string Initials
         {
             get
             {
-                if (string.IsNullOrWhiteSpace(FullName))
+                if (_profile == null || string.IsNullOrWhiteSpace(_profile.FullName))
                 {
-                    return "US";
-                }
-                if (string.Equals(FullName, "Thai Nguyen", StringComparison.OrdinalIgnoreCase))
-                {
-                    return "TH";
-                }
-                if (string.Equals(FullName, "Le Anh", StringComparison.OrdinalIgnoreCase))
-                {
-                    return "LA";
+                    return "—";
                 }
 
-                var parts = FullName.Trim().Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                var parts = _profile.FullName.Trim().Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
                 if (parts.Length == 1)
                 {
                     return parts[0].Length >= 2
                         ? parts[0].Substring(0, 2).ToUpperInvariant()
                         : parts[0].ToUpperInvariant();
                 }
+
                 return $"{parts[0][0]}{parts[parts.Length - 1][0]}".ToUpperInvariant();
             }
         }
 
-        public bool IsAdmin => string.Equals(Role, "Administrator", StringComparison.OrdinalIgnoreCase);
-        public Visibility ChangePasswordButtonVisibility => IsAdmin ? Visibility.Collapsed : Visibility.Visible;
-        public Visibility AdminPasswordNoteVisibility => IsAdmin ? Visibility.Visible : Visibility.Collapsed;
+        public bool IsAdmin => UserPermissions.CanManageUsers(Role == "—" ? null : Role);
+        public Visibility UserAccountsCheckVisibility => _access?.CanManageUsers == true ? Visibility.Visible : Visibility.Collapsed;
+        public Visibility UserAccountsLockVisibility => _access != null && !_access.CanManageUsers
+            ? Visibility.Visible
+            : Visibility.Collapsed;
+        public Visibility CatalogCheckVisibility => _access?.CanManageCatalog == true ? Visibility.Visible : Visibility.Collapsed;
+        public Visibility ReadersCheckVisibility => _access?.CanManageReaders == true ? Visibility.Visible : Visibility.Collapsed;
+        public Visibility CirculationCheckVisibility => _access?.CanUseCirculation == true ? Visibility.Visible : Visibility.Collapsed;
+        public Visibility FeesHistoryCheckVisibility => _access?.CanViewFeesAndHistory == true ? Visibility.Visible : Visibility.Collapsed;
 
-        public Visibility UserAccountsCheckVisibility => IsAdmin ? Visibility.Visible : Visibility.Collapsed;
-        public Visibility UserAccountsLockVisibility => IsAdmin ? Visibility.Collapsed : Visibility.Visible;
-        public double UserAccountsOpacity => IsAdmin ? 1.0 : 0.45;
-
-        public string ProjectName => "Library Management System (Library OS)";
-        public string ProjectVersion => "v2.4 Core Node";
-        public string DatabaseStatus => "Active & Connected";
-
-        public string PermissionsSummary => Role == "Administrator"
-            ? "Full Access: Catalog management, circulation desk, readers directory, system user accounts, and security privileges."
-            : "Circulation Access: Book search & catalog maintenance, readers registry, book borrowing & returns, and circulation history.";
-
-        // Edit Profile State
-        private string _editFullName = "";
         public string EditFullName
         {
             get => _editFullName;
             set => SetProperty(ref _editFullName, value);
         }
 
-        private string _editUsername = "";
         public string EditUsername
         {
             get => _editUsername;
             set => SetProperty(ref _editUsername, value);
         }
 
-        private string _editEmail = "";
         public string EditEmail
         {
             get => _editEmail;
             set => SetProperty(ref _editEmail, value);
         }
 
-        private string _profileMessage = "";
         public string ProfileMessage
         {
             get => _profileMessage;
-            set => SetProperty(ref _profileMessage, value);
+            set
+            {
+                if (SetProperty(ref _profileMessage, value))
+                {
+                    OnPropertyChanged(nameof(HasProfileMessage));
+                }
+            }
         }
 
-        private bool _isProfileSuccess = false;
+        public bool HasProfileMessage => !string.IsNullOrWhiteSpace(ProfileMessage);
+
         public bool IsProfileSuccess
         {
             get => _isProfileSuccess;
             set => SetProperty(ref _isProfileSuccess, value);
         }
 
-        private bool _isProfileError = false;
         public bool IsProfileError
         {
             get => _isProfileError;
             set => SetProperty(ref _isProfileError, value);
         }
 
-        // Change Password State
-        private string _currentPassword = "";
         public string CurrentPassword
         {
             get => _currentPassword;
             set => SetProperty(ref _currentPassword, value);
         }
 
-        private string _newPassword = "";
         public string NewPassword
         {
             get => _newPassword;
             set => SetProperty(ref _newPassword, value);
         }
 
-        private string _confirmPassword = "";
         public string ConfirmPassword
         {
             get => _confirmPassword;
             set => SetProperty(ref _confirmPassword, value);
         }
 
-        private string _passwordMessage = "";
         public string PasswordMessage
         {
             get => _passwordMessage;
-            set => SetProperty(ref _passwordMessage, value);
+            set
+            {
+                if (SetProperty(ref _passwordMessage, value))
+                {
+                    OnPropertyChanged(nameof(HasPasswordMessage));
+                }
+            }
         }
 
-        private bool _isPasswordSuccess = false;
+        public bool HasPasswordMessage => !string.IsNullOrWhiteSpace(PasswordMessage);
+
         public bool IsPasswordSuccess
         {
             get => _isPasswordSuccess;
             set => SetProperty(ref _isPasswordSuccess, value);
         }
 
-        private bool _isPasswordError = false;
         public bool IsPasswordError
         {
             get => _isPasswordError;
             set => SetProperty(ref _isPasswordError, value);
         }
 
-        public enum ActiveSidePanel
+        public bool IsEditProfileOpen
         {
-            None,
-            EditProfile,
-            ChangePassword
-        }
-
-        private ActiveSidePanel _currentSidePanel = ActiveSidePanel.None;
-        public ActiveSidePanel CurrentSidePanel
-        {
-            get => _currentSidePanel;
-            set
+            get => _isEditProfileOpen;
+            private set
             {
-                if (SetProperty(ref _currentSidePanel, value))
+                if (SetProperty(ref _isEditProfileOpen, value))
                 {
-                    OnPropertyChanged(nameof(IsSidePanelOpen));
-                    OnPropertyChanged(nameof(IsEditProfileOpen));
-                    OnPropertyChanged(nameof(IsChangePasswordOpen));
-                    OnPropertyChanged(nameof(IsOverviewOpen));
-                    OnPropertyChanged(nameof(SidePanelVisibility));
+                    OnPropertyChanged(nameof(ProfileSummaryVisibility));
                     OnPropertyChanged(nameof(EditProfileVisibility));
-                    OnPropertyChanged(nameof(ChangePasswordVisibility));
-                    OnPropertyChanged(nameof(OverviewVisibility));
                 }
             }
         }
 
-        public bool IsSidePanelOpen => CurrentSidePanel != ActiveSidePanel.None;
-        public bool IsEditProfileOpen => CurrentSidePanel == ActiveSidePanel.EditProfile;
-        public bool IsChangePasswordOpen => CurrentSidePanel == ActiveSidePanel.ChangePassword;
-        public bool IsOverviewOpen => CurrentSidePanel == ActiveSidePanel.None;
-
-        public Visibility SidePanelVisibility => IsSidePanelOpen ? Visibility.Visible : Visibility.Collapsed;
-        public Visibility EditProfileVisibility => IsEditProfileOpen ? Visibility.Visible : Visibility.Collapsed;
-        public Visibility ChangePasswordVisibility => IsChangePasswordOpen ? Visibility.Visible : Visibility.Collapsed;
-        public Visibility OverviewVisibility => IsOverviewOpen ? Visibility.Visible : Visibility.Collapsed;
-
-        // Selected Tab (0 = My Project, 1 = Edit Profile, 2 = Change Password)
-        private int _selectedTabIndex = 0;
-        public int SelectedTabIndex
-        {
-            get => _selectedTabIndex;
-            set => SetProperty(ref _selectedTabIndex, value);
-        }
-
-        public ICommand SelectTabCommand { get; }
+        public ICommand SelectProfileCommand { get; }
+        public ICommand SelectSecurityCommand { get; }
+        public ICommand SelectAccessRoleCommand { get; }
         public ICommand ToggleEditProfileCommand { get; }
-        public ICommand ToggleChangePasswordCommand { get; }
         public ICommand CloseSidePanelCommand { get; }
         public ICommand SaveProfileCommand { get; }
         public ICommand ChangePasswordCommand { get; }
-        public ICommand ResetProfileFieldsCommand { get; }
-
-        public MyAccountViewModel(IUserDialogService dialogService)
-        {
-            _dialogService = dialogService ?? throw new ArgumentNullException(nameof(dialogService));
-            SelectTabCommand = new RelayCommand(p =>
-            {
-                if (p != null && int.TryParse(p.ToString(), out int idx))
-                {
-                    SelectedTabIndex = idx;
-                    ProfileMessage = "";
-                    PasswordMessage = "";
-                }
-            });
-
-            ToggleEditProfileCommand = new RelayCommand(_ =>
-            {
-                if (CurrentSidePanel == ActiveSidePanel.EditProfile)
-                {
-                    CurrentSidePanel = ActiveSidePanel.None;
-                }
-                else
-                {
-                    LoadUserData();
-                    CurrentSidePanel = ActiveSidePanel.EditProfile;
-                }
-                ProfileMessage = "";
-                PasswordMessage = "";
-            });
-
-            ToggleChangePasswordCommand = new RelayCommand(_ =>
-            {
-                if (CurrentSidePanel == ActiveSidePanel.ChangePassword)
-                {
-                    CurrentSidePanel = ActiveSidePanel.None;
-                }
-                else
-                {
-                    CurrentSidePanel = ActiveSidePanel.ChangePassword;
-                }
-                ProfileMessage = "";
-                PasswordMessage = "";
-            });
-
-            CloseSidePanelCommand = new RelayCommand(_ =>
-            {
-                CurrentSidePanel = ActiveSidePanel.None;
-                ProfileMessage = "";
-                PasswordMessage = "";
-            });
-
-            SaveProfileCommand = new RelayCommand(_ => ExecuteSaveProfile());
-            ChangePasswordCommand = new RelayCommand(_ => ExecuteChangePassword());
-            ResetProfileFieldsCommand = new RelayCommand(_ => LoadUserData());
-
-            LoadUserData();
-        }
 
         public void LoadUserData()
         {
-            if (CurrentUser != null)
+            try
             {
-                EditFullName = CurrentUser.FullName;
-                EditUsername = CurrentUser.Username;
-                EditEmail = CurrentUser.Email;
+                var profile = _userService.GetMyProfile();
+                var access = _userService.GetMyAccess();
+                _profile = profile;
+                _access = access;
+                CopyProfileToEditFields();
+                ProfileMessage = string.Empty;
+                IsProfileError = false;
             }
-            OnPropertyChanged(nameof(FullName));
-            OnPropertyChanged(nameof(Username));
-            OnPropertyChanged(nameof(Email));
-            OnPropertyChanged(nameof(Role));
-            OnPropertyChanged(nameof(RoleHeader));
-            OnPropertyChanged(nameof(Initials));
-            OnPropertyChanged(nameof(MemberSinceFormatted));
-            OnPropertyChanged(nameof(IsAdmin));
-            OnPropertyChanged(nameof(ChangePasswordButtonVisibility));
-            OnPropertyChanged(nameof(AdminPasswordNoteVisibility));
-            OnPropertyChanged(nameof(UserAccountsCheckVisibility));
-            OnPropertyChanged(nameof(UserAccountsLockVisibility));
-            OnPropertyChanged(nameof(UserAccountsOpacity));
-            OnPropertyChanged(nameof(UserId));
-            OnPropertyChanged(nameof(CreatedAtFormatted));
-            OnPropertyChanged(nameof(PermissionsSummary));
+            catch (BusinessRuleException ex)
+            {
+                _profile = null;
+                _access = null;
+                EditFullName = string.Empty;
+                EditUsername = string.Empty;
+                EditEmail = string.Empty;
+                ProfileMessage = ex.Message;
+                IsProfileError = true;
+            }
+            catch
+            {
+                _profile = null;
+                _access = null;
+                EditFullName = string.Empty;
+                EditUsername = string.Empty;
+                EditEmail = string.Empty;
+                ProfileMessage = "Unable to load account information. Please try again.";
+                IsProfileError = true;
+            }
+
+            RefreshAccountProperties();
+        }
+
+        private void SelectSection(AccountSection section)
+        {
+            SelectedSection = section;
+            CloseEditProfile();
+            ProfileMessage = string.Empty;
+            PasswordMessage = string.Empty;
+        }
+
+        private void ToggleEditProfile()
+        {
+            if (IsEditProfileOpen)
+            {
+                CloseEditProfile();
+            }
+            else
+            {
+                SelectedSection = AccountSection.Profile;
+                CopyProfileToEditFields();
+                IsEditProfileOpen = true;
+            }
+
+            ProfileMessage = string.Empty;
+            PasswordMessage = string.Empty;
+        }
+
+        private void CloseEditProfile()
+        {
+            CopyProfileToEditFields();
+            IsEditProfileOpen = false;
+        }
+
+        private void CopyProfileToEditFields()
+        {
+            EditFullName = _profile?.FullName ?? string.Empty;
+            EditUsername = _profile?.Username ?? string.Empty;
+            EditEmail = _profile?.Email ?? string.Empty;
         }
 
         private void ExecuteSaveProfile()
         {
-            if (CurrentUser == null)
+            try
             {
-                return;
-            }
+                var result = _userService.UpdateMyProfile(EditFullName, EditUsername, EditEmail);
+                if (!result.Success || result.Profile == null)
+                {
+                    SetProfileFailure(result.Message);
+                    return;
+                }
 
-            var result = _userService.UpdateSelfProfile(
-                CurrentUser.Id,
-                EditFullName,
-                EditUsername,
-                EditEmail);
-
-            if (result.Success)
-            {
+                _profile = result.Profile;
+                CopyProfileToEditFields();
+                RefreshAccountProperties();
                 ProfileMessage = result.Message;
                 IsProfileSuccess = true;
                 IsProfileError = false;
-                LoadUserData();
+                IsEditProfileOpen = false;
                 _dialogService.ShowInformation("Profile updated successfully", "Notification");
-                CurrentSidePanel = ActiveSidePanel.None;
             }
-            else
+            catch (BusinessRuleException ex)
             {
-                ProfileMessage = result.Message;
-                IsProfileSuccess = false;
-                IsProfileError = true;
+                SetProfileFailure(ex.Message);
             }
+            catch
+            {
+                SetProfileFailure("Unable to update profile. Please try again.");
+            }
+        }
+
+        private void SetProfileFailure(string message)
+        {
+            ProfileMessage = message;
+            IsProfileSuccess = false;
+            IsProfileError = true;
         }
 
         private void ExecuteChangePassword()
         {
-            if (CurrentUser == null)
+            try
             {
-                return;
-            }
+                var result = _userService.ChangeMyPassword(CurrentPassword, NewPassword, ConfirmPassword);
+                if (!result.Success)
+                {
+                    SetPasswordFailure(result.Message);
+                    return;
+                }
 
-            var result = _userService.ChangePassword(
-                CurrentUser.Id,
-                CurrentPassword,
-                NewPassword,
-                ConfirmPassword);
-
-            if (result.Success)
-            {
                 PasswordMessage = result.Message;
                 IsPasswordSuccess = true;
                 IsPasswordError = false;
-                CurrentPassword = "";
-                NewPassword = "";
-                ConfirmPassword = "";
+                ClearPasswordFields();
                 _dialogService.ShowInformation("Password changed successfully", "Notification");
-                CurrentSidePanel = ActiveSidePanel.None;
             }
-            else
+            catch (BusinessRuleException ex)
             {
-                PasswordMessage = result.Message;
-                IsPasswordSuccess = false;
-                IsPasswordError = true;
+                SetPasswordFailure(ex.Message);
             }
+            catch
+            {
+                SetPasswordFailure("Unable to change password. Please try again.");
+            }
+        }
+
+        private void SetPasswordFailure(string message)
+        {
+            PasswordMessage = message;
+            IsPasswordSuccess = false;
+            IsPasswordError = true;
+        }
+
+        private void ClearPasswordFields()
+        {
+            CurrentPassword = string.Empty;
+            NewPassword = string.Empty;
+            ConfirmPassword = string.Empty;
+        }
+
+        private void RefreshAccountProperties()
+        {
+            OnPropertyChanged(nameof(FullName));
+            OnPropertyChanged(nameof(Username));
+            OnPropertyChanged(nameof(Email));
+            OnPropertyChanged(nameof(IdentityLine));
+            OnPropertyChanged(nameof(Role));
+            OnPropertyChanged(nameof(MemberSinceFormatted));
+            OnPropertyChanged(nameof(AccessLevel));
+            OnPropertyChanged(nameof(Initials));
+            OnPropertyChanged(nameof(IsAdmin));
+            OnPropertyChanged(nameof(UserAccountsCheckVisibility));
+            OnPropertyChanged(nameof(UserAccountsLockVisibility));
+            OnPropertyChanged(nameof(CatalogCheckVisibility));
+            OnPropertyChanged(nameof(ReadersCheckVisibility));
+            OnPropertyChanged(nameof(CirculationCheckVisibility));
+            OnPropertyChanged(nameof(FeesHistoryCheckVisibility));
         }
     }
 }

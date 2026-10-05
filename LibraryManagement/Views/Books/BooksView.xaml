@@ -4,13 +4,6 @@
              xmlns:vm="clr-namespace:LibraryManagement.ViewModels"
              xmlns:models="clr-namespace:LibraryManagement.Models">
 
-    <UserControl.Resources>
-        <Style x:Key="BookPriceTextStyle" TargetType="{x:Type TextBlock}">
-            <Setter Property="Foreground" Value="#2E7D32"/>
-            <Setter Property="FontWeight" Value="SemiBold"/>
-        </Style>
-    </UserControl.Resources>
-
     <StackPanel Margin="10">
         <TextBlock Text="📚 Books Management" FontSize="22" FontWeight="Bold" Foreground="{StaticResource TextBrush}"/>
         <TextBlock Text="Manage your library collection" Foreground="{StaticResource SecondaryTextBrush}" Margin="0,0,0,16"/>
@@ -61,7 +54,7 @@
         </StackPanel>
 
         <DataGrid ItemsSource="{Binding Books}" SelectedItem="{Binding SelectedBook}"
-                  AutoGenerateColumns="False" IsReadOnly="True"
+                  AutoGenerateColumns="False" IsReadOnly="True" RowHeight="62"
                   Style="{StaticResource AppDataGridStyle}" Height="380">
             <DataGrid.Columns>
                 <DataGridTextColumn Header="ID" Binding="{Binding BookId}" Width="50"/>
@@ -72,10 +65,39 @@
                 <DataGridTextColumn Header="Publisher" Binding="{Binding Publisher}" Width="140"/>
                 <DataGridTextColumn Header="Language" Binding="{Binding LanguageDisplay}" Width="110"/>
                 <DataGridTextColumn Header="Year" Binding="{Binding PublishYear}" Width="70"/>
-                <DataGridTextColumn Header="Book Price" Binding="{Binding ReplacementValue, StringFormat={}{0:N2} $}" Width="110"
-                                    ElementStyle="{StaticResource BookPriceTextStyle}"/>
-                <DataGridTextColumn Header="Rental Price" Binding="{Binding RentalPrice, StringFormat={}{0:N2} $}" Width="110"
-                                    ElementStyle="{StaticResource BookPriceTextStyle}"/>
+                <DataGridTemplateColumn Header="Pricing" Width="190" MinWidth="175">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <Grid VerticalAlignment="Center">
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+                                <TextBlock x:Name="BookPriceValue"
+                                           Text="{Binding ReplacementValue, StringFormat={}{0:C2}, ConverterCulture=en-US}"
+                                           FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource TextBrush}"/>
+                                <StackPanel x:Name="RentalPriceDetails" Grid.Row="1" Orientation="Horizontal" Margin="0,3,0,0">
+                                    <TextBlock Text="Rent" FontSize="11" Foreground="{StaticResource SecondaryTextBrush}" VerticalAlignment="Center"/>
+                                    <TextBlock Text="{Binding RentalPrice, StringFormat={}{0:C2}, ConverterCulture=en-US, TargetNullValue=—}"
+                                               FontSize="11" Foreground="{StaticResource TechAccentGreen}" Margin="5,0,7,0" VerticalAlignment="Center"/>
+                                    <Border Style="{StaticResource BookPricingBadgeStyle}">
+                                        <TextBlock Text="{Binding DataContext.PricingRateBadge, RelativeSource={RelativeSource AncestorType={x:Type DataGrid}}}"
+                                                   Style="{StaticResource BookPricingBadgeTextStyle}"/>
+                                    </Border>
+                                </StackPanel>
+                                <TextBlock x:Name="NotConfigured" Grid.Row="1" Text="Not configured" Margin="0,3,0,0"
+                                           FontSize="11" Foreground="{StaticResource SecondaryTextBrush}" Visibility="Collapsed"/>
+                            </Grid>
+                            <DataTemplate.Triggers>
+                                <DataTrigger Binding="{Binding ReplacementValue}" Value="{x:Null}">
+                                    <Setter TargetName="BookPriceValue" Property="TextBlock.Text" Value="—"/>
+                                    <Setter TargetName="RentalPriceDetails" Property="Visibility" Value="Collapsed"/>
+                                    <Setter TargetName="NotConfigured" Property="Visibility" Value="Visible"/>
+                                </DataTrigger>
+                            </DataTemplate.Triggers>
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
             </DataGrid.Columns>
         </DataGrid>
     </StackPanel>

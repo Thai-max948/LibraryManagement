@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using LibraryManagement.Data;
 using LibraryManagement.Models;
+using LibraryManagement.Services;
 using Microsoft.Data.SqlClient;
 
 namespace LibraryManagement.Repositories
@@ -18,8 +19,9 @@ namespace LibraryManagement.Repositories
                 WHERE br.Status = N'Borrowing' AND br.ReturnDate IS NULL
                   AND br.DueDate >= @StartDate AND br.DueDate < @EndDate
                 ORDER BY br.BorrowId", connection);
-            command.Parameters.Add("@StartDate", System.Data.SqlDbType.DateTime2).Value = targetDate.Date;
-            command.Parameters.Add("@EndDate", System.Data.SqlDbType.DateTime2).Value = targetDate.Date.AddDays(1);
+            var window = DueSoonDatePolicy.GetDayWindow(targetDate);
+            command.Parameters.Add("@StartDate", System.Data.SqlDbType.DateTime2).Value = window.StartInclusive;
+            command.Parameters.Add("@EndDate", System.Data.SqlDbType.DateTime2).Value = window.EndExclusive;
             var loans = new List<DueSoonLoan>();
             await using var reader = await command.ExecuteReaderAsync(cancellationToken);
             while (await reader.ReadAsync(cancellationToken))

@@ -24,7 +24,7 @@ public sealed class DueSoonNotificationChecker : IDueSoonNotificationChecker
 
     public async Task<int> CheckAsync(CancellationToken cancellationToken = default)
     {
-        DateTime targetDate = _timeProvider.GetLocalNow().Date.AddDays(2);
+        DateTime targetDate = DueSoonDatePolicy.GetTargetDate(_timeProvider.GetLocalNow().Date);
         IReadOnlyList<DueSoonLoan> loans = await _loans.GetActiveLoansDueOnAsync(targetDate, cancellationToken).ConfigureAwait(false);
         int published = 0;
         foreach (var loan in loans)

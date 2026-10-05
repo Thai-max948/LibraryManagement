@@ -38,7 +38,7 @@ namespace LibraryManagement.Tests
 
             StaHelper.RunInSta(() =>
             {
-                var mainVm = new MainViewModel(_ => new object());
+                using var mainVm = new MainViewModel(_ => new object());
 
                 // 1. Dashboard
                 mainVm.ShowDashboardCommand.Execute(null);
@@ -89,7 +89,7 @@ namespace LibraryManagement.Tests
             // Arrange & Act & Assert (TC-NAV-02)
             StaHelper.RunInSta(() =>
             {
-                var mainVm = new MainViewModel(_ => new object());
+                using var mainVm = new MainViewModel(_ => new object());
 
                 mainVm.ShowBooksCommand.Execute(null);
                 Assert.Equal("Books", mainVm.CurrentViewName);
@@ -108,7 +108,7 @@ namespace LibraryManagement.Tests
             // Arrange & Act & Assert (TC-NAV-03)
             StaHelper.RunInSta(() =>
             {
-                var mainVm = new MainViewModel(_ => new object());
+                using var mainVm = new MainViewModel(_ => new object());
 
                 for (int i = 0; i < 10; i++)
                 {
@@ -136,11 +136,57 @@ namespace LibraryManagement.Tests
 
             StaHelper.RunInSta(() =>
             {
-                var mainVm = new MainViewModel(_ => new object());
+                using var mainVm = new MainViewModel(_ => new object());
 
                 Assert.False(mainVm.IsAccountsVisible);
                 Assert.Equal(System.Windows.Visibility.Collapsed, mainVm.AccountsVisibility);
                 Assert.False(mainVm.ShowAccountsCommand.CanExecute(null));
+            });
+        }
+
+        [Fact]
+        public void CurrentUserChanged_RefreshesSidebarAndSharedUserManagementPermission()
+        {
+            AuthService.CurrentUser = new User
+            {
+                Id = 2,
+                Username = "librarian",
+                FullName = "Librarian User",
+                Role = "Librarian"
+            };
+
+            StaHelper.RunInSta(() =>
+            {
+                using var mainVm = new MainViewModel(_ => new object());
+                bool nameNotified = false;
+                bool roleNotified = false;
+                bool visibilityNotified = false;
+                mainVm.PropertyChanged += (_, args) =>
+                {
+                    nameNotified |= args.PropertyName == nameof(MainViewModel.CurrentUserName);
+                    roleNotified |= args.PropertyName == nameof(MainViewModel.CurrentUserRole);
+                    visibilityNotified |= args.PropertyName == nameof(MainViewModel.AccountsVisibility);
+                };
+
+                Assert.Equal("Librarian User", mainVm.CurrentUserName);
+                Assert.False(mainVm.IsAccountsVisible);
+
+                AuthService.CurrentUser = new User
+                {
+                    Id = 2,
+                    Username = "librarian",
+                    FullName = "Updated Name",
+                    Role = "Administrator"
+                };
+
+                Assert.Equal("Updated Name", mainVm.CurrentUserName);
+                Assert.Equal("Administrator • Active Node", mainVm.CurrentUserRole);
+                Assert.True(mainVm.IsAccountsVisible);
+                Assert.Equal(System.Windows.Visibility.Visible, mainVm.AccountsVisibility);
+                Assert.True(mainVm.ShowAccountsCommand.CanExecute(null));
+                Assert.True(nameNotified);
+                Assert.True(roleNotified);
+                Assert.True(visibilityNotified);
             });
         }
     }

@@ -7,7 +7,7 @@ namespace LibraryManagement.Repositories;
 
 // Persistence only. All state-changing calls require the caller's transaction and are
 // reached through FeeService commands; there is intentionally no delete or generic update.
-public class FeeRepository
+public class FeeRepository : IFeeBalanceReader
 {
     private const string Columns = "FeeId, BorrowId, ReaderId, BookCopyId, FeeType, Amount, PaidAmount, Status, Reason, Description, SourceType, SourceId, ReaderNameSnapshot, BookTitleSnapshot, BarcodeSnapshot, BookPriceSnapshot, CreatedAt, CreatedBy, UpdatedAt, PaidAt, RentalPriceSnapshot, LateDays, AppliedRate, DamageLevel, WaivedAt, WaivedBy, WaiveReason, CancelledAt, CancelledBy, CancelReason, AppliedCapRate, BaseAmount, Units, CapAmount, UncappedAmount, WaivedAmount, DueDateSnapshot, ResolvedAtSnapshot";
 

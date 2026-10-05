@@ -2,6 +2,7 @@ using System;
 using System.Windows;
 using System.Windows.Input;
 using LibraryManagement.Commands;
+using LibraryManagement.Models;
 using LibraryManagement.Services;
 using LibraryManagement.Views;
 using LibraryManagement.Views.Accounts;
@@ -10,7 +11,7 @@ using LibraryManagement.Views.Readers;
 
 namespace LibraryManagement.ViewModels
 {
-    public class MainViewModel : BaseViewModel
+    public class MainViewModel : BaseViewModel, IDisposable
     {
         private readonly Func<string, object> _createView;
 
@@ -29,11 +30,10 @@ namespace LibraryManagement.ViewModels
         };
         private static bool HasAccountManagementRole()
         {
-            return string.Equals(
-                AuthService.CurrentUser?.Role?.Trim(),
-                "Administrator",
-                StringComparison.OrdinalIgnoreCase);
+            return UserPermissions.CanManageUsers(AuthService.CurrentUser);
         }
+
+        private bool _disposed;
 
         public bool IsAccountsVisible => HasAccountManagementRole();
 
@@ -78,6 +78,7 @@ namespace LibraryManagement.ViewModels
         public MainViewModel(Func<string, object> createView)
         {
             _createView = createView ?? throw new ArgumentNullException(nameof(createView));
+            AuthService.CurrentUserChanged += OnCurrentUserChanged;
             ShowDashboardCommand = new RelayCommand(ShowDashboard);
             ShowBooksCommand = new RelayCommand(ShowBooks);
             ShowReadersCommand = new RelayCommand(ShowReaders);
@@ -89,6 +90,26 @@ namespace LibraryManagement.ViewModels
             ShowAccountsCommand = new RelayCommand(_ => ShowAccounts(), _ => IsAccountsVisible);
 
             ShowDashboard();
+        }
+
+        private void OnCurrentUserChanged(User? _)
+        {
+            OnPropertyChanged(nameof(IsAccountsVisible));
+            OnPropertyChanged(nameof(AccountsVisibility));
+            OnPropertyChanged(nameof(CurrentUserName));
+            OnPropertyChanged(nameof(CurrentUserRole));
+            CommandManager.InvalidateRequerySuggested();
+        }
+
+        public void Dispose()
+        {
+            if (_disposed)
+            {
+                return;
+            }
+
+            AuthService.CurrentUserChanged -= OnCurrentUserChanged;
+            _disposed = true;
         }
 
         private void ShowDashboard()

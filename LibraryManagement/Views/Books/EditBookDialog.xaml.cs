@@ -23,6 +23,8 @@ namespace LibraryManagement.Views.Books
             _pricingPolicy = pricingPolicy ?? throw new ArgumentNullException(nameof(pricingPolicy));
             InitializeComponent();
             ReplacementValueBox.TextChanged += BookPrice_TextChanged;
+            PricingRateBadge.Text = FormatRateBadge();
+            PricingPreviewText.Text = "Enter a valid Book Price to preview.";
             _bookId = existing.BookId;
             TitleBox.Text = existing.Title;
             IsbnBox.Text = existing.Isbn ?? string.Empty;
@@ -40,7 +42,6 @@ namespace LibraryManagement.Views.Books
             PublishYearBox.Text = existing.PublishYear.ToString();
             QuantityBox.Text = existing.Quantity.ToString();
             ReplacementValueBox.Text = existing.ReplacementValue?.ToString("0.00", CultureInfo.CurrentCulture) ?? string.Empty;
-            RentalPriceBox.Text = existing.RentalPrice?.ToString("0.00", CultureInfo.CurrentCulture) ?? string.Empty;
         }
 
         private void Save_Click(object sender, RoutedEventArgs e)
@@ -86,10 +87,20 @@ namespace LibraryManagement.Views.Books
         private void BookPrice_TextChanged(object sender, TextChangedEventArgs e)
         {
             if (TryParseBookPrice(ReplacementValueBox.Text, out decimal value))
-                RentalPriceBox.Text = _pricingPolicy.CalculateRentalPrice(value).ToString("0.00", CultureInfo.CurrentCulture);
+            {
+                decimal rentalPrice = _pricingPolicy.CalculateRentalPrice(value);
+                RentalPriceBox.Text = rentalPrice.ToString("0.00", CultureInfo.CurrentCulture);
+                PricingPreviewText.Text = $"{value.ToString("C2", CultureInfo.GetCultureInfo("en-US"))} × {_pricingPolicy.RentalRate.ToString("P0", CultureInfo.InvariantCulture)} = {rentalPrice.ToString("C2", CultureInfo.GetCultureInfo("en-US"))}";
+            }
             else
+            {
                 RentalPriceBox.Clear();
+                PricingPreviewText.Text = "Enter a valid Book Price to preview.";
+            }
         }
+
+        private string FormatRateBadge()
+            => $"AUTO · {_pricingPolicy.RentalRate.ToString("P0", CultureInfo.InvariantCulture)}";
 
         private static bool TryParseBookPrice(string text, out decimal value)
             => decimal.TryParse(text, NumberStyles.Number, CultureInfo.CurrentCulture, out value)

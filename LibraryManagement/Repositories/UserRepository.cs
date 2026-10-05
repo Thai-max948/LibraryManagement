@@ -130,6 +130,32 @@ namespace LibraryManagement.Repositories
             return cmd.ExecuteNonQuery() > 0;
         }
 
+        public virtual bool UpdateProfile(int userId, string fullName, string username, string email)
+        {
+            using var conn = Database.GetConnection();
+            conn.Open();
+            const string sql = @"UPDATE Users
+                                 SET FullName = @FullName,
+                                     Username = @Username,
+                                     Email = @Email
+                                 WHERE Id = @Id";
+            using var cmd = new SqlCommand(sql, conn);
+            cmd.Parameters.AddWithValue("@Id", userId);
+            cmd.Parameters.AddWithValue("@FullName", fullName);
+            cmd.Parameters.AddWithValue("@Username", username);
+            cmd.Parameters.AddWithValue("@Email", email);
+
+            try
+            {
+                return cmd.ExecuteNonQuery() > 0;
+            }
+            catch (SqlException ex) when (ex.Number == 2601 || ex.Number == 2627)
+            {
+                // The service rechecks normalized values and returns the corresponding business message.
+                return false;
+            }
+        }
+
         public virtual bool Delete(int id)
         {
             using var conn = Database.GetConnection();
