@@ -19,14 +19,11 @@ public sealed class ConfiguredFeePolicyProvider : IFeePolicyProvider
         return new FeePolicy(
             ReadDecimal(section, "LateFeeRatePerDay"), ReadDecimal(section, "MaxLateFeePercent"),
             ReadDecimal(section, "MinorDamageRate"), ReadDecimal(section, "MajorDamageRate"),
-            ReadDecimal(section, "LostRate"), ReadDecimal(section, "ReplacementRate"),
-            ReadDecimal(section, "RenewalFeeRate"), ReadInt(section, "RenewalDays"), ReadInt(section, "MaxRenewals"));
+            ReadDecimal(section, "ReplacementRate"));
     }
 
     private static decimal? ReadDecimal(JsonElement section, string name) =>
         section.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.Number ? value.GetDecimal() : null;
-    private static int? ReadInt(JsonElement section, string name) =>
-        section.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.Number ? value.GetInt32() : null;
 }
 
 public sealed class FeePolicyNotConfiguredException(string message) : BusinessRuleException(message);

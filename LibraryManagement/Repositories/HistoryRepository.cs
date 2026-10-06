@@ -117,9 +117,8 @@ public class HistoryRepository
             case "Overdue": conditions.Add("br.Status = 'Borrowing' AND br.DueDate < @TodayStart"); break;
         }
 
-        string dateColumn = query.DateFilter == HistoryDateFilter.ReturnDate ? "br.ReturnDate" : "br.BorrowDate";
-        if (query.FromDate.HasValue) conditions.Add($"{dateColumn} >= @FromDate");
-        if (query.ToDate.HasValue) conditions.Add($"{dateColumn} < @ToDateExclusive");
+        if (query.FromDate.HasValue) conditions.Add("br.BorrowDate >= @FromDate");
+        if (query.ToDate.HasValue) conditions.Add("br.BorrowDate < @ToDateExclusive");
         if (!string.IsNullOrWhiteSpace(query.SearchText))
         {
             string barcodeExpression = hasBookCopies ? "COALESCE(br.BarcodeSnapshot, bc.Barcode, '')" : "COALESCE(br.BarcodeSnapshot, '')";

@@ -38,17 +38,6 @@ public static class FeeCalculator
         return new FeeCalculationSnapshot(bookValue, rate, null, null, amount, amount);
     }
 
-    public static decimal CalculateLost(decimal bookValue, FeePolicy policy) =>
-        CalculateLostSnapshot(bookValue, policy).FinalAmount;
-
-    public static FeeCalculationSnapshot CalculateLostSnapshot(decimal bookValue, FeePolicy policy)
-    {
-        decimal rate = RequireRate(policy.LostRate, nameof(policy.LostRate));
-        ValidateBookValue(bookValue);
-        decimal amount = Round(bookValue * rate);
-        return new FeeCalculationSnapshot(bookValue, rate, null, null, amount, amount);
-    }
-
     public static decimal CalculateReplacement(decimal bookValue, FeePolicy policy) =>
         CalculateReplacementSnapshot(bookValue, policy).FinalAmount;
 
@@ -58,18 +47,6 @@ public static class FeeCalculator
         ValidateBookValue(bookValue);
         decimal amount = Round(bookValue * rate);
         return new FeeCalculationSnapshot(bookValue, rate, 1m, null, amount, amount);
-    }
-
-    public static decimal CalculateRenewal(decimal rentalPrice, FeePolicy policy) =>
-        CalculateRenewalSnapshot(rentalPrice, policy).FinalAmount;
-
-    public static FeeCalculationSnapshot CalculateRenewalSnapshot(decimal rentalPrice, FeePolicy policy)
-    {
-        decimal rate = RequireRate(policy.RenewalFeeRate, nameof(policy.RenewalFeeRate));
-        if (rentalPrice < 0m || decimal.Round(rentalPrice, 2) != rentalPrice)
-            throw new BusinessRuleException("Rental Price không hợp lệ.");
-        decimal amount = Round(rentalPrice * rate);
-        return new FeeCalculationSnapshot(rentalPrice, rate, null, null, amount, amount);
     }
 
     private static decimal RequireRate(decimal? rate, string name)

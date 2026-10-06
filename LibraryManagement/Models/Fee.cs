@@ -1,6 +1,6 @@
 namespace LibraryManagement.Models;
 
-public enum FeeType { Borrow = 1, Late = 2, Renewal = 3, Damage = 4, Lost = 5, Replacement = 6, Other = 7 }
+public enum FeeType { Borrow = 1, Late = 2, Damage = 4, Replacement = 6, Other = 7 }
 public enum FeeStatus { Pending = 1, Partial = 2, Paid = 3, Waived = 4, Cancelled = 5 }
 
 public sealed record Fee(
@@ -25,8 +25,8 @@ public sealed record Fee(
             : null;
     public string FeeTypeLabel => FeeType switch
     {
-        FeeType.Borrow => "Mượn sách", FeeType.Late => "Trễ hạn", FeeType.Renewal => "Gia hạn",
-        FeeType.Damage => "Hư hỏng", FeeType.Lost => "Mất sách (lịch sử)", FeeType.Replacement => "Đền bù sách mất",
+        FeeType.Borrow => "Mượn sách", FeeType.Late => "Trễ hạn",
+        FeeType.Damage => "Hư hỏng", FeeType.Replacement => "Đền bù sách mất",
         _ => "Khác"
     };
     public string StatusLabel => Status switch

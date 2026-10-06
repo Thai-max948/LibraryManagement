@@ -11,7 +11,6 @@ public class HistoryViewModel : BaseViewModel
     private readonly HistoryService _historyService;
     private string _searchText = string.Empty;
     private string _selectedStatus = "All";
-    private string _selectedDateFilter = "Borrow date";
     private DateTime? _fromDate;
     private DateTime? _toDate;
     private int _pageNumber = 1;
@@ -24,7 +23,6 @@ public class HistoryViewModel : BaseViewModel
 
     public ObservableCollection<HistoryRow> Records { get; } = new();
     public ObservableCollection<string> StatusOptions { get; } = new() { "All", "Borrowing", "Returned", "Lost", "Overdue" };
-    public ObservableCollection<string> DateFilterOptions { get; } = new() { "Borrow date", "Return date" };
 
     public string SearchText
     {
@@ -36,12 +34,6 @@ public class HistoryViewModel : BaseViewModel
     {
         get => _selectedStatus;
         set { if (SetProperty(ref _selectedStatus, value)) ResetAndLoad(); }
-    }
-
-    public string SelectedDateFilter
-    {
-        get => _selectedDateFilter;
-        set { if (SetProperty(ref _selectedDateFilter, value)) ResetAndLoad(); }
     }
 
     public DateTime? FromDate
@@ -144,13 +136,11 @@ public class HistoryViewModel : BaseViewModel
     {
         _searchText = string.Empty;
         _selectedStatus = "All";
-        _selectedDateFilter = "Borrow date";
         _fromDate = null;
         _toDate = null;
         PageNumber = 1;
         OnPropertyChanged(nameof(SearchText));
         OnPropertyChanged(nameof(SelectedStatus));
-        OnPropertyChanged(nameof(SelectedDateFilter));
         OnPropertyChanged(nameof(FromDate));
         OnPropertyChanged(nameof(ToDate));
         OnPropertyChanged(nameof(HasPreviousPage));
@@ -183,7 +173,6 @@ public class HistoryViewModel : BaseViewModel
                 Status = SelectedStatus,
                 FromDate = FromDate,
                 ToDate = ToDate,
-                DateFilter = SelectedDateFilter == "Return date" ? HistoryDateFilter.ReturnDate : HistoryDateFilter.BorrowDate,
                 PageNumber = PageNumber,
                 PageSize = HistoryService.DefaultPageSize
             });

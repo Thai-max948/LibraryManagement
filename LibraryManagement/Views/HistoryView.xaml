@@ -62,14 +62,11 @@
                 <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="10"/>
                 <ColumnDefinition Width="150"/>
-                <ColumnDefinition Width="10"/>
-                <ColumnDefinition Width="150"/>
             </Grid.ColumnDefinitions>
             <TextBox Grid.Column="0" Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}"
                      Tag="Search reader / book / barcode..."
                      Style="{StaticResource PlaceholderTextBoxStyle}"/>
             <ComboBox Grid.Column="2" ItemsSource="{Binding StatusOptions}" SelectedItem="{Binding SelectedStatus}" Padding="6"/>
-            <ComboBox Grid.Column="4" ItemsSource="{Binding DateFilterOptions}" SelectedItem="{Binding SelectedDateFilter}" Padding="6"/>
         </Grid>
 
         <Grid Margin="0,0,0,16">

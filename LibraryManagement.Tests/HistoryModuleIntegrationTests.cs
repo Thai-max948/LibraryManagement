@@ -77,16 +77,30 @@ public sealed class HistoryModuleIntegrationTests : IClassFixture<SqlIntegration
         Assert.Equal(firstBarcode, barcodeMatch.Barcode);
 
         circulation.ReturnBook(firstBorrowId, ReturnCondition.Normal);
-        var returned = Assert.Single(history.GetPage(new HistoryQuery
+        DateTime filterDate = new(2099, 1, 10);
+        int returnedOnFilterDateButBorrowedEarlierId = InsertReturnedHistoryRecord(
+            bookId, readerId, originalName, originalTitle, filterDate.AddDays(-5), filterDate);
+        int borrowedOnFilterDateId = InsertReturnedHistoryRecord(
+            bookId, readerId, originalName, originalTitle, filterDate, filterDate.AddDays(1));
+        var filteredByBorrowDate = Assert.Single(history.GetPage(new HistoryQuery
         {
+            SearchText = originalTitle,
             Status = "Returned",
-            DateFilter = HistoryDateFilter.ReturnDate,
-            FromDate = DateTime.Today,
-            ToDate = DateTime.Today
+            FromDate = filterDate,
+            ToDate = filterDate
         }).Records);
-        Assert.Equal(firstBorrowId, returned.BorrowId);
-        Assert.NotNull(returned.ReturnDate);
-        Assert.Contains(returned.Events, item => item.EventType == CirculationAuditEventType.ReturnedNormal);
+        Assert.Equal(borrowedOnFilterDateId, filteredByBorrowDate.BorrowId);
+        Assert.NotEqual(returnedOnFilterDateButBorrowedEarlierId, filteredByBorrowDate.BorrowId);
+        Assert.Equal(filterDate, filteredByBorrowDate.BorrowDate.Date);
+        Assert.Equal(filterDate.AddDays(1), filteredByBorrowDate.ReturnDate?.Date);
+        var returnedByCirculation = Assert.Single(history.GetPage(new HistoryQuery
+        {
+            SearchText = originalTitle,
+            Status = "Returned"
+        }).Records, item => item.BorrowId == firstBorrowId);
+        Assert.NotNull(returnedByCirculation.ReturnDate);
+        Assert.Contains(returnedByCirculation.Events,
+            item => item.EventType == CirculationAuditEventType.ReturnedNormal);
 
         using (var connection = Database.GetConnection())
         {
@@ -108,5 +122,31 @@ public sealed class HistoryModuleIntegrationTests : IClassFixture<SqlIntegration
         Assert.Null(legacy.BookCopyId);
         Assert.Null(legacy.Barcode);
         Assert.True(legacy.IsLegacyRecord);
+    }
+
+    private static int InsertReturnedHistoryRecord(
+        int bookId,
+        int readerId,
+        string readerName,
+        string bookTitle,
+        DateTime borrowDate,
+        DateTime returnDate)
+    {
+        using var connection = Database.GetConnection();
+        connection.Open();
+        using var command = new SqlCommand(@"
+            INSERT INTO dbo.BorrowRecords
+                (BookId, ReaderId, BorrowDate, DueDate, ReturnDate, Status, ReaderNameSnapshot, BookTitleSnapshot)
+            OUTPUT INSERTED.BorrowId
+            VALUES (@BookId, @ReaderId, @BorrowDate, @DueDate, @ReturnDate, 'Returned', @ReaderName, @BookTitle);",
+            connection);
+        command.Parameters.AddWithValue("@BookId", bookId);
+        command.Parameters.AddWithValue("@ReaderId", readerId);
+        command.Parameters.AddWithValue("@BorrowDate", borrowDate);
+        command.Parameters.AddWithValue("@DueDate", borrowDate.AddDays(7));
+        command.Parameters.AddWithValue("@ReturnDate", returnDate);
+        command.Parameters.AddWithValue("@ReaderName", readerName);
+        command.Parameters.AddWithValue("@BookTitle", bookTitle);
+        return Convert.ToInt32(command.ExecuteScalar());
     }
 }
