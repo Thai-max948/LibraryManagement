@@ -33,8 +33,6 @@ public class HistoryService
             throw new ArgumentException("From date must be on or before To date.", nameof(query));
         if (!SupportedStatuses.Contains(query.Status))
             throw new ArgumentException("Unsupported History status filter.", nameof(query));
-        if (!Enum.IsDefined(query.DateFilter))
-            throw new ArgumentException("Unsupported History date filter.", nameof(query));
 
         int pageSize = Math.Clamp(query.PageSize, 1, MaximumPageSize);
         int pageNumber = Math.Max(1, query.PageNumber);
@@ -44,7 +42,6 @@ public class HistoryService
             Status = query.Status,
             FromDate = query.FromDate,
             ToDate = query.ToDate,
-            DateFilter = query.DateFilter,
             PageNumber = pageNumber,
             PageSize = pageSize
         };

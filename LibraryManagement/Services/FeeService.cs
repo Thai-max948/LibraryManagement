@@ -14,14 +14,10 @@ public interface IFeeService
     Task<Fee> CreateFeeAsync(CreateFeeRequest request, CancellationToken cancellationToken = default);
     Task<Fee?> CreateLateFeeAsync(int borrowId, int lateDays, string sourceType, string sourceId, CancellationToken cancellationToken = default);
     Task<Fee?> CreateDamageFeeAsync(int borrowId, bool major, string reason, string sourceType, string sourceId, CancellationToken cancellationToken = default);
-    Task<Fee?> CreateLostFeeAsync(int borrowId, string sourceType, string sourceId, CancellationToken cancellationToken = default);
     Task<Fee?> CreateReplacementFeeAsync(int borrowId, string sourceType, string sourceId, CancellationToken cancellationToken = default);
-    Task<Fee?> CreateRenewalFeeAsync(int borrowId, int completedRenewals, string sourceType, string sourceId, CancellationToken cancellationToken = default);
     Fee? CreateLateFee(SqlConnection connection, SqlTransaction transaction, int borrowId, int lateDays, string sourceType, string sourceId);
     Fee? CreateDamageFee(SqlConnection connection, SqlTransaction transaction, int borrowId, bool major, string reason, string sourceType, string sourceId);
-    Fee? CreateLostFee(SqlConnection connection, SqlTransaction transaction, int borrowId, string sourceType, string sourceId);
     Fee? CreateReplacementFee(SqlConnection connection, SqlTransaction transaction, int borrowId, string sourceType, string sourceId);
-    Fee? CreateRenewalFee(SqlConnection connection, SqlTransaction transaction, int borrowId, int completedRenewals, string sourceType, string sourceId);
     int GetLateDays(DateTime dueDate, DateTime resolvedAt);
     Task<Fee?> GetFeeAsync(int id, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<Fee>> GetFeesByReaderAsync(int readerId, CancellationToken cancellationToken = default);
@@ -265,12 +261,6 @@ public sealed class FeeService : IFeeService
                 DamageLevel: major ? "Major" : "Minor");
         }, cancellationToken);
 
-    // Compatibility name: lost copies use one Replacement fee with the current Book value and policy.
-    public Task<Fee?> CreateLostFeeAsync(int borrowId, string sourceType, string sourceId,
-        CancellationToken cancellationToken = default) => CreateCalculatedFeeAsync(borrowId, FeeType.Replacement,
-        "Sách được ghi nhận thất lạc; áp dụng ReplacementValue tại thời điểm ghi nhận.", sourceType, sourceId,
-        CalculateLostReplacement, cancellationToken);
-
     public Task<Fee?> CreateReplacementFeeAsync(int borrowId, string sourceType, string sourceId,
         CancellationToken cancellationToken = default) => CreateCalculatedFeeAsync(borrowId, FeeType.Replacement,
         "Phí thay thế theo FeePolicy.", sourceType, sourceId, (snapshot, policy) =>
@@ -279,24 +269,8 @@ public sealed class FeeService : IFeeService
             return new FeeCalculation(FeeCalculator.CalculateReplacementSnapshot(snapshot.BookPrice.Value, policy));
         }, cancellationToken);
 
-    public Task<Fee?> CreateRenewalFeeAsync(int borrowId, int completedRenewals, string sourceType, string sourceId,
-        CancellationToken cancellationToken = default) => CreateCalculatedFeeAsync(borrowId, FeeType.Renewal,
-        "Phí gia hạn theo FeePolicy.", sourceType, sourceId, (snapshot, policy) =>
-        {
-            if (completedRenewals < 0) throw new BusinessRuleException("Số lần gia hạn không hợp lệ.");
-            if (policy.RenewalDays is null) throw new FeePolicyNotConfiguredException("Chưa cấu hình FeePolicy.RenewalDays.");
-            if (policy.MaxRenewals is null) throw new FeePolicyNotConfiguredException("Chưa cấu hình FeePolicy.MaxRenewals.");
-            if (policy.RenewalDays <= 0 || policy.MaxRenewals < 0)
-                throw new BusinessRuleException("FeePolicy gia hạn không hợp lệ.");
-            if (completedRenewals >= policy.MaxRenewals)
-                throw new BusinessRuleException("Độc giả đã đạt số lần gia hạn tối đa.");
-            if (snapshot.RentalPrice is null)
-                throw new FeePolicyNotConfiguredException("Chưa cấu hình Rental Price cho sách; phí gia hạn chưa được phát sinh.");
-            return new FeeCalculation(FeeCalculator.CalculateRenewalSnapshot(snapshot.RentalPrice.Value, policy));
-        }, cancellationToken);
-
     // These overloads join a caller-owned SQL transaction. The caller ensures migration first
-    // and owns commit/rollback, so Return/Renew command implementations can keep Fee atomic.
+    // and owns commit/rollback, so Return commands can keep Fee atomic.
     public Fee? CreateLateFee(SqlConnection connection, SqlTransaction transaction, int borrowId, int lateDays,
         string sourceType, string sourceId) => CreateCalculatedFeeInTransaction(connection, transaction, borrowId,
         FeeType.Late, $"Trả trễ {lateDays} ngày.", sourceType, sourceId, (snapshot, policy) =>
@@ -315,35 +289,12 @@ public sealed class FeeService : IFeeService
                 DamageLevel: major ? "Major" : "Minor");
         });
 
-    // Compatibility name: keep legacy callers on the same Replacement source key and FeeType.
-    public Fee? CreateLostFee(SqlConnection connection, SqlTransaction transaction, int borrowId,
-        string sourceType, string sourceId) => CreateCalculatedFeeInTransaction(connection, transaction, borrowId,
-        FeeType.Replacement, "Sách được ghi nhận thất lạc; áp dụng ReplacementValue tại thời điểm ghi nhận.",
-        sourceType, sourceId, CalculateLostReplacement);
-
-    private static FeeCalculation CalculateLostReplacement(FeeSourceSnapshot snapshot, FeePolicy policy)
-    {
-        if (snapshot.BookPrice is null)
-            throw new FeePolicyNotConfiguredException("Chưa cấu hình ReplacementValue cho sách; Replacement Fee chưa được phát sinh.");
-        return new FeeCalculation(FeeCalculator.CalculateReplacementSnapshot(snapshot.BookPrice.Value, policy));
-    }
-
     public Fee? CreateReplacementFee(SqlConnection connection, SqlTransaction transaction, int borrowId,
         string sourceType, string sourceId) => CreateCalculatedFeeInTransaction(connection, transaction, borrowId,
         FeeType.Replacement, "Phí thay thế theo FeePolicy.", sourceType, sourceId, (snapshot, policy) =>
         {
             if (snapshot.BookPrice is null) throw new FeePolicyNotConfiguredException("Chưa cấu hình Replacement Value cho sách; phí thay thế chưa được phát sinh.");
             return new FeeCalculation(FeeCalculator.CalculateReplacementSnapshot(snapshot.BookPrice.Value, policy));
-        });
-
-    public Fee? CreateRenewalFee(SqlConnection connection, SqlTransaction transaction, int borrowId,
-        int completedRenewals, string sourceType, string sourceId) => CreateCalculatedFeeInTransaction(connection,
-        transaction, borrowId, FeeType.Renewal, "Phí gia hạn theo FeePolicy.", sourceType, sourceId,
-        (snapshot, policy) =>
-        {
-            ValidateRenewalLimit(completedRenewals, policy);
-            if (snapshot.RentalPrice is null) throw new FeePolicyNotConfiguredException("Chưa cấu hình Rental Price cho sách; phí gia hạn chưa được phát sinh.");
-            return new FeeCalculation(FeeCalculator.CalculateRenewalSnapshot(snapshot.RentalPrice.Value, policy));
         });
 
     private Fee? CreateCalculatedFeeInTransaction(SqlConnection connection, SqlTransaction transaction, int borrowId,
@@ -365,17 +316,6 @@ public sealed class FeeService : IFeeService
         Fee fee = BuildFee(request, snapshot, status, calculation.Snapshot);
         try { return _repository.Create(connection, transaction, fee); }
         catch (SqlException ex) when (ex.Number is 2601 or 2627) { throw new DuplicateFeeSourceException(); }
-    }
-
-    private static void ValidateRenewalLimit(int completedRenewals, FeePolicy policy)
-    {
-        if (completedRenewals < 0) throw new BusinessRuleException("Số lần gia hạn không hợp lệ.");
-        if (policy.RenewalDays is null) throw new FeePolicyNotConfiguredException("Chưa cấu hình FeePolicy.RenewalDays.");
-        if (policy.MaxRenewals is null) throw new FeePolicyNotConfiguredException("Chưa cấu hình FeePolicy.MaxRenewals.");
-        if (policy.RenewalDays <= 0 || policy.MaxRenewals < 0)
-            throw new BusinessRuleException("FeePolicy gia hạn không hợp lệ.");
-        if (completedRenewals >= policy.MaxRenewals)
-            throw new BusinessRuleException("Độc giả đã đạt số lần gia hạn tối đa.");
     }
 
     private static void ValidateSourceCommand(int borrowId, string reason, string sourceType, string sourceId)

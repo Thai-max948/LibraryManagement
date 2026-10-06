@@ -49,7 +49,7 @@ public static class FeeMigration
                         CONSTRAINT FK_Fees_Actor FOREIGN KEY (CreatedBy) REFERENCES dbo.Users(Id),
                         CONSTRAINT FK_Fees_WaivedBy FOREIGN KEY (WaivedBy) REFERENCES dbo.Users(Id),
                         CONSTRAINT FK_Fees_CancelledBy FOREIGN KEY (CancelledBy) REFERENCES dbo.Users(Id),
-                        CONSTRAINT CK_Fees_Type CHECK (FeeType BETWEEN 1 AND 7),
+                        CONSTRAINT CK_Fees_Type CHECK (FeeType IN (1,2,4,6,7)),
                         CONSTRAINT CK_Fees_Amounts CHECK (Amount >= 0 AND PaidAmount >= 0 AND PaidAmount <= Amount),
                         CONSTRAINT CK_Fees_Status CHECK (
                             (Status = 1 AND Amount > 0 AND PaidAmount = 0) OR
@@ -95,6 +95,12 @@ public static class FeeMigration
             await AddColumnAsync(connection, transaction, "CancelledBy", "INT NULL", cancellationToken).ConfigureAwait(false);
             await AddColumnAsync(connection, transaction, "CancelReason", "NVARCHAR(500) NULL", cancellationToken).ConfigureAwait(false);
 
+            // Preserve historical data: removed and unknown values stop this migration before any data updates.
+            await ExecuteAsync(connection, transaction, @"
+                IF EXISTS (SELECT 1 FROM dbo.Fees WHERE FeeType NOT IN (1,2,4,6,7))
+                    THROW 51003, 'Existing Fees rows contain a removed or unsupported FeeType; review them before migration.', 1;",
+                cancellationToken).ConfigureAwait(false);
+
             // Existing installations receive the same integrity protections as fresh installs.
             await ExecuteAsync(connection, transaction, @"
                 UPDATE dbo.Fees SET WaivedAmount = Amount - PaidAmount
@@ -108,10 +114,17 @@ public static class FeeMigration
                 IF NOT EXISTS (SELECT 1 FROM sys.check_constraints WHERE parent_object_id = OBJECT_ID('dbo.Fees') AND name = 'CK_Fees_Amounts')
                     ALTER TABLE dbo.Fees WITH CHECK ADD CONSTRAINT CK_Fees_Amounts
                         CHECK (Amount >= 0 AND PaidAmount >= 0 AND PaidAmount <= Amount);
-                IF EXISTS (SELECT 1 FROM dbo.Fees WHERE FeeType NOT BETWEEN 1 AND 7)
-                    THROW 51003, 'Existing Fees rows contain an unknown FeeType.', 1;
+                IF EXISTS (SELECT 1 FROM sys.check_constraints
+                    WHERE parent_object_id = OBJECT_ID('dbo.Fees') AND name = 'CK_Fees_Type'
+                    AND (is_disabled = 1 OR is_not_trusted = 1 OR
+                        UPPER(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(
+                            definition, N'[', N''), N']', N''), N'(', N''), N')', N''), N' ', N''),
+                            CHAR(9), N''), CHAR(10), N''), CHAR(13), N'')) NOT IN (
+                            N'FEETYPEIN1,2,4,6,7',
+                            N'FEETYPE=1ORFEETYPE=2ORFEETYPE=4ORFEETYPE=6ORFEETYPE=7')))
+                    ALTER TABLE dbo.Fees DROP CONSTRAINT CK_Fees_Type;
                 IF NOT EXISTS (SELECT 1 FROM sys.check_constraints WHERE parent_object_id = OBJECT_ID('dbo.Fees') AND name = 'CK_Fees_Type')
-                    ALTER TABLE dbo.Fees WITH CHECK ADD CONSTRAINT CK_Fees_Type CHECK (FeeType BETWEEN 1 AND 7);
+                    ALTER TABLE dbo.Fees WITH CHECK ADD CONSTRAINT CK_Fees_Type CHECK (FeeType IN (1,2,4,6,7));
                 IF EXISTS (SELECT 1 FROM dbo.Fees WHERE NOT (
                     (Status = 1 AND Amount > 0 AND PaidAmount = 0) OR
                     (Status = 2 AND PaidAmount > 0 AND PaidAmount < Amount) OR

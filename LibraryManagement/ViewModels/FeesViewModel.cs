@@ -44,8 +44,7 @@ public sealed class FeesViewModel : BaseViewModel
     public IReadOnlyList<FeeTypeFilter> TypeFilters { get; } = new FeeTypeFilter[]
     {
         new("Tất cả loại phí", null), new("Mượn sách", FeeType.Borrow), new("Trễ hạn", FeeType.Late),
-        new("Gia hạn", FeeType.Renewal), new("Hư hỏng", FeeType.Damage), new("Mất sách (lịch sử)", FeeType.Lost),
-        new("Đền bù sách mất", FeeType.Replacement), new("Khác", FeeType.Other)
+        new("Hư hỏng", FeeType.Damage), new("Đền bù sách mất", FeeType.Replacement), new("Khác", FeeType.Other)
     };
 
     public RelayCommand SearchCommand { get; }

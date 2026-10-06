@@ -10,6 +10,32 @@ namespace LibraryManagement.Tests;
 public sealed class FeeFoundationTests
 {
     [Fact]
+    public void FeeTypeIdsPreserveReservedGap()
+    {
+        Assert.Equal(1, (int)FeeType.Borrow);
+        Assert.Equal(2, (int)FeeType.Late);
+        Assert.False(Enum.IsDefined(typeof(FeeType), 3));
+        Assert.False(Enum.IsDefined(typeof(FeeType), 5));
+        Assert.Equal(4, (int)FeeType.Damage);
+        Assert.Equal(6, (int)FeeType.Replacement);
+        Assert.Equal(7, (int)FeeType.Other);
+    }
+
+    [Theory]
+    [InlineData(3)]
+    [InlineData(5)]
+    public async Task RemovedFeeTypeIsRejectedBeforeDatabaseAccess(int removedType)
+    {
+        var service = new FeeService();
+        var request = new CreateFeeRequest(1, (FeeType)removedType, 10m, "Removed type", "Test", Guid.NewGuid().ToString("N"));
+
+        BusinessRuleException error = await Assert.ThrowsAsync<BusinessRuleException>(
+            () => service.CreateFeeAsync(request));
+
+        Assert.Contains("lệnh nghiệp vụ", error.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public void BookServiceRejectsNegativeReplacementValueBeforePersistence()
     {
         var book = new Book { Title = "Test", Author = "Author", PublishYear = 2020,
@@ -168,15 +194,13 @@ public sealed class FeeFoundationTests
         "Test", "1", "Reader", "Book", null, null, DateTime.UtcNow, null, null, null);
 
     [Fact]
-    public void DamageLostReplacementAndRenewalUseConfiguredRates()
+    public void DamageAndReplacementUseConfiguredRates()
     {
         var policy = new FeePolicy(MinorDamageRate: 0.10m, MajorDamageRate: 0.30m,
-            LostRate: 0.50m, ReplacementRate: 0.60m, RenewalFeeRate: 0.20m);
+            ReplacementRate: 0.60m);
         Assert.Equal(20m, FeeCalculator.CalculateDamage(200m, major: false, policy));
         Assert.Equal(60m, FeeCalculator.CalculateDamage(200m, major: true, policy));
-        Assert.Equal(100m, FeeCalculator.CalculateLost(200m, policy));
         Assert.Equal(120m, FeeCalculator.CalculateReplacement(200m, policy));
-        Assert.Equal(2m, FeeCalculator.CalculateRenewal(10m, policy));
     }
 
     [Fact]
@@ -265,6 +289,100 @@ public sealed class FeeFoundationTests
 
 public sealed class FeeSqlIntegrationTests
 {
+    [IntegrationFact]
+    public async Task FeeTypeConstraintAllowsOnlySupportedIds()
+    {
+        using var fixture = new SqlIntegrationFixture();
+        await FeeMigration.ApplyAsync();
+
+        foreach (int feeType in new[] { 1, 2, 4, 6, 7 })
+            await InsertRawFeeTypeAsync(feeType);
+
+        foreach (int removedType in new[] { 3, 5 })
+        {
+            SqlException error = await Assert.ThrowsAsync<SqlException>(() => InsertRawFeeTypeAsync(removedType));
+            Assert.Equal(547, error.Number);
+        }
+    }
+
+    [IntegrationFact]
+    public async Task FeeMigrationReplacesLegacyRangeConstraintAndPreservesSupportedRows()
+    {
+        using var fixture = new SqlIntegrationFixture();
+        await FeeMigration.ApplyAsync();
+        int feeId;
+        await using (var connection = Database.GetConnection())
+        {
+            await connection.OpenAsync();
+            await using var legacyConstraint = new SqlCommand(@"
+                ALTER TABLE dbo.Fees DROP CONSTRAINT CK_Fees_Type;
+                ALTER TABLE dbo.Fees ADD CONSTRAINT CK_Fees_Type CHECK (FeeType BETWEEN 1 AND 7);", connection);
+            await legacyConstraint.ExecuteNonQueryAsync();
+            feeId = await InsertRawFeeTypeAsync(7);
+        }
+
+        await FeeMigration.ApplyAsync();
+
+        await using var verifyConnection = Database.GetConnection();
+        await verifyConnection.OpenAsync();
+        await using var verify = new SqlCommand(@"
+            SELECT FeeType, definition FROM dbo.Fees f
+            CROSS JOIN sys.check_constraints c
+            WHERE f.FeeId = @FeeId AND c.parent_object_id = OBJECT_ID('dbo.Fees') AND c.name = 'CK_Fees_Type';",
+            verifyConnection);
+        verify.Parameters.AddWithValue("@FeeId", feeId);
+        await using var reader = await verify.ExecuteReaderAsync();
+        Assert.True(await reader.ReadAsync());
+        Assert.Equal(7, reader.GetInt32(0));
+        Assert.DoesNotContain("BETWEEN", reader.GetString(1), StringComparison.OrdinalIgnoreCase);
+        await reader.DisposeAsync();
+
+        SqlException unsupportedTypeError = await Assert.ThrowsAsync<SqlException>(() => InsertRawFeeTypeAsync(5));
+        Assert.Equal(547, unsupportedTypeError.Number);
+    }
+
+    [IntegrationFact]
+    public async Task FeeMigrationFailsAndPreservesRowsWhenRemovedTypeExists()
+    {
+        using var fixture = new SqlIntegrationFixture();
+        await FeeMigration.ApplyAsync();
+        await using (var connection = Database.GetConnection())
+        {
+            await connection.OpenAsync();
+            await using var legacyConstraint = new SqlCommand(@"
+                ALTER TABLE dbo.Fees DROP CONSTRAINT CK_Fees_Type;
+                ALTER TABLE dbo.Fees ADD CONSTRAINT CK_Fees_Type CHECK (FeeType BETWEEN 1 AND 7);", connection);
+            await legacyConstraint.ExecuteNonQueryAsync();
+        }
+
+        int removedType3FeeId = await InsertRawFeeTypeAsync(3);
+        int removedType5FeeId = await InsertRawFeeTypeAsync(5);
+        SqlException error = await Assert.ThrowsAsync<SqlException>(() => FeeMigration.ApplyAsync());
+
+        Assert.Equal(51003, error.Number);
+        await using var verifyConnection = Database.GetConnection();
+        await verifyConnection.OpenAsync();
+        await using var verify = new SqlCommand(@"
+            SELECT f.FeeId, f.FeeType, c.definition FROM dbo.Fees f
+            CROSS JOIN sys.check_constraints c
+            WHERE f.FeeId IN (@Type3FeeId, @Type5FeeId)
+                AND c.parent_object_id = OBJECT_ID('dbo.Fees') AND c.name = 'CK_Fees_Type'
+            ORDER BY f.FeeType;",
+            verifyConnection);
+        verify.Parameters.AddWithValue("@Type3FeeId", removedType3FeeId);
+        verify.Parameters.AddWithValue("@Type5FeeId", removedType5FeeId);
+        await using var reader = await verify.ExecuteReaderAsync();
+        Assert.True(await reader.ReadAsync());
+        Assert.Equal(removedType3FeeId, reader.GetInt32(0));
+        Assert.Equal(3, reader.GetInt32(1));
+        Assert.Contains("BETWEEN", reader.GetString(2), StringComparison.OrdinalIgnoreCase);
+        Assert.True(await reader.ReadAsync());
+        Assert.Equal(removedType5FeeId, reader.GetInt32(0));
+        Assert.Equal(5, reader.GetInt32(1));
+        Assert.Contains("BETWEEN", reader.GetString(2), StringComparison.OrdinalIgnoreCase);
+        Assert.False(await reader.ReadAsync());
+    }
+
     [IntegrationFact]
     public void StartupMigrationAddsBookValueBeforeFeeSchemaAndIsIdempotent()
     {
@@ -706,7 +824,7 @@ public sealed class FeeSqlIntegrationTests
     {
         using var fixture = new SqlIntegrationFixture();
         var feeService = new FeeService(new FeeRepository(), new AuthServiceCurrentUserContext(),
-            new StaticFeePolicyProvider(new FeePolicy(LostRate: 0.25m, ReplacementRate: 1.00m)));
+            new StaticFeePolicyProvider(new FeePolicy(ReplacementRate: 1.00m)));
         var circulation = new BorrowService(new BookRepository(), new BorrowRepository(), new ReaderRepository(),
             new BookCopyRepository(), new FeeFinancialStandingProvider(), new CirculationAuditRepository(),
             new AuthServiceCurrentUserContext(), feeService: feeService);
@@ -735,7 +853,8 @@ public sealed class FeeSqlIntegrationTests
         Fee borrowFee = Assert.Single(fees, fee => fee.FeeType == FeeType.Borrow);
         Fee replacement = Assert.Single(fees, fee => fee.FeeType == FeeType.Replacement);
         Assert.Equal(15000m, borrowFee.Amount);
-        Assert.DoesNotContain(fees, fee => fee.FeeType is FeeType.Lost or FeeType.Damage);
+        Assert.DoesNotContain(fees, fee => (int)fee.FeeType == 5);
+        Assert.DoesNotContain(fees, fee => fee.FeeType == FeeType.Damage);
         Assert.Equal("Return", replacement.SourceType);
         Assert.Equal(returned.ReturnEventId!.Value.ToString(System.Globalization.CultureInfo.InvariantCulture), replacement.SourceId);
         Assert.Equal(350000m, replacement.BookPriceSnapshot);
@@ -826,7 +945,8 @@ public sealed class FeeSqlIntegrationTests
         Assert.Contains("cấu hình", error.Message, StringComparison.OrdinalIgnoreCase);
         IReadOnlyList<Fee> fees = await feeService.GetFeesByBorrowAsync(borrowId);
         Assert.Contains(fees, fee => fee.FeeType == FeeType.Borrow);
-        Assert.DoesNotContain(fees, fee => fee.FeeType is FeeType.Lost or FeeType.Replacement or FeeType.Damage);
+        Assert.DoesNotContain(fees, fee => (int)fee.FeeType == 5);
+        Assert.DoesNotContain(fees, fee => fee.FeeType is FeeType.Replacement or FeeType.Damage);
         Assert.Equal("Borrowing", new BorrowRepository().GetById(borrowId)!.Status);
         Assert.Equal(BookCopyStatuses.Borrowed, new BookCopyService().GetByBarcode(copy.Barcode)!.Status);
         Assert.Single(circulation.GetAuditEvents(new[] { borrowId }));
@@ -1043,6 +1163,23 @@ public sealed class FeeSqlIntegrationTests
         await using var connection = Database.GetConnection();
         await connection.OpenAsync();
         await using var command = new SqlCommand("SELECT TOP (1) BorrowId FROM dbo.BorrowRecords ORDER BY BorrowId", connection);
+        return Convert.ToInt32(await command.ExecuteScalarAsync());
+    }
+
+    private static async Task<int> InsertRawFeeTypeAsync(int feeType)
+    {
+        await using var connection = Database.GetConnection();
+        await connection.OpenAsync();
+        await using var command = new SqlCommand(@"
+            INSERT INTO dbo.Fees
+                (BorrowId, ReaderId, FeeType, Amount, PaidAmount, Status, Reason, SourceType, SourceId,
+                 ReaderNameSnapshot, BookTitleSnapshot, CreatedAt)
+            OUTPUT inserted.FeeId
+            SELECT TOP (1) BorrowId, ReaderId, @FeeType, 1.00, 0.00, 1, N'Migration test',
+                N'FeeTypeMigrationTest', @SourceId, N'Test reader', N'Test book', SYSUTCDATETIME()
+            FROM dbo.BorrowRecords ORDER BY BorrowId;", connection);
+        command.Parameters.AddWithValue("@FeeType", feeType);
+        command.Parameters.AddWithValue("@SourceId", Guid.NewGuid().ToString("N"));
         return Convert.ToInt32(await command.ExecuteScalarAsync());
     }
 

@@ -64,11 +64,56 @@ public sealed class HistoryTests
             Assert.Equal("BC-42", service.Queries.Last().SearchText);
             vm.SelectedStatus = "Overdue";
             Assert.Equal("Overdue", service.Queries.Last().Status);
-            vm.SelectedDateFilter = "Return date";
-            Assert.Equal(HistoryDateFilter.ReturnDate, service.Queries.Last().DateFilter);
+            vm.NextPageCommand.Execute(null);
+            Assert.Equal(2, service.Queries.Last().PageNumber);
+            var fromDate = new DateTime(2026, 9, 10);
+            vm.FromDate = fromDate;
+            Assert.Equal(1, service.Queries.Last().PageNumber);
+            Assert.Equal(fromDate, service.Queries.Last().FromDate);
+            vm.NextPageCommand.Execute(null);
+            Assert.Equal(2, service.Queries.Last().PageNumber);
+            var toDate = new DateTime(2026, 9, 12);
+            vm.ToDate = toDate;
+            Assert.Equal(1, service.Queries.Last().PageNumber);
+            Assert.Equal(toDate, service.Queries.Last().ToDate);
             Assert.Equal(3, vm.TotalPages);
             Assert.Equal(4, vm.OverdueCount);
             Assert.True(vm.HasOverdue);
+        });
+    }
+
+    [Fact]
+    public void ViewModel_ClearFiltersResetsSearchStatusDatesAndPage()
+    {
+        var service = new RecordingHistoryService(new HistoryPage
+        {
+            Records = new[] { new HistoryRecordDto { BorrowId = 1, ReaderName = "A" } },
+            TotalCount = 101,
+            OverdueCount = 4
+        });
+        HistoryViewModel vm = null!;
+        StaHelper.RunInSta(() => vm = new HistoryViewModel(service));
+
+        StaHelper.RunInSta(() =>
+        {
+            vm.SearchText = "reader";
+            vm.SelectedStatus = "Returned";
+            vm.FromDate = new DateTime(2026, 9, 10);
+            vm.ToDate = new DateTime(2026, 9, 12);
+            vm.NextPageCommand.Execute(null);
+
+            vm.ClearFiltersCommand.Execute(null);
+
+            Assert.Equal(string.Empty, vm.SearchText);
+            Assert.Equal("All", vm.SelectedStatus);
+            Assert.Null(vm.FromDate);
+            Assert.Null(vm.ToDate);
+            Assert.Equal(1, vm.PageNumber);
+            Assert.Equal(string.Empty, service.Queries.Last().SearchText);
+            Assert.Equal("All", service.Queries.Last().Status);
+            Assert.Null(service.Queries.Last().FromDate);
+            Assert.Null(service.Queries.Last().ToDate);
+            Assert.Equal(1, service.Queries.Last().PageNumber);
         });
     }
 

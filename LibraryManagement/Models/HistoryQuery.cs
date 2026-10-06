@@ -1,18 +1,11 @@
 namespace LibraryManagement.Models;
 
-public enum HistoryDateFilter
-{
-    BorrowDate,
-    ReturnDate
-}
-
 public sealed class HistoryQuery
 {
     public string SearchText { get; init; } = string.Empty;
     public string Status { get; init; } = "All";
     public DateTime? FromDate { get; init; }
     public DateTime? ToDate { get; init; }
-    public HistoryDateFilter DateFilter { get; init; } = HistoryDateFilter.BorrowDate;
     public int PageNumber { get; init; } = 1;
     public int PageSize { get; init; } = 50;
 }

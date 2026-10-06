@@ -26,4 +26,4 @@ CI already runs unit tests and SQL integration against an isolated LocalDB datab
 
 Windows authentication must be available to the process running tests. A running SQL service does not prove the test process can log in. Do not report SQL integration as passed when authentication or fixture setup fails.
 
-This document focuses on physical-copy inventory and borrowing consistency. Current return outcomes and fee behavior are implemented in the Return and Fee modules; renewal and reservations are outside this document's scope.
+This document focuses on physical-copy inventory and borrowing consistency. Current return outcomes and fee behavior are implemented in the Return and Fee modules; renewal fees are outside the current project scope, and reservations are outside this document's scope.
