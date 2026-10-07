@@ -52,13 +52,6 @@ namespace LibraryManagement.ViewModels
             set => SetProperty(ref _registerPassword, value);
         }
 
-        private bool _isRegisterMode = false;
-        public bool IsRegisterMode
-        {
-            get => _isRegisterMode;
-            set => SetProperty(ref _isRegisterMode, value);
-        }
-
         private string _statusMessage = "";
         public string StatusMessage
         {
@@ -73,17 +66,6 @@ namespace LibraryManagement.ViewModels
             set => SetProperty(ref _isStatusError, value);
         }
 
-        private bool _isLoading = false;
-        public bool IsLoading
-        {
-            get => _isLoading;
-            set => SetProperty(ref _isLoading, value);
-        }
-
-        public ICommand SignInCommand { get; }
-        public ICommand RegisterCommand { get; }
-        public ICommand SwipeToRegisterCommand { get; }
-        public ICommand SwipeToSignInCommand { get; }
         public ICommand ForgotPasswordCommand { get; }
 
         public event Action<User>? LoginSuccessful;
@@ -94,23 +76,17 @@ namespace LibraryManagement.ViewModels
         {
             _authService = new AuthService();
 
-            SignInCommand = new RelayCommand(ExecuteSignIn);
-            RegisterCommand = new RelayCommand(ExecuteRegister);
-            SwipeToRegisterCommand = new RelayCommand(_ => TriggerSwipeToRegister());
-            SwipeToSignInCommand = new RelayCommand(_ => TriggerSwipeToSignIn());
             ForgotPasswordCommand = new RelayCommand(_ => ExecuteForgotPassword());
         }
 
         public void TriggerSwipeToRegister()
         {
-            IsRegisterMode = true;
             StatusMessage = "";
             RequestSwipeToRegister?.Invoke();
         }
 
         public void TriggerSwipeToSignIn()
         {
-            IsRegisterMode = false;
             StatusMessage = "";
             RequestSwipeToSignIn?.Invoke();
         }
@@ -119,11 +95,9 @@ namespace LibraryManagement.ViewModels
         {
             string password = parameter as string ?? SignInPassword;
 
-            IsLoading = true;
             StatusMessage = "";
 
             var result = _authService.Login(SignInEmailOrUsername, password);
-            IsLoading = false;
 
             if (result.Success && result.User != null)
             {
@@ -142,18 +116,16 @@ namespace LibraryManagement.ViewModels
         {
             string password = parameter as string ?? RegisterPassword;
 
-            IsLoading = true;
             StatusMessage = "";
 
             var result = _authService.Register(RegisterFullName, RegisterEmail, password);
-            IsLoading = false;
 
             if (result.Success)
             {
                 StatusMessage = result.Message;
                 IsStatusError = false;
 
-                // Pre-fill email for sign in and trigger swipe back
+                // Pre-fill email for sign in and return to the sign-in view.
                 SignInEmailOrUsername = RegisterEmail;
                 TriggerSwipeToSignIn();
             }

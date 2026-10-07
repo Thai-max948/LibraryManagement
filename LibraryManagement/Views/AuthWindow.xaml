@@ -3,309 +3,205 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:auth="clr-namespace:LibraryManagement.Views.Auth"
         xmlns:vm="clr-namespace:LibraryManagement.ViewModels"
-        Title="Bitsness - Sign In / Create Account"
-        Height="640" Width="1020"
+        Title="Library Management System"
+        Width="1020"
+        Height="640"
+        MinWidth="900"
+        MinHeight="580"
         WindowStartupLocation="CenterScreen"
-        WindowStyle="None"
-        AllowsTransparency="True"
-        Background="Transparent">
+        ResizeMode="CanResize"
+        Background="{StaticResource BackgroundBrush}"
+        UseLayoutRounding="True"
+        SnapsToDevicePixels="True">
 
     <Window.DataContext>
-        <vm:AuthViewModel x:Name="ViewModel"/>
+        <vm:AuthViewModel/>
     </Window.DataContext>
 
-    <Grid Margin="30">
-        <!-- Outer Card with rounded corners and soft drop shadow -->
-        <Border x:Name="CardBorder"
-                Width="940" Height="560"
-                CornerRadius="24"
-                ClipToBounds="True">
-            <Border.Background>
-                <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
-                    <GradientStop Color="#FFFFFF" Offset="0.0"/>
-                    <GradientStop Color="#FDFBF7" Offset="0.4"/>
-                    <GradientStop Color="#FFF6EC" Offset="0.85"/>
-                    <GradientStop Color="#FFEDE0" Offset="1.0"/>
-                </LinearGradientBrush>
-            </Border.Background>
-            <Border.Effect>
-                <DropShadowEffect Color="#050814" BlurRadius="45" Opacity="0.45" Direction="270" ShadowDepth="12"/>
-            </Border.Effect>
+    <Grid x:Name="AuthCanvas"
+          Background="{StaticResource CardBrush}"
+          ClipToBounds="True"
+          Focusable="True"
+          SizeChanged="AuthCanvas_SizeChanged"
+          PreviewMouseLeftButtonDown="AuthCanvas_PreviewMouseLeftButtonDown"
+          PreviewMouseMove="AuthCanvas_PreviewMouseMove"
+          PreviewMouseLeftButtonUp="AuthCanvas_PreviewMouseLeftButtonUp"
+          LostMouseCapture="AuthCanvas_LostMouseCapture">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="360"/>
+            <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
 
-            <Grid x:Name="CardContainer"
-                  PreviewMouseLeftButtonDown="CardContainer_PreviewMouseLeftButtonDown"
-                  PreviewMouseLeftButtonUp="CardContainer_PreviewMouseLeftButtonUp">
+        <Border x:Name="BrandPanel"
+                Grid.ColumnSpan="2"
+                Width="360"
+                HorizontalAlignment="Left"
+                Panel.ZIndex="3"
+                IsHitTestVisible="False"
+                Background="{StaticResource SidebarBrush}"
+                Padding="34,32">
+            <Border.RenderTransform>
+                <TranslateTransform x:Name="BrandTransform"/>
+            </Border.RenderTransform>
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
 
-                <!-- ================= LAYER 0: FORMS LAYER (LIGHT WARM BACKGROUND) ================= -->
-                <!-- Sign In Form (Positioned Left) -->
-                <Grid x:Name="PanelSignIn"
-                      HorizontalAlignment="Left"
-                      Width="440"
-                      Margin="50,40,0,30"
-                      Opacity="1"
-                      IsHitTestVisible="True">
-                    <Grid.RenderTransform>
-                        <TranslateTransform x:Name="TransSignIn" X="0" Y="0"/>
-                    </Grid.RenderTransform>
-                    <auth:LoginView x:Name="LoginControl"/>
-                </Grid>
-
-                <!-- Create Account Form (Positioned Right) -->
-                <Grid x:Name="PanelRegister"
-                      HorizontalAlignment="Right"
-                      Width="400"
-                      Margin="0,35,10,30"
-                      Opacity="0"
-                      IsHitTestVisible="False">
-                    <Grid.RenderTransform>
-                        <TranslateTransform x:Name="TransRegister" X="280" Y="0"/>
-                    </Grid.RenderTransform>
-                    <auth:RegisterView x:Name="RegisterControl"/>
-                </Grid>
-
-                <!-- ================= LAYER 1: SLIDING DARK OVERLAY PANEL ================= -->
-                <!--
-                    Parallelogram geometry:
-                    Width: 575, Height: 560
-                    Points: (0,0) -> (520,0) -> (575,560) -> (55,560)
-                    Slant offset: 55px (tilts down-right \)
-                    
-                    When in Sign In mode:
-                    TranslateX = 455.
-                    Left border is at (455, 0) to (510, 560) - perfectly dividing Left (Light) and Right (Dark).
-                    Right border is at (975, 0) to (1030, 560) - safely past the 940px edge.
-                    
-                    When in Register mode:
-                    TranslateX = -65.
-                    Left border is at (-65, 0) to (-10, 560) - safely past the 0px edge.
-                    Right border is at (455, 0) to (510, 560) - perfectly dividing Left (Dark) and Right (Light).
-                -->
-                <Canvas HorizontalAlignment="Left" VerticalAlignment="Top" Width="940" Height="560" IsHitTestVisible="False">
-                    <Grid x:Name="SlidingDarkOverlay"
-                          Width="575" Height="560"
-                          Canvas.Left="0" Canvas.Top="0">
-                        <Grid.RenderTransform>
-                            <TranslateTransform x:Name="TransOverlay" X="455" Y="0"/>
-                        </Grid.RenderTransform>
-
-                        <!-- Angled Path Background -->
-                        <Path Data="M 0,0 L 520,0 L 575,560 L 55,560 Z"
-                              Stretch="Fill"
-                              IsHitTestVisible="False">
-                            <Path.Fill>
-                                <LinearGradientBrush StartPoint="0.1,0" EndPoint="0.9,1">
-                                    <GradientStop Color="#0C1021" Offset="0.0"/>
-                                    <GradientStop Color="#131B32" Offset="0.45"/>
-                                    <GradientStop Color="#090D18" Offset="1.0"/>
-                                </LinearGradientBrush>
-                            </Path.Fill>
-                        </Path>
-
-                        <!-- Ambient Soft Glow in Dark Panel -->
-                        <Ellipse Width="340" Height="340"
-                                 HorizontalAlignment="Center" VerticalAlignment="Center"
-                                 IsHitTestVisible="False">
-                            <Ellipse.Fill>
-                                <RadialGradientBrush Center="0.5,0.5" RadiusX="0.5" RadiusY="0.5">
-                                    <GradientStop Color="#1E2B52" Offset="0.0"/>
-                                    <GradientStop Color="#001E2B52" Offset="1.0"/>
-                                </RadialGradientBrush>
-                            </Ellipse.Fill>
-                        </Ellipse>
-
-                        <!-- Glowing Star 1 (Top-Right subtle indigo) -->
-                        <Ellipse Width="5" Height="5"
-                                 Fill="#818CF8"
-                                 HorizontalAlignment="Right" VerticalAlignment="Top"
-                                 Margin="0,48,85,0"
-                                 IsHitTestVisible="False">
-                            <Ellipse.Effect>
-                                <DropShadowEffect Color="#818CF8" BlurRadius="12" ShadowDepth="0"/>
-                            </Ellipse.Effect>
-                        </Ellipse>
-
-                        <!-- Glowing Star 2 (Bottom-Right subtle coral/red) -->
-                        <Ellipse Width="4" Height="4"
-                                 Fill="#FB7185"
-                                 HorizontalAlignment="Right" VerticalAlignment="Bottom"
-                                 Margin="0,0,70,75"
-                                 IsHitTestVisible="False">
-                            <Ellipse.Effect>
-                                <DropShadowEffect Color="#F43F5E" BlurRadius="10" ShadowDepth="0"/>
-                            </Ellipse.Effect>
-                        </Ellipse>
-
-                        <!-- Glowing Star 3 (Bottom-Left subtle cyan for register mode) -->
-                        <Ellipse Width="4" Height="4"
-                                 Fill="#38BDF8"
-                                 HorizontalAlignment="Left" VerticalAlignment="Bottom"
-                                 Margin="80,0,0,90"
-                                 IsHitTestVisible="False">
-                            <Ellipse.Effect>
-                                <DropShadowEffect Color="#38BDF8" BlurRadius="10" ShadowDepth="0"/>
-                            </Ellipse.Effect>
-                        </Ellipse>
-
-                        <!-- ================= CONTENT FOR SIGN IN ("Welcome back.") ================= -->
-                        <Grid x:Name="PanelWelcomeBack"
-                              Width="360"
-                              HorizontalAlignment="Left"
-                              Margin="55,130,40,60"
-                              Opacity="1"
-                              IsHitTestVisible="False">
-                            <Grid.RenderTransform>
-                                <TranslateTransform x:Name="TransWelcomeBack" X="0" Y="0"/>
-                            </Grid.RenderTransform>
-
-                            <StackPanel>
-                                <!-- Kicker Tag -->
-                                <TextBlock Text="B I T S N E S S"
-                                           Foreground="#38BDF8"
-                                           FontSize="11"
-                                           FontWeight="Bold"
-                                           Margin="0,0,0,20"/>
-
-                                <!-- Large Serif Heading -->
-                                <TextBlock FontFamily="Georgia, Sitka Display, Cambria, 'Times New Roman'"
-                                           FontSize="42"
-                                           LineHeight="50"
-                                           Foreground="White">
-                                    <Run Text="Welcome" FontWeight="Normal"/><LineBreak/>
-                                    <Run Text="back." FontStyle="Italic"/>
-                                </TextBlock>
-
-                                <!-- Subtitle -->
-                                <TextBlock Text="Your boards, your drafts and your people are exactly where you left them."
-                                           Foreground="#8E9CB2"
-                                           FontSize="13.5"
-                                           LineHeight="20"
-                                           TextWrapping="Wrap"
-                                           Margin="0,18,0,0"/>
-                            </StackPanel>
-                        </Grid>
-
-                        <!-- ================= CONTENT FOR REGISTER ("Start the first page.") ================= -->
-                        <Grid x:Name="PanelStartPage"
-                              Width="360"
-                              HorizontalAlignment="Left"
-                              Margin="95,130,40,60"
-                              Opacity="0"
-                              IsHitTestVisible="False">
-                            <Grid.RenderTransform>
-                                <TranslateTransform x:Name="TransStartPage" X="220" Y="0"/>
-                            </Grid.RenderTransform>
-
-                            <StackPanel>
-                                <!-- Kicker Tag -->
-                                <TextBlock Text="B I T S N E S S"
-                                           Foreground="#38BDF8"
-                                           FontSize="11"
-                                           FontWeight="Bold"
-                                           Margin="0,0,0,20"/>
-
-                                <!-- Large Serif Heading -->
-                                <TextBlock FontFamily="Georgia, Sitka Display, Cambria, 'Times New Roman'"
-                                           FontSize="42"
-                                           LineHeight="50"
-                                           Foreground="White">
-                                    <Run Text="Start the" FontWeight="Normal"/><LineBreak/>
-                                    <Run Text="first page." FontStyle="Italic"/>
-                                </TextBlock>
-
-                                <!-- Subtitle -->
-                                <TextBlock Text="One account for every board, every draft and every delivery you own."
-                                           Foreground="#8E9CB2"
-                                           FontSize="13.5"
-                                           LineHeight="20"
-                                           TextWrapping="Wrap"
-                                           Margin="0,18,0,0"/>
-                            </StackPanel>
-                        </Grid>
-
-                    </Grid>
-                </Canvas>
-
-                <!-- ================= LAYER 2: WINDOW TITLEBAR & CONTROLS ================= -->
-                <!-- Top Header Drag Area & Window Buttons -->
-                <Grid Height="40" VerticalAlignment="Top" HorizontalAlignment="Stretch" Margin="16,10,16,0"
-                      MouseLeftButtonDown="TitleBar_MouseLeftButtonDown">
-                    <!-- Center Mode Switcher Pill -->
-                    <Border HorizontalAlignment="Center" VerticalAlignment="Center"
-                            Background="#15000000" CornerRadius="16" Padding="3">
-                        <StackPanel Orientation="Horizontal">
-                            <Button x:Name="TabSignIn" Content="Sign in" Click="TabSignIn_Click"
-                                    Foreground="#1E293B" FontWeight="SemiBold" FontSize="11.5"
-                                    Padding="14,4" Background="White" BorderThickness="0" Cursor="Hand">
-                                <Button.Template>
-                                    <ControlTemplate TargetType="Button">
-                                        <Border x:Name="Bd" Background="{TemplateBinding Background}" CornerRadius="13" Padding="{TemplateBinding Padding}">
-                                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                                        </Border>
-                                    </ControlTemplate>
-                                </Button.Template>
-                            </Button>
-                            <Button x:Name="TabRegister" Content="Create account" Click="TabRegister_Click"
-                                    Foreground="#64748B" FontWeight="Medium" FontSize="11.5"
-                                    Padding="14,4" Background="Transparent" BorderThickness="0" Cursor="Hand">
-                                <Button.Template>
-                                    <ControlTemplate TargetType="Button">
-                                        <Border x:Name="Bd" Background="{TemplateBinding Background}" CornerRadius="13" Padding="{TemplateBinding Padding}">
-                                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                                        </Border>
-                                    </ControlTemplate>
-                                </Button.Template>
-                            </Button>
-                        </StackPanel>
+                <StackPanel Grid.Row="0" Orientation="Horizontal">
+                    <Border Width="42"
+                            Height="42"
+                            CornerRadius="7"
+                            Background="#082F49"
+                            BorderBrush="#075985"
+                            BorderThickness="1">
+                        <Viewbox Margin="11">
+                            <Path Data="M 13,0 L 3,13 L 9,13 L 7,24 L 19,9 L 12,9 Z"
+                                  Fill="{StaticResource TechAccentCyan}"/>
+                        </Viewbox>
                     </Border>
-
-                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
-                        <!-- Minimize Button -->
-                        <Button Click="BtnMinimize_Click"
-                                Width="30" Height="30"
-                                Background="Transparent"
-                                BorderThickness="0"
-                                Cursor="Hand"
-                                Margin="0,0,4,0">
-                            <Button.Template>
-                                <ControlTemplate TargetType="Button">
-                                    <Border x:Name="Bd" Background="Transparent" CornerRadius="15">
-                                        <TextBlock Text="—" Foreground="#64748B" FontSize="12"
-                                                   HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                                    </Border>
-                                    <ControlTemplate.Triggers>
-                                        <Trigger Property="IsMouseOver" Value="True">
-                                            <Setter TargetName="Bd" Property="Background" Value="#20000000"/>
-                                        </Trigger>
-                                    </ControlTemplate.Triggers>
-                                </ControlTemplate>
-                            </Button.Template>
-                        </Button>
-
-                        <!-- Close Button -->
-                        <Button Click="BtnClose_Click"
-                                Width="30" Height="30"
-                                Background="Transparent"
-                                BorderThickness="0"
-                                Cursor="Hand">
-                            <Button.Template>
-                                <ControlTemplate TargetType="Button">
-                                    <Border x:Name="Bd" Background="Transparent" CornerRadius="15">
-                                        <TextBlock Text="✕" Foreground="#64748B" FontSize="12"
-                                                   HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                                    </Border>
-                                    <ControlTemplate.Triggers>
-                                        <Trigger Property="IsMouseOver" Value="True">
-                                            <Setter TargetName="Bd" Property="Background" Value="#E11D48"/>
-                                            <Setter Property="Foreground" Value="White"/>
-                                        </Trigger>
-                                    </ControlTemplate.Triggers>
-                                </ControlTemplate>
-                            </Button.Template>
-                        </Button>
+                    <StackPanel Margin="12,0,0,0" VerticalAlignment="Center">
+                        <TextBlock Text="LIBRARY.OS"
+                                   Foreground="White"
+                                   FontSize="18"
+                                   FontWeight="Bold"/>
+                        <TextBlock Text="SYSTEM CORE"
+                                   Foreground="#38BDF8"
+                                   FontSize="10"
+                                   FontWeight="SemiBold"
+                                   Margin="0,2,0,0"/>
                     </StackPanel>
-                </Grid>
+                </StackPanel>
 
+                <StackPanel Grid.Row="1" VerticalAlignment="Center">
+                    <TextBlock FontSize="29"
+                               LineHeight="35"
+                               FontWeight="Bold"
+                               Foreground="White">
+                        <Run Text="Library"/><LineBreak/>
+                        <Run Text="Management"/><LineBreak/>
+                        <Run Text="System"/>
+                    </TextBlock>
+
+                    <TextBlock Text="Manage your library collection, circulation and readers from one secure workspace."
+                               Foreground="#94A3B8"
+                               FontSize="13"
+                               LineHeight="20"
+                               TextWrapping="Wrap"
+                               Margin="0,16,0,24"/>
+
+                    <Border Height="1"
+                            Background="#263449"
+                            HorizontalAlignment="Stretch"
+                            Margin="0,0,0,22"/>
+
+                    <StackPanel>
+                        <Grid Margin="0,0,0,18">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="34"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0"
+                                       Text="&#xE8A5;"
+                                       FontFamily="Segoe MDL2 Assets"
+                                       FontSize="17"
+                                       Foreground="#38BDF8"
+                                       VerticalAlignment="Top"
+                                       Margin="0,2,0,0"/>
+                            <StackPanel Grid.Column="1">
+                                <TextBlock Text="Catalog Management" Foreground="White" FontWeight="SemiBold" FontSize="13"/>
+                                <TextBlock Text="Organize books and copies" Foreground="#94A3B8" FontSize="11.5" Margin="0,3,0,0"/>
+                            </StackPanel>
+                        </Grid>
+
+                        <Grid Margin="0,0,0,18">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="34"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0"
+                                       Text="&#xE72A;"
+                                       FontFamily="Segoe MDL2 Assets"
+                                       FontSize="17"
+                                       Foreground="#38BDF8"
+                                       VerticalAlignment="Top"
+                                       Margin="0,2,0,0"/>
+                            <StackPanel Grid.Column="1">
+                                <TextBlock Text="Borrow &amp; Return" Foreground="White" FontWeight="SemiBold" FontSize="13"/>
+                                <TextBlock Text="Track circulation easily" Foreground="#94A3B8" FontSize="11.5" Margin="0,3,0,0"/>
+                            </StackPanel>
+                        </Grid>
+
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="34"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0"
+                                       Text="&#xE716;"
+                                       FontFamily="Segoe MDL2 Assets"
+                                       FontSize="17"
+                                       Foreground="#38BDF8"
+                                       VerticalAlignment="Top"
+                                       Margin="0,2,0,0"/>
+                            <StackPanel Grid.Column="1">
+                                <TextBlock Text="Reader &amp; Fee Tracking" Foreground="White" FontWeight="SemiBold" FontSize="13"/>
+                                <TextBlock Text="Manage readers and fees" Foreground="#94A3B8" FontSize="11.5" Margin="0,3,0,0"/>
+                            </StackPanel>
+                        </Grid>
+                    </StackPanel>
+                </StackPanel>
+
+                <StackPanel Grid.Row="2">
+                    <TextBlock Text="Library.OS" Foreground="#CBD5E1" FontWeight="SemiBold" FontSize="11"/>
+                    <TextBlock Text="Internal Management System" Foreground="#64748B" FontSize="10" Margin="0,3,0,0"/>
+                </StackPanel>
             </Grid>
+        </Border>
+
+        <Border x:Name="LoginPanel"
+                Grid.ColumnSpan="2"
+                Width="660"
+                HorizontalAlignment="Left"
+                Panel.ZIndex="1"
+                Background="{StaticResource CardBrush}"
+                IsEnabled="True"
+                IsHitTestVisible="True">
+            <Border.RenderTransform>
+                <TranslateTransform x:Name="LoginTransform"/>
+            </Border.RenderTransform>
+            <ScrollViewer VerticalScrollBarVisibility="Auto"
+                          HorizontalScrollBarVisibility="Disabled">
+                <Grid Margin="42,24">
+                    <auth:LoginView x:Name="LoginControl"
+                                    HorizontalAlignment="Stretch"
+                                    VerticalAlignment="Center"/>
+                </Grid>
+            </ScrollViewer>
+        </Border>
+
+        <Border x:Name="RegisterPanel"
+                Grid.ColumnSpan="2"
+                Width="660"
+                HorizontalAlignment="Left"
+                Panel.ZIndex="2"
+                Background="{StaticResource CardBrush}"
+                Opacity="0"
+                IsEnabled="False"
+                IsHitTestVisible="False">
+            <Border.RenderTransform>
+                <TranslateTransform x:Name="RegisterTransform"/>
+            </Border.RenderTransform>
+            <ScrollViewer VerticalScrollBarVisibility="Auto"
+                          HorizontalScrollBarVisibility="Disabled">
+                <Grid Margin="42,24">
+                    <auth:RegisterView x:Name="RegisterControl"
+                                       HorizontalAlignment="Stretch"
+                                       VerticalAlignment="Center"/>
+                </Grid>
+            </ScrollViewer>
         </Border>
     </Grid>
 </Window>

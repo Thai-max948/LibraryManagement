@@ -1,110 +1,363 @@
 using System;
-using System.Collections.Generic;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
-using LibraryManagement.Models;
+using System.Windows.Media.Media3D;
+using System.Windows.Threading;
 using LibraryManagement.Data;
-using LibraryManagement.ViewModels;
+using LibraryManagement.Models;
 using LibraryManagement.Services;
+using LibraryManagement.ViewModels;
 
 namespace LibraryManagement.Views
 {
     public partial class AuthWindow : Window
     {
-        private const double FormSlideDistance = 280;
-        private const double OverlayContentSlideDistance = 220;
-        private const double OverlayTravel = 520;          // overlay đi từ X=455 (Sign in) tới X=-65 (Register)
-        private const double DragStartThreshold = 8;       // px tối thiểu để coi là kéo
-        private const double CommitRatio = 0.2;            // kéo quá 20% quãng đường thì chuyển mode
+        private const double AnimationDurationMilliseconds = 600;
+        private const double DragStartThreshold = 8;
+        private const double CommitRatio = 0.18;
+        private const double LoginFadeEnd = 0.44;
+        private const double RegisterFadeStart = 0.46;
+        private const double FormSlideDistance = 28;
+
+        public static readonly DependencyProperty ProgressProperty = DependencyProperty.Register(
+            nameof(Progress),
+            typeof(double),
+            typeof(AuthWindow),
+            new PropertyMetadata(0d, OnProgressChanged));
 
         private bool _isRegisterMode;
         private bool _isAnimating;
-
-        // Drag state
-        private bool _dragArmed, _dragging;
-        private double _dragStartX, _dragBase;
-
-        // Cache bitmap cho các phần tử chuyển động (chỉ bật khi đang kéo/animate)
-        private UIElement[] _cacheTargets = Array.Empty<UIElement>();
-        private static readonly IEasingFunction Ease = new CubicEase { EasingMode = EasingMode.EaseOut };
+        private bool _isDragging;
+        private bool _dragArmed;
+        private bool _suppressLostMouseCapture;
+        private bool _hasQueuedMode;
+        private bool _queuedRegisterMode;
+        private bool _targetRegisterMode;
+        private double _dragStartX;
+        private double _dragStartProgress;
 
         public AuthWindow()
         {
             InitializeComponent();
-
-            CardContainer.Background = Brushes.Transparent;   // vùng trống (panel tối) mới nhận chuột
-            CardContainer.PreviewMouseMove += CardContainer_PreviewMouseMove;
-            BuildCacheTargets();
-
             Loaded += AuthWindow_Loaded;
+            Deactivated += AuthWindow_Deactivated;
+            StateChanged += AuthWindow_StateChanged;
         }
-
-        // ================= Progress: 0 = Sign in, 1 = Register =================
-        public static readonly DependencyProperty ProgressProperty =
-            DependencyProperty.Register(nameof(Progress), typeof(double), typeof(AuthWindow),
-                new PropertyMetadata(0.0, (d, e) => ((AuthWindow)d).ApplyProgress((double)e.NewValue)));
 
         public double Progress
         {
             get => (double)GetValue(ProgressProperty);
-            set => SetValue(ProgressProperty, value);
+            set => SetValue(ProgressProperty, Math.Clamp(value, 0d, 1d));
         }
 
-        private void ApplyProgress(double p)
+        private static void OnProgressChanged(DependencyObject dependencyObject, DependencyPropertyChangedEventArgs e)
         {
-            TransOverlay.X = 455 - OverlayTravel * p;
-
-            TransSignIn.X = -FormSlideDistance * p;
-            PanelSignIn.Opacity = Math.Clamp(1 - p * 1.6, 0, 1);
-            PanelSignIn.IsHitTestVisible = p < 0.05;
-
-            TransRegister.X = FormSlideDistance * (1 - p);
-            PanelRegister.Opacity = Math.Clamp(p * 1.6 - 0.6, 0, 1);
-            PanelRegister.IsHitTestVisible = p > 0.95;
-
-            TransWelcomeBack.X = -OverlayContentSlideDistance * p;
-            PanelWelcomeBack.Opacity = Math.Clamp(1 - p * 1.6, 0, 1);
-
-            TransStartPage.X = OverlayContentSlideDistance * (1 - p);
-            PanelStartPage.Opacity = Math.Clamp(p * 1.6 - 0.6, 0, 1);
+            if (dependencyObject is AuthWindow window)
+                window.ApplyProgress((double)e.NewValue);
         }
 
-        // ================= BitmapCache khi chuyển động =================
-        private void BuildCacheTargets()
-        {
-            // Chỉ cache các "lá" (không chứa phần tử đang animate bên trong) để cache không bị vô hiệu mỗi frame
-            var list = new List<UIElement> { PanelSignIn, PanelRegister, PanelWelcomeBack, PanelStartPage };
-            foreach (UIElement c in SlidingDarkOverlay.Children)
-            {
-                if (c != PanelWelcomeBack && c != PanelStartPage) list.Add(c);
-            }
-            _cacheTargets = list.ToArray();
-        }
-
-        private void SetCache(bool on)
-        {
-            CacheMode? cache = on ? new BitmapCache() : null;
-            foreach (var el in _cacheTargets) el.CacheMode = cache;
-        }
-
-        // ================= Init / Events =================
         private void AuthWindow_Loaded(object sender, RoutedEventArgs e)
         {
-            if (DataContext is AuthViewModel vm)
+            if (DataContext is AuthViewModel viewModel)
             {
-                vm.LoginSuccessful += OnLoginSuccessful;
-                vm.RequestSwipeToRegister += () => SwipeToRegister();
-                vm.RequestSwipeToSignIn += () => SwipeToSignIn();
+                viewModel.LoginSuccessful += OnLoginSuccessful;
+                viewModel.RequestSwipeToRegister += SwipeToRegister;
+                viewModel.RequestSwipeToSignIn += SwipeToSignIn;
             }
 
-            LoginControl.RequestNavigateToRegister += () => SwipeToRegister();
-            RegisterControl.RequestNavigateToSignIn += () => SwipeToSignIn();
+            LoginControl.RequestNavigateToRegister += SwipeToRegister;
+            RegisterControl.RequestNavigateToSignIn += SwipeToSignIn;
             ApplyAuthMode(false);
         }
+
+        private void ApplyAuthMode(bool isRegister)
+        {
+            BeginAnimation(ProgressProperty, null);
+            _isRegisterMode = isRegister;
+            _isAnimating = false;
+            _isDragging = false;
+            _dragArmed = false;
+            _hasQueuedMode = false;
+            Progress = isRegister ? 1d : 0d;
+            UpdateFormBounds();
+            ApplyProgress(Progress);
+            UpdateInteractionState();
+        }
+
+        public void SwipeToRegister() => AnimateAuthMode(true);
+
+        public void SwipeToSignIn() => AnimateAuthMode(false);
+
+        private void AnimateAuthMode(bool isRegister)
+        {
+            if (_isAnimating)
+            {
+                if (isRegister != _targetRegisterMode)
+                {
+                    _hasQueuedMode = true;
+                    _queuedRegisterMode = isRegister;
+                }
+                return;
+            }
+
+            double destination = isRegister ? 1d : 0d;
+            if (_isRegisterMode == isRegister && Math.Abs(Progress - destination) < 0.001d)
+                return;
+
+            ReleasePointerDrag();
+            _targetRegisterMode = isRegister;
+            _isAnimating = true;
+            _dragArmed = false;
+            Keyboard.ClearFocus();
+            AuthCanvas.Focus();
+            UpdateInteractionState();
+
+            var animation = new DoubleAnimation(Progress, destination,
+                TimeSpan.FromMilliseconds(AnimationDurationMilliseconds))
+            {
+                EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut },
+                FillBehavior = FillBehavior.HoldEnd
+            };
+            animation.Completed += (_, _) => CompleteAnimation(isRegister);
+            BeginAnimation(ProgressProperty, animation, HandoffBehavior.SnapshotAndReplace);
+        }
+
+        private void CompleteAnimation(bool isRegister)
+        {
+            if (!_isAnimating || _targetRegisterMode != isRegister)
+                return;
+
+            Progress = isRegister ? 1d : 0d;
+            BeginAnimation(ProgressProperty, null);
+            _isRegisterMode = isRegister;
+            _isAnimating = false;
+            ApplyProgress(Progress);
+            UpdateInteractionState();
+
+            if (_hasQueuedMode)
+            {
+                bool queuedMode = _queuedRegisterMode;
+                _hasQueuedMode = false;
+                if (queuedMode != _isRegisterMode)
+                {
+                    AnimateAuthMode(queuedMode);
+                    return;
+                }
+            }
+
+            FocusActiveInput();
+        }
+
+        private void ApplyProgress(double progress)
+        {
+            if (BrandTransform is null || LoginTransform is null || RegisterTransform is null)
+                return;
+
+            double normalizedProgress = Math.Clamp(progress, 0d, 1d);
+            double travel = Math.Max(0d, AuthCanvas.ActualWidth - BrandPanel.Width);
+
+            BrandTransform.X = travel * normalizedProgress;
+            LoginTransform.X = BrandPanel.Width - FormSlideDistance * normalizedProgress;
+            RegisterTransform.X = FormSlideDistance * (1d - normalizedProgress);
+            LoginPanel.Opacity = 1d - Clamp01(normalizedProgress / LoginFadeEnd);
+            RegisterPanel.Opacity = Clamp01((normalizedProgress - RegisterFadeStart) / (1d - RegisterFadeStart));
+            UpdateInteractionState();
+        }
+
+        private void UpdateFormBounds()
+        {
+            double formWidth = Math.Max(0d, AuthCanvas.ActualWidth - BrandPanel.Width);
+            if (formWidth > 0d)
+            {
+                LoginPanel.Width = formWidth;
+                RegisterPanel.Width = formWidth;
+            }
+        }
+
+        private void UpdateInteractionState()
+        {
+            if (LoginPanel is null || RegisterPanel is null)
+                return;
+
+            bool canInteract = !_isAnimating && !_isDragging;
+            LoginPanel.IsEnabled = canInteract && !_isRegisterMode;
+            LoginPanel.IsHitTestVisible = canInteract && !_isRegisterMode;
+            RegisterPanel.IsEnabled = canInteract && _isRegisterMode;
+            RegisterPanel.IsHitTestVisible = canInteract && _isRegisterMode;
+        }
+
+        private void FocusActiveInput()
+        {
+            if (!IsActive || WindowState == WindowState.Minimized)
+                return;
+
+            Dispatcher.BeginInvoke(DispatcherPriority.Input, new Action(() =>
+            {
+                if (_isRegisterMode)
+                    RegisterControl.FocusFirstInput();
+                else
+                    LoginControl.FocusFirstInput();
+            }));
+        }
+
+        private void AuthCanvas_SizeChanged(object sender, SizeChangedEventArgs e)
+        {
+            if (_isDragging && (e.WidthChanged || e.HeightChanged))
+                CancelPointerDrag();
+
+            UpdateFormBounds();
+            ApplyProgress(Progress);
+        }
+
+        private void AuthCanvas_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            if (_isAnimating || _isDragging || IsInteractiveInput(e.OriginalSource as DependencyObject))
+                return;
+
+            _dragArmed = true;
+            _dragStartX = e.GetPosition(AuthCanvas).X;
+            _dragStartProgress = _isRegisterMode ? 1d : 0d;
+        }
+
+        private void AuthCanvas_PreviewMouseMove(object sender, MouseEventArgs e)
+        {
+            if (!_dragArmed || e.LeftButton != MouseButtonState.Pressed || _isAnimating)
+                return;
+
+            double currentX = e.GetPosition(AuthCanvas).X;
+            double deltaX = currentX - _dragStartX;
+            if (!_isDragging)
+            {
+                if (Math.Abs(deltaX) < DragStartThreshold)
+                    return;
+
+                _isDragging = true;
+                Keyboard.ClearFocus();
+                AuthCanvas.Focus();
+                if (!AuthCanvas.CaptureMouse())
+                {
+                    _isDragging = false;
+                    _dragArmed = false;
+                    UpdateInteractionState();
+                    return;
+                }
+                UpdateInteractionState();
+            }
+
+            UpdateDragProgress(currentX);
+            e.Handled = true;
+        }
+
+        private void UpdateDragProgress(double currentX)
+        {
+            double travel = Math.Max(1d, AuthCanvas.ActualWidth - BrandPanel.Width);
+            double deltaX = currentX - _dragStartX;
+            Progress = Clamp01(_dragStartProgress + deltaX / travel);
+        }
+
+        private void AuthCanvas_PreviewMouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+        {
+            if (!_dragArmed)
+                return;
+
+            if (_isDragging)
+            {
+                UpdateDragProgress(e.GetPosition(AuthCanvas).X);
+                bool targetRegister = _isRegisterMode
+                    ? Progress <= 1d - CommitRatio
+                    : Progress >= CommitRatio;
+                _dragArmed = false;
+                ReleasePointerDrag();
+                e.Handled = true;
+                AnimateAuthMode(targetRegister);
+                return;
+            }
+
+            _dragArmed = false;
+        }
+
+        private void AuthCanvas_LostMouseCapture(object sender, MouseEventArgs e)
+        {
+            if (_suppressLostMouseCapture || (!_isDragging && !_dragArmed))
+                return;
+
+            bool wasDragging = _isDragging;
+            _dragArmed = false;
+            _isDragging = false;
+            UpdateInteractionState();
+            if (wasDragging)
+                AnimateAuthMode(_isRegisterMode);
+        }
+
+        private void CancelPointerDrag()
+        {
+            bool wasDragging = _isDragging;
+            _dragArmed = false;
+            ReleasePointerDrag();
+            if (wasDragging)
+                AnimateAuthMode(_isRegisterMode);
+            else
+                UpdateInteractionState();
+        }
+
+        private void ReleasePointerDrag()
+        {
+            _isDragging = false;
+            if (!ReferenceEquals(Mouse.Captured, AuthCanvas))
+                return;
+
+            _suppressLostMouseCapture = true;
+            AuthCanvas.ReleaseMouseCapture();
+            _suppressLostMouseCapture = false;
+        }
+
+        private void AuthWindow_Deactivated(object? sender, EventArgs e)
+        {
+            if (_dragArmed || _isDragging)
+                CancelPointerDrag();
+        }
+
+        private void AuthWindow_StateChanged(object? sender, EventArgs e)
+        {
+            if (WindowState != WindowState.Minimized)
+                return;
+
+            CancelPointerDrag();
+            if (_isAnimating)
+            {
+                bool finalMode = _hasQueuedMode ? _queuedRegisterMode : _targetRegisterMode;
+                _hasQueuedMode = false;
+                ApplyAuthMode(finalMode);
+            }
+        }
+
+        private static bool IsInteractiveInput(DependencyObject? source)
+        {
+            for (DependencyObject? current = source; current is not null; current = GetParent(current))
+            {
+                if (current is TextBoxBase or PasswordBox or ButtonBase or ScrollBar)
+                    return true;
+            }
+            return false;
+        }
+
+        private static DependencyObject? GetParent(DependencyObject element)
+        {
+            if (element is Visual or Visual3D)
+            {
+                DependencyObject? visualParent = VisualTreeHelper.GetParent(element);
+                if (visualParent is not null)
+                    return visualParent;
+            }
+
+            return LogicalTreeHelper.GetParent(element);
+        }
+
+        private static double Clamp01(double value) => Math.Clamp(value, 0d, 1d);
 
         private async void OnLoginSuccessful(User user)
         {
@@ -125,170 +378,10 @@ namespace LibraryManagement.Views
             // The startup scan runs after schema migration and is isolated from login if it fails.
             await NotificationRuntime.CheckDueSoonSafelyAsync();
 
-            // Open MainWindow and close this window
+            // Open MainWindow and close this window.
             var mainWindow = new MainWindow();
             mainWindow.Show();
             Close();
-        }
-
-        // ================= Mode switching =================
-        public void SwipeToRegister()
-        {
-            if (_isRegisterMode || _isAnimating)
-            {
-                return;
-            }
-            AnimateAuthMode(true);
-        }
-
-        public void SwipeToSignIn()
-        {
-            if (!_isRegisterMode || _isAnimating)
-            {
-                return;
-            }
-            AnimateAuthMode(false);
-        }
-
-        private void ApplyAuthMode(bool isRegister)
-        {
-            _isRegisterMode = isRegister;
-            _isAnimating = false;
-            UpdateTabVisuals(isRegister);
-            SetCache(false);
-            Progress = isRegister ? 1 : 0;
-            ApplyProgress(Progress);
-        }
-
-        private void AnimateAuthMode(bool isRegister)
-        {
-            _isAnimating = true;
-            _isRegisterMode = isRegister;
-            UpdateTabVisuals(isRegister);
-            SetCache(true);
-
-            double from = Progress, target = isRegister ? 1 : 0;
-            Progress = target;   // giá trị cuối gán local, animation chỉ là hiệu ứng
-
-            var anim = new DoubleAnimation(from, target,
-                TimeSpan.FromMilliseconds(Math.Max(200, 620 * Math.Abs(target - from))))
-            {
-                EasingFunction = Ease,
-                FillBehavior = FillBehavior.Stop
-            };
-            anim.Completed += (_, _) => { _isAnimating = false; SetCache(false); };
-            BeginAnimation(ProgressProperty, anim);
-        }
-
-        // ================= Kéo chuột kiểu Tinder =================
-        private static bool IsInteractive(DependencyObject? d)
-        {
-            while (d != null)
-            {
-                if (d is TextBoxBase or PasswordBox or ButtonBase) return true;
-                d = d is Visual ? VisualTreeHelper.GetParent(d) : LogicalTreeHelper.GetParent(d);
-            }
-            return false;
-        }
-
-        private void CardContainer_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
-        {
-            if (_isAnimating || IsInteractive(e.OriginalSource as DependencyObject)) return;
-
-            var pos = e.GetPosition(CardContainer);
-            if (pos.Y < 50) return;                    // vùng titlebar (DragMove)
-
-            _dragArmed = true;
-            _dragging = false;
-            _dragStartX = pos.X;
-            _dragBase = Progress;
-        }
-
-        private void CardContainer_PreviewMouseMove(object sender, MouseEventArgs e)
-        {
-            if (!_dragArmed) return;
-            if (e.LeftButton != MouseButtonState.Pressed) { EndDrag(); return; }
-
-            double dx = e.GetPosition(CardContainer).X - _dragStartX;
-            if (!_dragging)
-            {
-                if (Math.Abs(dx) < DragStartThreshold) return;
-                _dragging = true;
-                SetCache(true);
-                CardContainer.CaptureMouse();
-            }
-            Progress = Math.Clamp(_dragBase - dx / OverlayTravel, 0, 1);
-        }
-
-        private void CardContainer_PreviewMouseLeftButtonUp(object sender, MouseButtonEventArgs e)
-        {
-            if (!_dragArmed) return;
-            bool wasDragging = _dragging;
-            EndDrag();
-            if (!wasDragging) return;
-
-            // Quá ngưỡng thì chuyển mode, chưa tới thì bật về
-            bool toRegister = _isRegisterMode ? Progress > 1 - CommitRatio : Progress > CommitRatio;
-            AnimateAuthMode(toRegister);
-        }
-
-        private void EndDrag()
-        {
-            _dragArmed = _dragging = false;
-            CardContainer.ReleaseMouseCapture();
-        }
-
-        // ================= Window chrome =================
-        private void TitleBar_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
-        {
-            if (e.LeftButton == MouseButtonState.Pressed)
-            {
-                DragMove();
-            }
-        }
-
-        private void BtnMinimize_Click(object sender, RoutedEventArgs e)
-        {
-            WindowState = WindowState.Minimized;
-        }
-
-        private void BtnClose_Click(object sender, RoutedEventArgs e)
-        {
-            Close();
-        }
-
-        private void TabSignIn_Click(object sender, RoutedEventArgs e)
-        {
-            SwipeToSignIn();
-        }
-
-        private void TabRegister_Click(object sender, RoutedEventArgs e)
-        {
-            SwipeToRegister();
-        }
-
-        private void UpdateTabVisuals(bool isRegister)
-        {
-            if (isRegister)
-            {
-                TabRegister.Background = Brushes.White;
-                TabRegister.Foreground = new SolidColorBrush(Color.FromRgb(30, 41, 59));
-                TabRegister.FontWeight = FontWeights.SemiBold;
-
-                TabSignIn.Background = Brushes.Transparent;
-                TabSignIn.Foreground = new SolidColorBrush(Color.FromRgb(100, 116, 139));
-                TabSignIn.FontWeight = FontWeights.Medium;
-            }
-            else
-            {
-                TabSignIn.Background = Brushes.White;
-                TabSignIn.Foreground = new SolidColorBrush(Color.FromRgb(30, 41, 59));
-                TabSignIn.FontWeight = FontWeights.SemiBold;
-
-                TabRegister.Background = Brushes.Transparent;
-                TabRegister.Foreground = new SolidColorBrush(Color.FromRgb(100, 116, 139));
-                TabRegister.FontWeight = FontWeights.Medium;
-            }
         }
     }
 }

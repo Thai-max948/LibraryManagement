@@ -15,7 +15,7 @@ namespace LibraryManagement.ViewModels
         private readonly BookService _bookService;
         private readonly ReaderService _readerService;
         private readonly IUserDialogService _dialogService;
-        private readonly BookCopyService _copyService = new BookCopyService();
+        private readonly BookCopyService _copyService;
 
         public ObservableCollection<ActiveBorrowRow> ActiveBorrowings { get; set; } = new ObservableCollection<ActiveBorrowRow>();
         public ObservableCollection<BookCopy> LegacyCopyChoices { get; } = new ObservableCollection<BookCopy>();
@@ -37,8 +37,11 @@ namespace LibraryManagement.ViewModels
             get => _searchText;
             set
             {
-                SetProperty(ref _searchText, value);
-                Load();
+                if (SetProperty(ref _searchText, value))
+                {
+                    SearchErrorMessage = string.Empty;
+                    Load();
+                }
             }
         }
 
@@ -68,29 +71,42 @@ namespace LibraryManagement.ViewModels
             }
         }
 
-        private string _barcode = string.Empty;
-        public string Barcode { get => _barcode; set => SetProperty(ref _barcode, value); }
-        private string _lookupMessage = string.Empty;
-        public string LookupMessage { get => _lookupMessage; set => SetProperty(ref _lookupMessage, value); }
+        private string _searchErrorMessage = string.Empty;
+        public string SearchErrorMessage
+        {
+            get => _searchErrorMessage;
+            private set
+            {
+                if (SetProperty(ref _searchErrorMessage, value))
+                    OnPropertyChanged(nameof(HasSearchError));
+            }
+        }
+
+        public bool HasSearchError => !string.IsNullOrWhiteSpace(SearchErrorMessage);
+
         private string _resultMessage = string.Empty;
         public string ResultMessage { get => _resultMessage; set => SetProperty(ref _resultMessage, value); }
-        public ICommand LookupBarcodeCommand { get; }
+        public ICommand SearchEnterCommand { get; }
         public ICommand NeedsRepairCommand { get; }
 
-        public void LookupBarcode()
+        public void HandleSearchEnter()
         {
+            SearchErrorMessage = string.Empty;
+            if (!BookCopyBarcode.LooksLikeBarcode(SearchText)) return;
+
+            string barcode = SearchText;
             SelectedRow = null;
             ConditionNote = string.Empty;
             ResultMessage = string.Empty;
             try
             {
-                var loan = _borrowService.FindActiveReturnByBarcode(Barcode);
+                var loan = _borrowService.FindActiveReturnByBarcode(barcode);
                 var book = _bookService.GetBookById(loan.BookId);
                 var reader = _readerService.GetReaderById(loan.ReaderId);
                 var row = new ActiveBorrowRow
                 {
                     BorrowId = loan.BorrowId, BookId = loan.BookId, BookCopyId = loan.BookCopyId,
-                    CopyBarcode = Barcode, IsBarcodeScan = true, BookTitle = book?.Title ?? "?",
+                    CopyBarcode = barcode, IsBarcodeScan = true, BookTitle = book?.Title ?? "?",
                     ReaderName = reader?.FullName ?? "?",
                     BorrowDate = loan.BorrowDate.ToString("dd/MM/yyyy"),
                     DueDate = loan.DueDate.ToString("dd/MM/yyyy"), BorrowDateValue = loan.BorrowDate,
@@ -99,13 +115,22 @@ namespace LibraryManagement.ViewModels
                 ActiveBorrowings.Clear();
                 ActiveBorrowings.Add(row);
                 SelectedRow = row;
-                LookupMessage = "Đã tìm thấy đúng bản sách và phiếu mượn đang hoạt động.";
             }
-            catch (BusinessRuleException ex) { LookupMessage = ex.Message; }
+            catch (BusinessRuleException ex)
+            {
+                ActiveBorrowings.Clear();
+                SearchErrorMessage = ex.Message.Contains("Barcode không tồn tại", StringComparison.OrdinalIgnoreCase)
+                    ? $"Không tìm thấy barcode {barcode}."
+                    : ex.Message.Contains("phiếu mượn", StringComparison.OrdinalIgnoreCase) ||
+                      ex.Message.Contains("đang được mượn", StringComparison.OrdinalIgnoreCase)
+                        ? $"Không có phiếu mượn đang hoạt động cho barcode {barcode}."
+                        : ex.Message;
+            }
             catch (Exception ex)
             {
                 System.Diagnostics.Trace.TraceError("Return barcode lookup failed: {0}", ex);
-                LookupMessage = "Không thể tra barcode lúc này. Vui lòng thử lại.";
+                ActiveBorrowings.Clear();
+                SearchErrorMessage = "Không thể tìm phiếu mượn bằng barcode lúc này. Vui lòng thử lại.";
             }
         }
 
@@ -122,17 +147,18 @@ namespace LibraryManagement.ViewModels
         }
 
         public ReturnViewModel(IReturnCirculationService borrowService, BookService bookService,
-            ReaderService readerService, IUserDialogService dialogService)
+            ReaderService readerService, IUserDialogService dialogService, BookCopyService? copyService = null)
         {
             _borrowService = borrowService ?? throw new ArgumentNullException(nameof(borrowService));
             _bookService = bookService ?? throw new ArgumentNullException(nameof(bookService));
             _readerService = readerService ?? throw new ArgumentNullException(nameof(readerService));
             _dialogService = dialogService ?? throw new ArgumentNullException(nameof(dialogService));
+            _copyService = copyService ?? new BookCopyService();
             ReturnCommand = new RelayCommand(() => DoReturn(ReturnCondition.Normal), () => SelectedRow != null && !NeedsLegacyMapping && !IsBusy);
             DamagedReturnCommand = new RelayCommand(() => DoReturn(ReturnCondition.Damaged), () => SelectedRow != null && !NeedsLegacyMapping && !IsBusy);
             MarkLostCommand = new RelayCommand(DoMarkLost, () => SelectedRow != null && !NeedsLegacyMapping && !IsBusy);
             LinkLegacyCopyCommand = new RelayCommand(DoLinkLegacyCopy, () => NeedsLegacyMapping && SelectedLegacyCopy != null);
-            LookupBarcodeCommand = new RelayCommand(LookupBarcode, () => !IsBusy);
+            SearchEnterCommand = new RelayCommand(HandleSearchEnter, () => !IsBusy);
             NeedsRepairCommand = new RelayCommand(() => DoReturn(ReturnCondition.NeedsRepair), () => SelectedRow != null && !NeedsLegacyMapping && !IsBusy);
             Load();
         }
@@ -270,7 +296,7 @@ namespace LibraryManagement.ViewModels
             try
             {
                 var result = SelectedRow.IsBarcodeScan
-                    ? _borrowService.ReturnBookByBarcode(Barcode, condition, ConditionNote)
+                    ? _borrowService.ReturnBookByBarcode(SearchText, condition, ConditionNote)
                     : _borrowService.ReturnBook(SelectedRow.BorrowId, condition, ConditionNote);
                 ShowResult(result);
                 SelectedRow = null;
@@ -299,8 +325,7 @@ namespace LibraryManagement.ViewModels
                 + (result.LateDays.HasValue ? $" Quá hạn: {result.LateDays.Value} ngày." : string.Empty)
                 + (result.FeesCreated > 0 ? $" Đã ghi nhận {result.FeesCreated} khoản phí." : string.Empty)
                 + (result.FeeWarnings.Count > 0 ? "\n" + string.Join("\n", result.FeeWarnings) : string.Empty);
-            Barcode = string.Empty;
-            LookupMessage = string.Empty;
+            SearchErrorMessage = string.Empty;
             _dialogService.ShowInfo(ResultMessage, result.FeeWarnings.Count > 0
                 ? "Trả sách hoàn tất; một số phí chưa được ghi"
                 : "Kết quả trả sách");
@@ -317,7 +342,7 @@ namespace LibraryManagement.ViewModels
             try
             {
                 var result = SelectedRow.IsBarcodeScan
-                    ? _borrowService.ReturnBookByBarcode(Barcode, ReturnCondition.Lost, ConditionNote)
+                    ? _borrowService.ReturnBookByBarcode(SearchText, ReturnCondition.Lost, ConditionNote)
                     : _borrowService.MarkAsLost(borrowId, ConditionNote);
                 ShowResult(result);
                 ConditionNote = string.Empty;

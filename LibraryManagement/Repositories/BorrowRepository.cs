@@ -276,6 +276,27 @@ namespace LibraryManagement.Repositories
             return records;
         }
 
+        public virtual List<BorrowRecord> GetEligibilityRecords(int readerId)
+        {
+            var records = new List<BorrowRecord>();
+            using var connection = Database.GetConnection();
+            connection.Open();
+            using var command = new SqlCommand(@"
+                SELECT BorrowId, ReaderId, DueDate, Status
+                FROM dbo.BorrowRecords
+                WHERE ReaderId = @ReaderId AND Status = 'Borrowing'", connection);
+            command.Parameters.Add("@ReaderId", System.Data.SqlDbType.Int).Value = readerId;
+            using var reader = command.ExecuteReader();
+            while (reader.Read()) records.Add(new BorrowRecord
+            {
+                BorrowId = reader.GetInt32(0),
+                ReaderId = reader.GetInt32(1),
+                DueDate = reader.GetDateTime(2),
+                Status = reader.GetString(3)
+            });
+            return records;
+        }
+
         public virtual bool HasUnresolvedLostByReader(SqlConnection conn, SqlTransaction? tran, int readerId)
         {
             using var command = new SqlCommand(
@@ -359,6 +380,15 @@ namespace LibraryManagement.Repositories
         private static bool HasOutcomeColumns(SqlConnection conn, SqlTransaction? tran)
         {
             using var command = new SqlCommand("SELECT CASE WHEN COL_LENGTH('dbo.BorrowRecords', 'LostNote') IS NULL THEN 0 ELSE 1 END", conn, tran);
+            return Convert.ToInt32(command.ExecuteScalar()) == 1;
+        }
+
+        private static bool HasColumn(SqlConnection connection, SqlTransaction? transaction, string columnName)
+        {
+            using var command = new SqlCommand(
+                "SELECT CASE WHEN COL_LENGTH('dbo.BorrowRecords', @ColumnName) IS NULL THEN 0 ELSE 1 END",
+                connection, transaction);
+            command.Parameters.Add("@ColumnName", System.Data.SqlDbType.NVarChar, 128).Value = columnName;
             return Convert.ToInt32(command.ExecuteScalar()) == 1;
         }
 

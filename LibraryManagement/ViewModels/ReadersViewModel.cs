@@ -94,7 +94,6 @@ namespace LibraryManagement.ViewModels
         public ICommand EditCommand { get; }
         public ICommand ViewCardCommand { get; }
         public ICommand DetailCommand { get; }
-        public ICommand DeleteCommand { get; }
         public ICommand PreviousPageCommand { get; }
         public ICommand NextPageCommand { get; }
 
@@ -109,7 +108,6 @@ namespace LibraryManagement.ViewModels
             EditCommand = new RelayCommand(param => EditReader(param as Reader ?? SelectedReader), param => param != null || SelectedReader != null);
             ViewCardCommand = new RelayCommand(param => ViewCard(param as Reader ?? SelectedReader), param => param != null || SelectedReader != null);
             DetailCommand = new RelayCommand(param => ViewDetail(param as Reader ?? SelectedReader), param => param != null || SelectedReader != null);
-            DeleteCommand = new RelayCommand(param => DeleteReader(param as Reader ?? SelectedReader), param => param != null || SelectedReader != null);
             PreviousPageCommand = new RelayCommand(_ => ChangePage(-1));
             NextPageCommand = new RelayCommand(_ => ChangePage(1));
             Load();
@@ -252,33 +250,5 @@ namespace LibraryManagement.ViewModels
             }
         }
 
-        public void DeleteReader(Reader? reader)
-        {
-            var target = reader ?? SelectedReader;
-            if (target == null)
-            {
-                return;
-            }
-
-            var confirm = MessageBox.Show($"Xóa độc giả \"{target.FullName}\"?", "Xác nhận", MessageBoxButton.YesNo);
-            if (confirm != MessageBoxResult.Yes)
-            {
-                return;
-            }
-
-            try
-            {
-                _readerService.DeleteReader(target.ReaderId);
-                Load();
-            }
-            catch (BusinessRuleException ex)
-            {
-                MessageBox.Show(ex.Message, "Không thể xóa độc giả");
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show("Đã có lỗi hệ thống xảy ra: " + ex.Message, "Lỗi");
-            }
-        }
     }
 }

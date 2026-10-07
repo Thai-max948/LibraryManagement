@@ -100,15 +100,6 @@ namespace LibraryManagement.Repositories
             return command.ExecuteScalar() as string;
         }
 
-        public virtual int Add(Book book)
-        {
-            using (var conn = Database.GetConnection())
-            {
-                conn.Open();
-                return Add(conn, null, book);
-            }
-        }
-
         public virtual int Add(SqlConnection conn, SqlTransaction? tran, Book book)
         {
             BookIsbnMigration.Apply(conn, tran);
@@ -313,34 +304,6 @@ namespace LibraryManagement.Repositories
             }
         }
 
-        public virtual bool Delete(int id)
-        {
-            using var conn = Database.GetConnection();
-            conn.Open();
-            using var tran = conn.BeginTransaction();
-            try
-            {
-                using (var history = new SqlCommand("SELECT COUNT(*) FROM dbo.BorrowRecords WHERE BookId = @BookId", conn, tran))
-                {
-                    history.Parameters.AddWithValue("@BookId", id);
-                    if (Convert.ToInt32(history.ExecuteScalar()) > 0)
-                        throw new BusinessRuleException("Sách đã có lịch sử mượn; cần lưu trữ thay vì xóa.");
-                }
-                if (new BookCopyRepository().HasSchema(conn, tran))
-                {
-                    using var copies = new SqlCommand("DELETE FROM BookCopies WHERE BookId = @BookId", conn, tran);
-                    copies.Parameters.AddWithValue("@BookId", id);
-                    copies.ExecuteNonQuery();
-                }
-                using var book = new SqlCommand("DELETE FROM Books WHERE BookId = @BookId", conn, tran);
-                book.Parameters.AddWithValue("@BookId", id);
-                bool deleted = book.ExecuteNonQuery() > 0;
-                tran.Commit();
-                return deleted;
-            }
-            catch { tran.Rollback(); throw; }
-        }
-
         public virtual bool SetArchived(int id, bool archived)
         {
             using var connection = Database.GetConnection();
@@ -400,6 +363,269 @@ namespace LibraryManagement.Repositories
 
         public virtual List<Book> SearchArchived(string keyword)
             => SearchByStatus(keyword, archived: true);
+
+        public virtual PagedResult<Book> GetPaged(BookSearchQuery query)
+        {
+            if (query.PageNumber < 1) throw new ArgumentOutOfRangeException(nameof(query.PageNumber));
+            if (query.PageSize is < 1 or > 100) throw new ArgumentOutOfRangeException(nameof(query.PageSize));
+
+            using var connection = Database.GetConnection();
+            connection.Open();
+            bool hasStatus = BookArchiveMigration.HasSchema(connection);
+            bool hasIsbn = BookIsbnMigration.HasSchema(connection);
+            bool hasPublisher = BookMetadataMigration.HasPublisher(connection);
+            bool hasLanguage = BookMetadataMigration.HasLanguage(connection);
+            bool hasReplacementValue = BookValueMigration.HasSchema(connection);
+            bool hasCreatedAt = BookAuditMigration.HasCreatedAt(connection);
+            if (query.Status == BookStatusFilter.Archived && !hasStatus)
+                return new PagedResult<Book>(Array.Empty<Book>(), 0, 1, query.PageSize);
+
+            string where = BuildPagedWhere(query, hasStatus, hasIsbn, hasPublisher, hasLanguage, hasReplacementValue);
+            string orderBy = BuildPagedOrderBy(query, hasCreatedAt);
+            using var countCommand = new SqlCommand($"SELECT COUNT(*) FROM dbo.Books b {where}", connection);
+            AddPagedFilters(countCommand, query, hasStatus, hasIsbn);
+            int totalCount = Convert.ToInt32(countCommand.ExecuteScalar());
+            int totalPages = totalCount == 0 ? 1 : (int)Math.Ceiling(totalCount / (double)query.PageSize);
+            int pageNumber = Math.Min(query.PageNumber, totalPages);
+
+            string sql = BookSelect(connection, null) + $" FROM dbo.Books b {where} ORDER BY {orderBy} OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY";
+            using var pageCommand = new SqlCommand(sql, connection);
+            AddPagedFilters(pageCommand, query, hasStatus, hasIsbn);
+            pageCommand.Parameters.AddWithValue("@Offset", (long)(pageNumber - 1) * query.PageSize);
+            pageCommand.Parameters.AddWithValue("@PageSize", query.PageSize);
+            var books = new List<Book>(query.PageSize);
+            using (var reader = pageCommand.ExecuteReader())
+                while (reader.Read()) books.Add(BookDataMapper.Map(reader));
+
+            return new PagedResult<Book>(books, totalCount, pageNumber, query.PageSize);
+        }
+
+        public virtual IReadOnlyList<BookFilterOption> GetCategoryFilterOptions()
+        {
+            var options = new List<BookFilterOption>
+            {
+                new(BookFilterCodes.All, "All categories"),
+                new(BookFilterCodes.Uncategorized, "Uncategorized")
+            };
+            using var connection = Database.GetConnection();
+            connection.Open();
+            using var command = new SqlCommand(@"SELECT DISTINCT LTRIM(RTRIM(Category)) AS Category
+                FROM dbo.Books
+                WHERE Category IS NOT NULL AND LTRIM(RTRIM(Category)) <> ''
+                ORDER BY Category", connection);
+            using var reader = command.ExecuteReader();
+            while (reader.Read())
+            {
+                string category = reader.GetString(0);
+                options.Add(new BookFilterOption(category, category));
+            }
+            return options;
+        }
+
+        public virtual IReadOnlyList<BookFilterOption> GetPublisherFilterOptions()
+        {
+            var options = new List<BookFilterOption> { new(BookFilterCodes.All, "All publishers") };
+            using var connection = Database.GetConnection();
+            connection.Open();
+            if (!BookMetadataMigration.HasPublisher(connection)) return options;
+
+            using var command = new SqlCommand(@"SELECT DISTINCT LTRIM(RTRIM(Publisher)) AS Publisher
+                FROM dbo.Books
+                WHERE Publisher IS NOT NULL AND LTRIM(RTRIM(Publisher)) <> ''
+                ORDER BY LTRIM(RTRIM(Publisher))", connection);
+            using var reader = command.ExecuteReader();
+            while (reader.Read())
+            {
+                string publisher = reader.GetString(0);
+                options.Add(new BookFilterOption(publisher, publisher));
+            }
+            return options;
+        }
+
+        public virtual IReadOnlyList<string> GetDistinctAuthors()
+        {
+            var authors = new List<string>();
+            using var connection = Database.GetConnection();
+            connection.Open();
+            using var command = new SqlCommand(@"SELECT DISTINCT LTRIM(RTRIM(Author)) AS Author
+                FROM dbo.Books
+                WHERE Author IS NOT NULL AND LTRIM(RTRIM(Author)) <> ''
+                ORDER BY Author", connection);
+            using var reader = command.ExecuteReader();
+            while (reader.Read()) authors.Add(reader.GetString(0));
+            return authors;
+        }
+
+        public virtual BookPriceRange GetBookPriceRange()
+        {
+            using var connection = Database.GetConnection();
+            connection.Open();
+            if (!BookValueMigration.HasSchema(connection)) return new BookPriceRange(null, null);
+
+            using var command = new SqlCommand("SELECT MIN(ReplacementValue), MAX(ReplacementValue) FROM dbo.Books WHERE ReplacementValue IS NOT NULL", connection);
+            using var reader = command.ExecuteReader();
+            if (!reader.Read() || reader.IsDBNull(0) || reader.IsDBNull(1)) return new BookPriceRange(null, null);
+            return new BookPriceRange(reader.GetDecimal(0), reader.GetDecimal(1));
+        }
+
+        public virtual BookCatalogMetrics GetActiveCatalogMetrics()
+        {
+            using var connection = Database.GetConnection();
+            connection.Open();
+            bool hasStatus = BookArchiveMigration.HasSchema(connection);
+            string activeWhere = hasStatus ? "WHERE b.Status = @ActiveStatus" : string.Empty;
+            string sql;
+            bool hasCopies = new BookCopyRepository().HasSchema(connection, null);
+            if (hasCopies)
+            {
+                sql = $@"SELECT COALESCE(SUM(COALESCE(c.ActiveCopies, 0)), 0),
+                        COALESCE(SUM(COALESCE(c.AvailableCopies, 0)), 0),
+                        COALESCE(SUM(COALESCE(c.BorrowedCopies, 0)), 0)
+                    FROM dbo.Books b
+                    LEFT JOIN (
+                        SELECT BookId,
+                            SUM(CASE WHEN Status <> @RetiredStatus THEN 1 ELSE 0 END) AS ActiveCopies,
+                            SUM(CASE WHEN Status = @AvailableStatus THEN 1 ELSE 0 END) AS AvailableCopies,
+                            SUM(CASE WHEN Status = @BorrowedStatus THEN 1 ELSE 0 END) AS BorrowedCopies
+                        FROM dbo.BookCopies GROUP BY BookId
+                    ) c ON c.BookId = b.BookId {activeWhere}";
+            }
+            else
+            {
+                string activeLoanFilter = hasStatus ? " AND x.Status = @ActiveStatus" : string.Empty;
+                sql = $@"SELECT COALESCE(SUM(b.Quantity), 0), COALESCE(SUM(b.AvailableQuantity), 0),
+                        (SELECT COUNT(*) FROM dbo.BorrowRecords br
+                         INNER JOIN dbo.Books x ON x.BookId = br.BookId
+                         WHERE br.Status = 'Borrowing'{activeLoanFilter})
+                    FROM dbo.Books b {activeWhere}";
+            }
+
+            using var command = new SqlCommand(sql, connection);
+            if (hasStatus) command.Parameters.AddWithValue("@ActiveStatus", BookStatuses.Active);
+            if (hasCopies)
+            {
+                command.Parameters.AddWithValue("@RetiredStatus", BookCopyStatuses.Retired);
+                command.Parameters.AddWithValue("@AvailableStatus", BookCopyStatuses.Available);
+                command.Parameters.AddWithValue("@BorrowedStatus", BookCopyStatuses.Borrowed);
+            }
+            using var reader = command.ExecuteReader();
+            reader.Read();
+            return new BookCatalogMetrics(Convert.ToInt32(reader.GetValue(0)), Convert.ToInt32(reader.GetValue(1)),
+                Convert.ToInt32(reader.GetValue(2)));
+        }
+
+        private static string BuildPagedWhere(BookSearchQuery query, bool hasStatus,
+            bool hasIsbn, bool hasPublisher, bool hasLanguage, bool hasReplacementValue)
+        {
+            var clauses = new List<string>();
+            if (query.Status != BookStatusFilter.All)
+            {
+                if (hasStatus) clauses.Add("b.Status = @CatalogStatus");
+                else if (query.Status == BookStatusFilter.Archived) clauses.Add("1 = 0");
+            }
+
+            string? search = query.SearchText?.Trim();
+            if (!string.IsNullOrEmpty(search))
+            {
+                var searchColumns = new List<string> { "b.Title LIKE @Keyword", "b.Author LIKE @Keyword" };
+                if (hasIsbn && NormalizeIsbnSearch(search).Length > 0)
+                    searchColumns.Add("REPLACE(REPLACE(b.ISBN, '-', ''), ' ', '') LIKE @IsbnKeyword");
+                if (hasPublisher) searchColumns.Add("b.Publisher LIKE @Keyword");
+                clauses.Add("(" + string.Join(" OR ", searchColumns) + ")");
+            }
+
+            string? category = query.Category?.Trim();
+            if (!string.IsNullOrEmpty(category) && category != BookFilterCodes.All)
+                clauses.Add(category == BookFilterCodes.Uncategorized
+                    ? "(b.Category IS NULL OR LTRIM(RTRIM(b.Category)) = '')"
+                    : "b.Category = @Category");
+
+            string? language = query.LanguageCode?.Trim();
+            if (!string.IsNullOrEmpty(language) && language != LanguageCatalog.AllFilterCode)
+            {
+                string languageColumn = hasLanguage ? "b.Language" : "CAST(NULL AS NVARCHAR(50))";
+                clauses.Add(language == LanguageCatalog.UnknownFilterCode
+                    ? $"({languageColumn} IS NULL OR LTRIM(RTRIM({languageColumn})) = '')"
+                    : $"{languageColumn} = @Language");
+            }
+
+            if (!string.IsNullOrWhiteSpace(query.Publisher))
+            {
+                clauses.Add(hasPublisher ? "LTRIM(RTRIM(b.Publisher)) = @Publisher" : "1 = 0");
+            }
+
+            if (query.PublishYearFrom is not null) clauses.Add("b.PublishYear >= @PublishYearFrom");
+            if (query.PublishYearTo is not null) clauses.Add("b.PublishYear <= @PublishYearTo");
+            if (!string.IsNullOrWhiteSpace(query.Author)) clauses.Add("LTRIM(RTRIM(b.Author)) = @Author");
+            if (query.MinBookPrice is not null || query.MaxBookPrice is not null)
+            {
+                if (!hasReplacementValue)
+                    clauses.Add("1 = 0");
+                else
+                {
+                    if (query.MinBookPrice is not null) clauses.Add("b.ReplacementValue >= @MinBookPrice");
+                    if (query.MaxBookPrice is not null) clauses.Add("b.ReplacementValue <= @MaxBookPrice");
+                }
+            }
+
+            clauses.RemoveAll(string.IsNullOrEmpty);
+            return clauses.Count == 0 ? string.Empty : "WHERE " + string.Join(" AND ", clauses);
+        }
+
+        private static void AddPagedFilters(SqlCommand command, BookSearchQuery query, bool hasStatus, bool hasIsbn)
+        {
+            if (hasStatus && query.Status != BookStatusFilter.All)
+                command.Parameters.AddWithValue("@CatalogStatus", query.Status == BookStatusFilter.Archived
+                    ? BookStatuses.Archived
+                    : BookStatuses.Active);
+            string? search = query.SearchText?.Trim();
+            if (!string.IsNullOrEmpty(search))
+            {
+                command.Parameters.AddWithValue("@Keyword", $"%{search}%");
+                string normalizedIsbn = NormalizeIsbnSearch(search);
+                if (hasIsbn && normalizedIsbn.Length > 0)
+                    command.Parameters.AddWithValue("@IsbnKeyword", $"%{normalizedIsbn}%");
+            }
+            string? category = query.Category?.Trim();
+            if (!string.IsNullOrEmpty(category) && category != BookFilterCodes.All && category != BookFilterCodes.Uncategorized)
+                command.Parameters.AddWithValue("@Category", category);
+            string? language = query.LanguageCode?.Trim();
+            if (!string.IsNullOrEmpty(language) && language != LanguageCatalog.AllFilterCode && language != LanguageCatalog.UnknownFilterCode)
+                command.Parameters.AddWithValue("@Language", language);
+            if (!string.IsNullOrWhiteSpace(query.Publisher))
+                command.Parameters.AddWithValue("@Publisher", query.Publisher.Trim());
+            if (!string.IsNullOrWhiteSpace(query.Author))
+                command.Parameters.AddWithValue("@Author", query.Author.Trim());
+            if (query.PublishYearFrom is int yearFrom)
+                command.Parameters.AddWithValue("@PublishYearFrom", yearFrom);
+            if (query.PublishYearTo is int yearTo)
+                command.Parameters.AddWithValue("@PublishYearTo", yearTo);
+            if (query.MinBookPrice is decimal minBookPrice)
+                command.Parameters.AddWithValue("@MinBookPrice", minBookPrice);
+            if (query.MaxBookPrice is decimal maxBookPrice)
+                command.Parameters.AddWithValue("@MaxBookPrice", maxBookPrice);
+        }
+
+        private static string BuildPagedOrderBy(BookSearchQuery query, bool hasCreatedAt)
+        {
+            string direction = query.SortDirection?.ToUpperInvariant() switch
+            {
+                "ASC" => "ASC",
+                "DESC" => "DESC",
+                _ => throw new ArgumentException("Sort direction is not supported.", nameof(query))
+            };
+            return query.SortBy switch
+            {
+                "Title" => $"b.Title {direction}, b.BookId ASC",
+                "PublishYear" => $"b.PublishYear {direction}, b.BookId ASC",
+                "CreatedAt" when direction == "DESC" && hasCreatedAt => "CASE WHEN b.CreatedAt IS NULL THEN 1 ELSE 0 END ASC, b.CreatedAt DESC, b.BookId DESC",
+                "CreatedAt" when direction == "DESC" => "b.BookId DESC",
+                _ => throw new ArgumentException("Sort field is not supported.", nameof(query))
+            };
+        }
+
+        private static string NormalizeIsbnSearch(string search)
+            => new(search.Where(character => character != '-' && !char.IsWhiteSpace(character)).ToArray());
 
         private List<Book> SearchByStatus(string keyword, bool archived)
         {

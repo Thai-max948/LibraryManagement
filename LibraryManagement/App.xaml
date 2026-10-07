@@ -19,7 +19,6 @@
         <SolidColorBrush x:Key="DangerBrush" Color="#E11D48"/>
         <SolidColorBrush x:Key="DangerHoverBrush" Color="#BE123C"/>
         <SolidColorBrush x:Key="SidebarBrush" Color="#0B111E"/>
-        <SolidColorBrush x:Key="SidebarBorderBrush" Color="#1E2E4A"/>
 
         <!-- Tech Accent Brushes (Crisp, high-contrast on white) -->
         <SolidColorBrush x:Key="TechAccentCyan" Color="#0284C7"/>

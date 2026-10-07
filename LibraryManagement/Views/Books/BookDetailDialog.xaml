@@ -97,9 +97,17 @@
                     <RowDefinition Height="*"/>
                     <RowDefinition Height="Auto"/>
                 </Grid.RowDefinitions>
-                <TextBlock Text="Physical Copies" FontSize="16" FontWeight="Bold" Foreground="{StaticResource TextBrush}" Margin="0,0,0,8"/>
+                <Grid Margin="0,0,0,8">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Text="Physical Copies" FontSize="16" FontWeight="Bold" Foreground="{StaticResource TextBrush}" VerticalAlignment="Center"/>
+                    <Button Grid.Column="1" Content="Manage copies" Click="ManageCopies_Click"
+                            IsEnabled="{Binding CanManage}" Style="{StaticResource SecondaryButtonStyle}"/>
+                </Grid>
                 <Grid Grid.Row="1">
-                    <DataGrid ItemsSource="{Binding Copies}" SelectedItem="{Binding SelectedCopy}"
+                    <DataGrid ItemsSource="{Binding Copies}"
                               AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" SelectionMode="Single"
                               Style="{StaticResource AppDataGridStyle}" MinHeight="140">
                         <DataGrid.Columns>
@@ -115,16 +123,6 @@
                 </Grid>
                 <DockPanel Grid.Row="2" Margin="0,10,0,0">
                     <Button Content="Close" Click="Close_Click" DockPanel.Dock="Right" Padding="15,7" Style="{StaticResource SecondaryButtonStyle}"/>
-                    <WrapPanel VerticalAlignment="Center">
-                        <TextBlock Text="Quantity" VerticalAlignment="Center" Margin="0,0,7,0" Foreground="{StaticResource SecondaryTextBrush}"/>
-                        <TextBox x:Name="QuantityBox" Width="75" Height="34" Padding="7" VerticalContentAlignment="Center"
-                                 ToolTip="Enter 1 to 100; barcode is generated automatically" IsEnabled="{Binding CanManage}"/>
-                        <Button Content="Add copy" Click="AddCopy_Click" IsEnabled="{Binding CanManage}" Style="{StaticResource SecondaryButtonStyle}" Margin="7,0,12,0"/>
-                        <ComboBox x:Name="StatusBox" ItemsSource="{Binding ManualTransitions}" Width="190" Height="34"
-                                  IsEnabled="{Binding CanManage}" VerticalContentAlignment="Center"/>
-                        <Button Content="Change status" Click="ChangeStatus_Click" IsEnabled="{Binding CanManage}" Style="{StaticResource SecondaryButtonStyle}" Margin="7,0,7,0"/>
-                        <Button Content="Retire copy" Click="RetireCopy_Click" IsEnabled="{Binding CanManage}" Style="{StaticResource SecondaryButtonStyle}"/>
-                    </WrapPanel>
                 </DockPanel>
             </Grid>
         </Border>

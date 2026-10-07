@@ -17,7 +17,7 @@ namespace LibraryManagement.Tests
             var borrowRepository = new Mock<BorrowRepository>();
             readerRepository.Setup(repository => repository.GetById(1))
                 .Returns(new Reader { ReaderId = 1, Status = "Active" });
-            borrowRepository.Setup(repository => repository.GetBorrowingRecords())
+            borrowRepository.Setup(repository => repository.GetEligibilityRecords(1))
                 .Returns(new List<BorrowRecord>());
             var service = new ReaderEligibilityService(readerRepository.Object, borrowRepository.Object);
 
@@ -26,6 +26,55 @@ namespace LibraryManagement.Tests
             Assert.True(result.IsEligible);
             Assert.Empty(result.Reasons);
             Assert.Equal(ReaderEligibilityService.BorrowLimit, result.BorrowLimit);
+        }
+
+        [Fact]
+        public void CheckEligibility_QueriesOnlySelectedReadersActiveLoans()
+        {
+            var readerRepository = new Mock<ReaderRepository>();
+            var borrowRepository = new Mock<BorrowRepository>();
+            readerRepository.Setup(repository => repository.GetById(8))
+                .Returns(new Reader { ReaderId = 8, Status = "Active" });
+            borrowRepository.Setup(repository => repository.GetEligibilityRecords(8))
+                .Returns(new List<BorrowRecord>
+                {
+                    new() { ReaderId = 8, Status = "Borrowing", DueDate = DateTime.Today.AddDays(2) },
+                    new() { ReaderId = 8, Status = "Borrowing", DueDate = DateTime.Today.AddDays(5) }
+                });
+            var service = new ReaderEligibilityService(readerRepository.Object, borrowRepository.Object);
+
+            var result = service.CheckEligibility(8);
+
+            Assert.True(result.IsEligible);
+            Assert.Equal(2, result.CurrentLoans);
+            Assert.Equal("Đang mượn 2/3 sách • Quá hạn 0", result.LoanSummary);
+            borrowRepository.Verify(repository => repository.GetEligibilityRecords(8), Times.Once);
+            borrowRepository.Verify(repository => repository.GetBorrowingRecords(), Times.Never);
+        }
+
+        [Fact]
+        public void CheckEligibility_AtReaderLimitShowsThreeOfThreeAndBlocksBorrow()
+        {
+            var readerRepository = new Mock<ReaderRepository>();
+            var borrowRepository = new Mock<BorrowRepository>();
+            readerRepository.Setup(repository => repository.GetById(9))
+                .Returns(new Reader { ReaderId = 9, Status = "Active" });
+            borrowRepository.Setup(repository => repository.GetEligibilityRecords(9))
+                .Returns(Enumerable.Range(0, ReaderEligibilityService.BorrowLimit)
+                    .Select(_ => new BorrowRecord
+                    {
+                        ReaderId = 9,
+                        Status = "Borrowing",
+                        DueDate = DateTime.Today.AddDays(1)
+                    }).ToList());
+            var service = new ReaderEligibilityService(readerRepository.Object, borrowRepository.Object);
+
+            var result = service.CheckEligibility(9);
+
+            Assert.False(result.IsEligible);
+            Assert.Equal(3, result.CurrentLoans);
+            Assert.Equal("Đang mượn 3/3 sách • Quá hạn 0", result.LoanSummary);
+            Assert.Contains(result.Reasons, reason => reason.Contains("giới hạn"));
         }
 
         [Fact]
@@ -139,7 +188,7 @@ namespace LibraryManagement.Tests
             var financial = new Mock<IReaderFinancialStandingProvider>();
             readers.Setup(repository => repository.GetById(7))
                 .Returns(new Reader { ReaderId = 7, Status = "Active" });
-            loans.Setup(repository => repository.GetBorrowingRecords()).Returns(new List<BorrowRecord>());
+            loans.Setup(repository => repository.GetEligibilityRecords(7)).Returns(new List<BorrowRecord>());
             financial.SetupSequence(provider => provider.GetStanding(7))
                 .Returns(new ReaderFinancialStanding { OutstandingAmount = 250000m, BlocksBorrowing = true })
                 .Returns(new ReaderFinancialStanding { OutstandingAmount = 0m, BlocksBorrowing = false });
@@ -204,7 +253,7 @@ namespace LibraryManagement.Tests
             var loans = new Mock<BorrowRepository>();
             var financial = new Mock<IReaderFinancialStandingProvider>();
             readers.Setup(repository => repository.GetById(1)).Returns(new Reader { ReaderId = 1, Status = "Active" });
-            loans.Setup(repository => repository.GetBorrowingRecords()).Returns(new List<BorrowRecord>());
+            loans.Setup(repository => repository.GetEligibilityRecords(1)).Returns(new List<BorrowRecord>());
             financial.Setup(provider => provider.GetStanding(1)).Returns(
                 new ReaderFinancialStanding { OutstandingAmount = 50000m, BlocksBorrowing = true });
             var service = new ReaderEligibilityService(readers.Object, loans.Object, financial.Object);
@@ -222,7 +271,7 @@ namespace LibraryManagement.Tests
             var loans = new Mock<BorrowRepository>();
             var financial = new Mock<IReaderFinancialStandingProvider>();
             readers.Setup(repository => repository.GetById(1)).Returns(new Reader { ReaderId = 1, Status = "Active" });
-            loans.Setup(repository => repository.GetBorrowingRecords()).Returns(new List<BorrowRecord>());
+            loans.Setup(repository => repository.GetEligibilityRecords(1)).Returns(new List<BorrowRecord>());
             financial.Setup(provider => provider.GetStanding(1)).Throws(new InvalidOperationException("Fee unavailable"));
             var service = new ReaderEligibilityService(readers.Object, loans.Object, financial.Object);
             Assert.Throws<InvalidOperationException>(() => service.CheckEligibility(1));

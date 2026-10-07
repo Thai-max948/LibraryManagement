@@ -48,10 +48,32 @@ namespace LibraryManagement.ViewModels
             {
                 if (SetProperty(ref _bookSearchQuery, value))
                 {
-                    UpdateBookRecommendations();
+                    BookSearchError = string.Empty;
+                    if (BookCopyBarcode.LooksLikeBarcode(value ?? string.Empty))
+                    {
+                        RecommendedBooks.Clear();
+                        BookRecommendationHeader = "Nhấn Enter để tra cứu chính xác barcode.";
+                        OnPropertyChanged(nameof(HasBookResults));
+                    }
+                    else
+                    {
+                        UpdateBookRecommendations();
+                    }
                 }
             }
         }
+
+        private string _bookSearchError = string.Empty;
+        public string BookSearchError
+        {
+            get => _bookSearchError;
+            private set
+            {
+                if (SetProperty(ref _bookSearchError, value))
+                    OnPropertyChanged(nameof(HasBookSearchError));
+            }
+        }
+        public bool HasBookSearchError => !string.IsNullOrWhiteSpace(BookSearchError);
 
         private string _readerRecommendationHeader = "💡 Gợi ý độc giả:";
         public string ReaderRecommendationHeader
@@ -179,37 +201,37 @@ namespace LibraryManagement.ViewModels
         public ICommand ClearReaderSelectionCommand { get; }
         public ICommand SelectBookCommand { get; }
         public ICommand ClearBookSelectionCommand { get; }
-        public ICommand ResolveBarcodeCommand { get; }
+        public ICommand SearchBookInputCommand { get; }
 
-        private string _barcodeInput = string.Empty;
-        public string BarcodeInput
+        private void HandleBookSearchEnter()
         {
-            get => _barcodeInput;
-            set
-            {
-                if (SetProperty(ref _barcodeInput, value)) SelectedCopy = null;
-            }
-        }
-        private string _barcodeFeedback = string.Empty;
-        public string BarcodeFeedback
-        {
-            get => _barcodeFeedback;
-            private set => SetProperty(ref _barcodeFeedback, value);
-        }
+            BookSearchError = string.Empty;
+            string barcode = BookSearchQuery.Trim();
+            if (!BookCopyBarcode.LooksLikeBarcode(barcode)) return;
 
-        private void ResolveBarcode()
-        {
-            SelectedCopy = null;
             try
             {
-                var copy = _copyService.GetByBarcode(BarcodeInput);
-                if (copy == null) throw new BusinessRuleException("Không tìm thấy bản sách có barcode này.");
+                var copy = _copyService.GetByBarcode(barcode);
+                if (copy == null)
+                {
+                    BookSearchError = $"Không tìm thấy barcode {barcode}.";
+                    return;
+                }
+
                 var reason = BookCopyService.GetBorrowBlockReason(copy);
-                if (reason != null) throw new BusinessRuleException(reason);
+                if (reason != null)
+                {
+                    BookSearchError = $"Bản sách {barcode} hiện không thể mượn: {reason}";
+                    return;
+                }
+
                 var book = _bookService.GetBookById(copy.BookId);
                 if (book == null || book.Status == BookStatuses.Archived)
-                    throw new BusinessRuleException("Đầu sách không tồn tại hoặc đã được lưu trữ.");
-                // Exact lookup does not load the entire available-copy list.
+                {
+                    BookSearchError = "Đầu sách không tồn tại hoặc đã được lưu trữ.";
+                    return;
+                }
+
                 _selectedBook = book;
                 OnPropertyChanged(nameof(SelectedBook));
                 OnPropertyChanged(nameof(HasSelectedBook));
@@ -217,10 +239,12 @@ namespace LibraryManagement.ViewModels
                 AvailableCopies.Clear();
                 AvailableCopies.Add(copy);
                 SelectedCopy = copy;
-                BarcodeFeedback = $"{copy.Barcode} · {book.Title} · Available";
+                _bookSearchQuery = book.Title;
+                OnPropertyChanged(nameof(BookSearchQuery));
+                BookRecommendationHeader = $"Đã chọn {book.Title} · {copy.Barcode}";
             }
-            catch (BusinessRuleException exception) { BarcodeFeedback = exception.Message; }
-            catch (Exception) { BarcodeFeedback = "Không thể tra barcode. Vui lòng thử lại."; }
+            catch (BusinessRuleException exception) { BookSearchError = exception.Message; }
+            catch (Exception) { BookSearchError = "Không thể tra barcode. Vui lòng thử lại."; }
         }
 
         public BorrowViewModel(IUserDialogService dialogService)
@@ -231,7 +255,7 @@ namespace LibraryManagement.ViewModels
             ClearReaderSelectionCommand = new RelayCommand(_ => ClearReaderSelection());
             SelectBookCommand = new RelayCommand(param => SelectBook(param as Book));
             ClearBookSelectionCommand = new RelayCommand(_ => ClearBookSelection());
-            ResolveBarcodeCommand = new RelayCommand(ResolveBarcode);
+            SearchBookInputCommand = new RelayCommand(HandleBookSearchEnter);
 
             LoadDropdowns();
             LoadCurrentBorrowings();
@@ -264,6 +288,7 @@ namespace LibraryManagement.ViewModels
                 return;
             }
 
+            BookSearchError = string.Empty;
             SelectedBook = book;
             if (AvailableCopies.Count == 0)
             {
@@ -284,6 +309,7 @@ namespace LibraryManagement.ViewModels
             SelectedCopy = null;
             _bookSearchQuery = string.Empty;
             OnPropertyChanged(nameof(BookSearchQuery));
+            BookSearchError = string.Empty;
             UpdateBookRecommendations();
         }
 
@@ -457,8 +483,7 @@ namespace LibraryManagement.ViewModels
                 LoadCurrentBorrowings();
                 ClearReaderSelection();
                 ClearBookSelection();
-                BarcodeInput = string.Empty;
-                BarcodeFeedback = string.Empty;
+                BookSearchError = string.Empty;
             }
             catch (BusinessRuleException ex)
             {

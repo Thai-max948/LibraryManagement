@@ -3,6 +3,7 @@ using System.Windows.Controls;
 using LibraryManagement.Services;
 using LibraryManagement.ViewModels;
 using System.Windows;
+using System.Windows.Input;
 
 namespace LibraryManagement.Views.Books
 {
@@ -41,6 +42,19 @@ namespace LibraryManagement.Views.Books
             {
                 MessageBox.Show("Không thể mở thông tin sách. Vui lòng thử lại.", "Lỗi");
             }
+        }
+
+        private void ToggleFilters_Click(object sender, RoutedEventArgs e)
+        {
+            if (DataContext is BooksViewModel viewModel)
+                viewModel.IsFilterPanelOpen = !viewModel.IsFilterPanelOpen;
+        }
+
+        private void FilterPopup_PreviewKeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.Key != Key.Escape || DataContext is not BooksViewModel viewModel) return;
+            viewModel.IsFilterPanelOpen = false;
+            e.Handled = true;
         }
 
         private void InventoryCheck_Click(object sender, RoutedEventArgs e)

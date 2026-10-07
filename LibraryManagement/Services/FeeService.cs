@@ -20,7 +20,6 @@ public interface IFeeService
     Fee? CreateReplacementFee(SqlConnection connection, SqlTransaction transaction, int borrowId, string sourceType, string sourceId);
     int GetLateDays(DateTime dueDate, DateTime resolvedAt);
     Task<Fee?> GetFeeAsync(int id, CancellationToken cancellationToken = default);
-    Task<IReadOnlyList<Fee>> GetFeesByReaderAsync(int readerId, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<Fee>> GetFeesByBorrowAsync(int borrowId, CancellationToken cancellationToken = default);
     Task<FeePage> GetFeesAsync(FeeSearchQuery query, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<FeePayment>> GetPaymentHistoryAsync(int feeId, CancellationToken cancellationToken = default);
@@ -543,8 +542,6 @@ public sealed class FeeService : IFeeService
 
     public async Task<Fee?> GetFeeAsync(int id, CancellationToken cancellationToken = default)
     { if (id <= 0) throw new BusinessRuleException("Mã khoản phí không hợp lệ."); await EnsureSchemaAsync(cancellationToken); return await _repository.GetByIdAsync(id, cancellationToken); }
-    public async Task<IReadOnlyList<Fee>> GetFeesByReaderAsync(int readerId, CancellationToken cancellationToken = default)
-    { if (readerId <= 0) throw new BusinessRuleException("Mã độc giả không hợp lệ."); await EnsureSchemaAsync(cancellationToken); return await _repository.GetByReaderIdAsync(readerId, cancellationToken); }
     public async Task<IReadOnlyList<Fee>> GetFeesByBorrowAsync(int borrowId, CancellationToken cancellationToken = default)
     { if (borrowId <= 0) throw new BusinessRuleException("Mã phiếu mượn không hợp lệ."); await EnsureSchemaAsync(cancellationToken); return await _repository.GetByBorrowIdAsync(borrowId, cancellationToken); }
     public async Task<FeePage> GetFeesAsync(FeeSearchQuery query, CancellationToken cancellationToken = default)

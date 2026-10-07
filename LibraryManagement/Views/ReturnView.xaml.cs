@@ -15,13 +15,19 @@ namespace LibraryManagement.Views
                 var viewModel = new ReturnViewModel(new BorrowService(), new BookService(),
                     new ReaderService(), new MessageBoxDialogService());
                 DataContext = viewModel;
-                Loaded += (_, _) => BarcodeInput.Focus();
+                Loaded += (_, _) => SearchInputBox.Focus();
                 viewModel.PropertyChanged += (_, args) =>
                 {
                     if (args.PropertyName == nameof(ReturnViewModel.IsBusy) && !viewModel.IsBusy)
-                        BarcodeInput.Focus();
+                        SearchInputBox.Focus();
                 };
             }
+        }
+
+        private void ActiveBorrowings_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (sender is DataGrid grid && grid.SelectedItem is ActiveBorrowRow selectedRow)
+                grid.ScrollIntoView(selectedRow);
         }
     }
 }

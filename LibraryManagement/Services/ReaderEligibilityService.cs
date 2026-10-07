@@ -43,8 +43,8 @@ namespace LibraryManagement.Services
                 return Evaluate(reader, Array.Empty<BorrowRecord>());
             }
 
-            var currentBorrowings = (_borrowRepository.GetBorrowingRecords() ?? new List<BorrowRecord>())
-                .Where(record => record.ReaderId == readerId);
+            var currentBorrowings = _borrowRepository.GetEligibilityRecords(readerId)
+                ?? new List<BorrowRecord>();
             var standing = _financialStandingProvider.GetStanding(readerId);
             return Evaluate(reader, currentBorrowings, financialStanding: standing);
         }

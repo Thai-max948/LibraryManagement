@@ -258,18 +258,22 @@ namespace LibraryManagement.Tests
                 new() { BookId = 2, Language = "en" },
                 new() { BookId = 3 }
             };
-            repository.Setup(repo => repo.GetAll()).Returns(catalog);
+            SetupBooksPage(repository, catalog);
             var service = new BookService(repository.Object, new Mock<BorrowRepository>().Object);
 
             StaHelper.RunInSta(() =>
             {
                 var viewModel = new BooksViewModel(service);
-                viewModel.LanguageFilter = " VI ";
+                viewModel.LanguageCodeFilter = " VI ";
+                Assert.Equal(3, viewModel.Books.Count);
+                viewModel.ApplyFiltersCommand.Execute(null);
                 Assert.Equal(1, Assert.Single(viewModel.Books).BookId);
                 Assert.Equal("en", LanguageCatalog.FilterOptions.Single(option => option.DisplayName == "English").Code);
-                viewModel.LanguageFilter = LanguageCatalog.UnknownFilterCode;
+                viewModel.LanguageCodeFilter = LanguageCatalog.UnknownFilterCode;
+                viewModel.ApplyFiltersCommand.Execute(null);
                 Assert.Equal(3, Assert.Single(viewModel.Books).BookId);
-                viewModel.LanguageFilter = "All";
+                viewModel.LanguageCodeFilter = "All";
+                viewModel.ApplyFiltersCommand.Execute(null);
                 Assert.Equal(3, viewModel.Books.Count);
             });
         }
@@ -285,8 +289,7 @@ namespace LibraryManagement.Tests
                 new() { BookId = 3, Publisher = string.Empty }
             };
             var archivedBook = new Book { BookId = 4, Publisher = "O'Reilly Media", Status = BookStatuses.Archived };
-            repository.Setup(repo => repo.GetAll()).Returns(activeBooks);
-            repository.Setup(repo => repo.GetArchived()).Returns(new List<Book> { archivedBook });
+            SetupBooksPage(repository, activeBooks, new List<Book> { archivedBook });
             var service = new BookService(repository.Object, new Mock<BorrowRepository>().Object);
 
             StaHelper.RunInSta(() =>
@@ -296,7 +299,7 @@ namespace LibraryManagement.Tests
                 Assert.Null(viewModel.Books[1].Publisher);
                 Assert.Equal(string.Empty, viewModel.Books[2].Publisher);
 
-                viewModel.ShowArchived = true;
+                viewModel.ViewScope = BookStatusFilter.Archived;
                 Assert.Equal("O'Reilly Media", Assert.Single(viewModel.Books).Publisher);
             });
         }
@@ -433,7 +436,7 @@ namespace LibraryManagement.Tests
         [InlineData(BookCopyStatuses.Damaged, BookCopyStatuses.UnderRepair, true)]
         [InlineData(BookCopyStatuses.UnderRepair, BookCopyStatuses.Available, true)]
         [InlineData(BookCopyStatuses.Lost, BookCopyStatuses.Available, true)]
-        [InlineData(BookCopyStatuses.Damaged, BookCopyStatuses.Available, false)]
+        [InlineData(BookCopyStatuses.Damaged, BookCopyStatuses.Available, true)]
         [InlineData(BookCopyStatuses.Borrowed, BookCopyStatuses.Available, false)]
         [InlineData(BookCopyStatuses.Retired, BookCopyStatuses.Damaged, false)]
         [InlineData(BookCopyStatuses.Retired, BookCopyStatuses.Available, false)]
@@ -859,7 +862,6 @@ namespace LibraryManagement.Tests
 
             // Assert
             mockBookRepo.Verify(r => r.SetArchived(1, true), Times.Once);
-            mockBookRepo.Verify(r => r.Delete(It.IsAny<int>()), Times.Never);
         }
 
         [Fact]
@@ -877,7 +879,6 @@ namespace LibraryManagement.Tests
             // Act & Assert
             var ex = Assert.Throws<BusinessRuleException>(() => service.ArchiveBook(1));
             Assert.Contains("phiếu mượn đang mở", ex.Message);
-            mockBookRepo.Verify(r => r.Delete(It.IsAny<int>()), Times.Never);
         }
 
         [Fact]
@@ -904,22 +905,22 @@ namespace LibraryManagement.Tests
             repository.Setup(r => r.SetArchived(7, false)).Returns(true);
             new BookService(repository.Object, new Mock<BorrowRepository>().Object).RestoreBook(7);
             repository.Verify(r => r.SetArchived(7, false), Times.Once);
-            repository.Verify(r => r.Delete(It.IsAny<int>()), Times.Never);
         }
 
         [Fact]
         public void BooksViewModel_CanSwitchBetweenActiveAndArchivedCatalogs()
         {
             var repository = new Mock<BookRepository>();
-            repository.Setup(r => r.GetAll()).Returns(new List<Book> { new() { BookId = 1, Status = BookStatuses.Active } });
-            repository.Setup(r => r.GetArchived()).Returns(new List<Book> { new() { BookId = 2, Status = BookStatuses.Archived } });
+            SetupBooksPage(repository,
+                new List<Book> { new() { BookId = 1, Status = BookStatuses.Active } },
+                new List<Book> { new() { BookId = 2, Status = BookStatuses.Archived } });
             var service = new BookService(repository.Object, new Mock<BorrowRepository>().Object);
 
             StaHelper.RunInSta(() =>
             {
                 var viewModel = new BooksViewModel(service);
                 Assert.Equal(1, Assert.Single(viewModel.Books).BookId);
-                viewModel.ShowArchived = true;
+                viewModel.ViewScope = BookStatusFilter.Archived;
                 Assert.Equal(2, Assert.Single(viewModel.Books).BookId);
             });
         }
@@ -998,7 +999,7 @@ namespace LibraryManagement.Tests
                 new Book { BookId = 1, Title = "Book 1", Quantity = 10, AvailableQuantity = 6 },
                 new Book { BookId = 2, Title = "Book 2", Quantity = 5, AvailableQuantity = 4 }
             };
-            mockBookRepo.Setup(r => r.GetAll()).Returns(bookList);
+            SetupBooksPage(mockBookRepo, bookList, metrics: new BookCatalogMetrics(15, 10, 5));
 
             var service = new BookService(mockBookRepo.Object, mockBorrowRepo.Object);
 
@@ -1017,10 +1018,9 @@ namespace LibraryManagement.Tests
         public void BooksViewModel_BorrowedStat_UsesCopyCountWhenAvailable()
         {
             var bookRepo = new Mock<BookRepository>();
-            bookRepo.Setup(repository => repository.GetAll()).Returns(new List<Book>
-            {
-                new() { BookId = 1, Quantity = 3, AvailableQuantity = 1, BorrowedCopies = 1 }
-            });
+            SetupBooksPage(bookRepo,
+                new List<Book> { new() { BookId = 1, Quantity = 3, AvailableQuantity = 1, BorrowedCopies = 1 } },
+                metrics: new BookCatalogMetrics(3, 1, 1));
             var service = new BookService(bookRepo.Object, new Mock<BorrowRepository>().Object);
 
             StaHelper.RunInSta(() =>
@@ -1029,6 +1029,62 @@ namespace LibraryManagement.Tests
                 Assert.Equal(1, viewModel.TotalBorrowed);
                 Assert.Equal(3, viewModel.TotalBooks);
                 Assert.Equal(1, viewModel.TotalAvailable);
+            });
+        }
+
+        private static void SetupBooksPage(Mock<BookRepository> repository, IReadOnlyList<Book> activeBooks,
+            IReadOnlyList<Book>? archivedBooks = null, BookCatalogMetrics? metrics = null)
+        {
+            var allBooks = activeBooks.Concat(archivedBooks ?? Array.Empty<Book>()).ToList();
+            repository.Setup(repo => repo.GetCategoryFilterOptions()).Returns(new[]
+            {
+                new BookFilterOption(BookFilterCodes.All, "All categories"),
+                new BookFilterOption(BookFilterCodes.Uncategorized, "Uncategorized"),
+                new BookFilterOption("Programming", "Programming")
+            });
+            repository.Setup(repo => repo.GetPublisherFilterOptions()).Returns(new[]
+            {
+                new BookFilterOption(BookFilterCodes.All, "All publishers")
+            });
+            repository.Setup(repo => repo.GetDistinctAuthors()).Returns(allBooks
+                .Where(book => !string.IsNullOrWhiteSpace(book.Author))
+                .Select(book => book.Author.Trim())
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .OrderBy(author => author, StringComparer.OrdinalIgnoreCase)
+                .ToArray());
+            var configuredPrices = allBooks.Where(book => book.ReplacementValue is not null)
+                .Select(book => book.ReplacementValue!.Value).ToArray();
+            repository.Setup(repo => repo.GetBookPriceRange()).Returns(configuredPrices.Length == 0
+                ? new BookPriceRange(null, null)
+                : new BookPriceRange(configuredPrices.Min(), configuredPrices.Max()));
+            repository.Setup(repo => repo.GetActiveCatalogMetrics()).Returns(metrics ?? new BookCatalogMetrics(0, 0, 0));
+            repository.Setup(repo => repo.GetPaged(It.IsAny<BookSearchQuery>())).Returns((BookSearchQuery query) =>
+            {
+                IEnumerable<Book> source = query.Status switch
+                {
+                    BookStatusFilter.Archived => archivedBooks ?? Array.Empty<Book>(),
+                    BookStatusFilter.All => activeBooks.Concat(archivedBooks ?? Array.Empty<Book>()),
+                    _ => activeBooks
+                };
+                if (!string.IsNullOrWhiteSpace(query.LanguageCode) && query.LanguageCode != LanguageCatalog.AllFilterCode)
+                    source = query.LanguageCode == LanguageCatalog.UnknownFilterCode
+                        ? source.Where(book => string.IsNullOrWhiteSpace(book.Language))
+                        : source.Where(book => string.Equals(book.Language, query.LanguageCode, StringComparison.OrdinalIgnoreCase));
+                if (!string.IsNullOrWhiteSpace(query.Category) && query.Category != BookFilterCodes.All)
+                    source = query.Category == BookFilterCodes.Uncategorized
+                        ? source.Where(book => string.IsNullOrWhiteSpace(book.Category))
+                        : source.Where(book => string.Equals(book.Category, query.Category, StringComparison.Ordinal));
+                if (!string.IsNullOrWhiteSpace(query.Author))
+                    source = source.Where(book => string.Equals(book.Author.Trim(), query.Author, StringComparison.OrdinalIgnoreCase));
+                if (query.MinBookPrice is decimal minPrice)
+                    source = source.Where(book => book.ReplacementValue is decimal price && price >= minPrice);
+                if (query.MaxBookPrice is decimal maxPrice)
+                    source = source.Where(book => book.ReplacementValue is decimal price && price <= maxPrice);
+                var results = source.ToList();
+                int totalPages = results.Count == 0 ? 1 : (int)Math.Ceiling(results.Count / (double)query.PageSize);
+                int pageNumber = Math.Min(query.PageNumber, totalPages);
+                var items = results.Skip((pageNumber - 1) * query.PageSize).Take(query.PageSize).ToList();
+                return new PagedResult<Book>(items, results.Count, pageNumber, query.PageSize);
             });
         }
     }

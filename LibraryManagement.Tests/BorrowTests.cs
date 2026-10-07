@@ -21,7 +21,7 @@ namespace LibraryManagement.Tests
             {
                 BookId = 2, Status = BookStatuses.Archived, AvailableQuantity = 1
             });
-            borrows.Setup(repository => repository.GetBorrowingRecords()).Returns(new List<BorrowRecord>());
+            borrows.Setup(repository => repository.GetEligibilityRecords(1)).Returns(new List<BorrowRecord>());
             var service = new BorrowService(books.Object, borrows.Object, readers.Object);
 
             Assert.False(service.CanBorrow(1, 2, out string reason));
@@ -41,7 +41,7 @@ namespace LibraryManagement.Tests
 
             mockReaderRepo.Setup(r => r.GetById(1)).Returns(reader);
             mockBookRepo.Setup(r => r.GetById(1)).Returns(book);
-            mockBorrowRepo.Setup(r => r.GetBorrowingRecords()).Returns(new List<BorrowRecord>());
+            mockBorrowRepo.Setup(r => r.GetEligibilityRecords(1)).Returns(new List<BorrowRecord>());
 
             var service = new BorrowService(mockBookRepo.Object, mockBorrowRepo.Object, mockReaderRepo.Object);
 
@@ -63,7 +63,7 @@ namespace LibraryManagement.Tests
 
             mockReaderRepo.Setup(r => r.GetById(1)).Returns(new Reader { ReaderId = 1, IsDeleted = false });
             mockBookRepo.Setup(r => r.GetById(1)).Returns(new Book { BookId = 1, AvailableQuantity = 1 });
-            mockBorrowRepo.Setup(r => r.GetBorrowingRecords()).Returns(new List<BorrowRecord>());
+            mockBorrowRepo.Setup(r => r.GetEligibilityRecords(1)).Returns(new List<BorrowRecord>());
 
             var service = new BorrowService(mockBookRepo.Object, mockBorrowRepo.Object, mockReaderRepo.Object);
 
@@ -85,7 +85,7 @@ namespace LibraryManagement.Tests
 
             mockReaderRepo.Setup(r => r.GetById(1)).Returns(new Reader { ReaderId = 1, IsDeleted = false });
             mockBookRepo.Setup(r => r.GetById(1)).Returns(new Book { BookId = 1, AvailableQuantity = 0 });
-            mockBorrowRepo.Setup(r => r.GetBorrowingRecords()).Returns(new List<BorrowRecord>());
+            mockBorrowRepo.Setup(r => r.GetEligibilityRecords(1)).Returns(new List<BorrowRecord>());
 
             var service = new BorrowService(mockBookRepo.Object, mockBorrowRepo.Object, mockReaderRepo.Object);
 
@@ -113,7 +113,7 @@ namespace LibraryManagement.Tests
                 new BorrowRecord { ReaderId = 1, BookId = 2, Status = "Borrowing" },
                 new BorrowRecord { ReaderId = 1, BookId = 3, Status = "Borrowing" }
             };
-            mockBorrowRepo.Setup(r => r.GetBorrowingRecords()).Returns(existingBorrows);
+            mockBorrowRepo.Setup(r => r.GetEligibilityRecords(1)).Returns(existingBorrows);
 
             var service = new BorrowService(mockBookRepo.Object, mockBorrowRepo.Object, mockReaderRepo.Object);
 
@@ -142,7 +142,7 @@ namespace LibraryManagement.Tests
                 new BorrowRecord { ReaderId = 1, BookId = 3, Status = "Borrowing" },
                 new BorrowRecord { ReaderId = 1, BookId = 4, Status = "Borrowing" }
             };
-            mockBorrowRepo.Setup(r => r.GetBorrowingRecords()).Returns(existingBorrows);
+            mockBorrowRepo.Setup(r => r.GetEligibilityRecords(1)).Returns(existingBorrows);
 
             var service = new BorrowService(mockBookRepo.Object, mockBorrowRepo.Object, mockReaderRepo.Object);
 
@@ -164,7 +164,7 @@ namespace LibraryManagement.Tests
                 .Returns(new Reader { ReaderId = 1, Status = "Active" });
             mockBookRepo.Setup(repository => repository.GetById(2))
                 .Returns(new Book { BookId = 2, AvailableQuantity = 1 });
-            mockBorrowRepo.Setup(repository => repository.GetBorrowingRecords())
+            mockBorrowRepo.Setup(repository => repository.GetEligibilityRecords(1))
                 .Returns(new List<BorrowRecord>
                 {
                     new() { ReaderId = 1, BookId = 1, Status = "Borrowing", DueDate = DateTime.Today.AddDays(-1) }
@@ -194,7 +194,7 @@ namespace LibraryManagement.Tests
                 new BorrowRecord { ReaderId = 1, BookId = 3, Status = "Borrowing" },
                 new BorrowRecord { ReaderId = 1, BookId = 4, Status = "Borrowing" }
             };
-            mockBorrowRepo.Setup(r => r.GetBorrowingRecords()).Returns(existingBorrows);
+            mockBorrowRepo.Setup(r => r.GetEligibilityRecords(1)).Returns(existingBorrows);
 
             var service = new BorrowService(mockBookRepo.Object, mockBorrowRepo.Object, mockReaderRepo.Object);
 
@@ -308,7 +308,7 @@ namespace LibraryManagement.Tests
             {
                 new BorrowRecord { ReaderId = 1, BookId = 10, Status = "Borrowing" }
             };
-            mockBorrowRepo.Setup(r => r.GetBorrowingRecords()).Returns(existing);
+            mockBorrowRepo.Setup(r => r.GetEligibilityRecords(1)).Returns(existing);
 
             var service = new BorrowService(mockBookRepo.Object, mockBorrowRepo.Object, mockReaderRepo.Object);
 
@@ -337,7 +337,7 @@ namespace LibraryManagement.Tests
                 new BorrowRecord { ReaderId = 1, BookId = 3, Status = "Borrowing" },
                 new BorrowRecord { ReaderId = 1, BookId = 4, Status = "Borrowing" }
             };
-            mockBorrowRepo.Setup(r => r.GetBorrowingRecords()).Returns(existingBorrows);
+            mockBorrowRepo.Setup(r => r.GetEligibilityRecords(1)).Returns(existingBorrows);
 
             var service = new BorrowService(mockBookRepo.Object, mockBorrowRepo.Object, mockReaderRepo.Object);
 

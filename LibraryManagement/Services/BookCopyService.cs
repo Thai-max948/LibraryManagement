@@ -86,4 +86,33 @@ public class BookCopyService
             throw new BusinessRuleException(exception.Message);
         }
     }
+
+    public void MarkAvailable(int copyId)
+    {
+        var copy = GetCopyForManualAction(copyId);
+        if (copy.Status == BookCopyStatuses.Borrowed)
+            throw new BusinessRuleException("This copy is currently borrowed and must be returned through the Return workflow.");
+        if (copy.Status == BookCopyStatuses.Retired)
+            throw new BusinessRuleException("Retired copies cannot be returned to circulation.");
+        if (copy.Status is not (BookCopyStatuses.Damaged or BookCopyStatuses.UnderRepair or BookCopyStatuses.Lost))
+            throw new BusinessRuleException("Only lost or repair-needed copies can be marked available.");
+
+        ChangeStatus(copyId, BookCopyStatuses.Available);
+    }
+
+    public void RetireCopy(int copyId)
+    {
+        var copy = GetCopyForManualAction(copyId);
+        if (copy.Status == BookCopyStatuses.Retired
+            || !BookCopyStatusRules.CanChangeManually(copy.Status, BookCopyStatuses.Retired))
+            throw new BusinessRuleException("Bản sách này không thể được retire thủ công.");
+
+        ChangeStatus(copyId, BookCopyStatuses.Retired);
+    }
+
+    private BookCopy GetCopyForManualAction(int copyId)
+    {
+        if (copyId <= 0) throw new BusinessRuleException("Mã bản sách không hợp lệ.");
+        return _repository.GetById(copyId) ?? throw new BusinessRuleException("Bản sách không tồn tại.");
+    }
 }

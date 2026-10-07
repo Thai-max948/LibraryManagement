@@ -11,28 +11,25 @@
     <StackPanel Margin="10">
         <TextBlock Text="↩ Return Book" FontSize="22" FontWeight="Bold" Foreground="{StaticResource TextBrush}" Margin="0,0,0,16"/>
 
-        <TextBlock Text="Scan / nhập barcode bản sách" Foreground="{StaticResource TextBrush}" Margin="0,0,0,6"/>
-        <DockPanel Margin="0,0,0,8">
-            <Button DockPanel.Dock="Right" Content="Tra barcode" Command="{Binding LookupBarcodeCommand}"
-                    Style="{StaticResource PrimaryButtonStyle}" Margin="8,0,0,0"/>
-            <TextBox x:Name="BarcodeInput" Text="{Binding Barcode, UpdateSourceTrigger=PropertyChanged}" MaxLength="100">
-                <TextBox.InputBindings>
-                    <KeyBinding Key="Enter" Command="{Binding LookupBarcodeCommand}"/>
-                </TextBox.InputBindings>
-            </TextBox>
-        </DockPanel>
-        <TextBlock Text="{Binding LookupMessage}" TextWrapping="Wrap" Foreground="{StaticResource TextBrush}" Margin="0,0,0,8"/>
-        <TextBlock Text="{Binding ResultMessage}" TextWrapping="Wrap" Foreground="{StaticResource TextBrush}" Margin="0,0,0,8"/>
-        <TextBlock Text="Tìm theo tên để đối chiếu khi cần" Foreground="{StaticResource TextBrush}" Margin="0,0,0,6"/>
-
-        <TextBox Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}"
+        <TextBox x:Name="SearchInputBox" Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}"
                  Margin="0,0,0,10"
-                 Tag="Search reader / book..."
-                 Style="{StaticResource PlaceholderTextBoxStyle}"/>
+                 Tag="Search reader / book / barcode..."
+                 Style="{StaticResource PlaceholderTextBoxStyle}">
+            <TextBox.InputBindings>
+                <KeyBinding Key="Enter" Command="{Binding SearchEnterCommand}"/>
+            </TextBox.InputBindings>
+        </TextBox>
+        <Border Background="#FFF1F2" BorderBrush="#FECDD3" BorderThickness="1"
+                CornerRadius="6" Padding="8,6" Margin="0,0,0,10"
+                Visibility="{Binding HasSearchError, Converter={StaticResource BoolToVis}}">
+            <TextBlock Text="{Binding SearchErrorMessage}" Foreground="#BE123C" TextWrapping="Wrap"/>
+        </Border>
+        <TextBlock Text="{Binding ResultMessage}" TextWrapping="Wrap" Foreground="{StaticResource TextBrush}" Margin="0,0,0,8"/>
 
         <TextBlock Text="Active Borrowings" FontSize="16" FontWeight="Bold" Foreground="{StaticResource TextBrush}" Margin="0,0,0,10"/>
-        <DataGrid ItemsSource="{Binding ActiveBorrowings}" SelectedItem="{Binding SelectedRow}"
+        <DataGrid x:Name="ActiveBorrowingsGrid" ItemsSource="{Binding ActiveBorrowings}" SelectedItem="{Binding SelectedRow}"
                   AutoGenerateColumns="False" IsReadOnly="True"
+                  SelectionChanged="ActiveBorrowings_SelectionChanged"
                   Style="{StaticResource AppDataGridStyle}" Height="360" Margin="0,0,0,16">
             <DataGrid.Columns>
                 <DataGridTextColumn Header="Reader" Binding="{Binding ReaderName}" Width="*"/>
