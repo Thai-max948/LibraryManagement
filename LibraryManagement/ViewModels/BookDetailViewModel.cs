@@ -10,9 +10,7 @@ public sealed class BookDetailViewModel : BaseViewModel
     private readonly BookService _books;
     private readonly BookCopyService _copies;
     private Book? _currentBook;
-    private BookCopy? _selectedCopy;
     private BookCopyInventory _inventory = BookCopyInventory.FromCopies([]);
-    private bool _isAddingCopies;
 
     public BookDetailViewModel(int bookId) : this(bookId, new BookService(), new BookCopyService()) { }
 
@@ -40,20 +38,6 @@ public sealed class BookDetailViewModel : BaseViewModel
 
     public ObservableCollection<BookCopy> Copies { get; } = new();
 
-    public BookCopy? SelectedCopy
-    {
-        get => _selectedCopy;
-        set
-        {
-            SetProperty(ref _selectedCopy, value);
-            OnPropertyChanged(nameof(ManualTransitions));
-        }
-    }
-
-    public IReadOnlyList<string> ManualTransitions => SelectedCopy == null || IsArchived
-        ? [] : BookCopyService.GetManualTransitions(SelectedCopy.Status)
-            .Select(BookCopyStatusDisplay.GetLabel).Distinct().ToArray();
-
     public BookCopyInventory Inventory
     {
         get => _inventory;
@@ -61,7 +45,7 @@ public sealed class BookDetailViewModel : BaseViewModel
     }
 
     public bool IsArchived => CurrentBook?.Status == BookStatuses.Archived;
-    public bool CanManage => CurrentBook?.Status == BookStatuses.Active && !_isAddingCopies;
+    public bool CanManage => CurrentBook?.Status == BookStatuses.Active;
     public bool HasNoCopies => Copies.Count == 0;
 
     public void Refresh()
@@ -71,48 +55,9 @@ public sealed class BookDetailViewModel : BaseViewModel
         var copies = _copies.GetCopies(_bookId).Where(copy => copy.BookId == _bookId).ToList();
         Copies.Clear();
         foreach (var copy in copies) Copies.Add(copy);
-        SelectedCopy = null;
         Inventory = BookCopyInventory.FromCopies(copies);
         OnPropertyChanged(nameof(HasNoCopies));
-        OnPropertyChanged(nameof(ManualTransitions));
     }
-
-    public void AddCopies(int quantity)
-    {
-        RequireActive();
-        _copies.AddCopies(_bookId, quantity);
-        Refresh();
-    }
-
-    public async Task AddCopiesAsync(int quantity)
-    {
-        RequireActive();
-        _isAddingCopies = true;
-        OnPropertyChanged(nameof(CanManage));
-        try
-        {
-            await Task.Run(() => _copies.AddCopies(_bookId, quantity));
-            Refresh();
-        }
-        finally
-        {
-            _isAddingCopies = false;
-            OnPropertyChanged(nameof(CanManage));
-        }
-    }
-
-    public void ChangeSelectedCopyStatus(string status)
-    {
-        RequireActive();
-        if (SelectedCopy == null) throw new BusinessRuleException("Chọn bản sách trước.");
-        string targetStatus = BookCopyStatusDisplay.GetStoredStatus(status);
-        if (!BookCopyService.GetManualTransitions(SelectedCopy.Status).Contains(targetStatus))
-            throw new BusinessRuleException("Bước chuyển trạng thái này không hợp lệ.");
-        _copies.ChangeStatus(SelectedCopy.CopyId, targetStatus);
-        Refresh();
-    }
-
-    public void RetireSelectedCopy() => ChangeSelectedCopyStatus(BookCopyStatuses.Retired);
 
     public void UpdateBook(Book edited)
     {

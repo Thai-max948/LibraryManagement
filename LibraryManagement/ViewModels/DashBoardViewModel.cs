@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Globalization;
 using System.Windows.Input;
 using LibraryManagement.Commands;
 using LibraryManagement.Models;
@@ -98,7 +99,9 @@ public sealed class DashboardViewModel : BaseViewModel
     public int? DueSoonLoans => _data?.Snapshot.DueSoonLoans;
     public int? OverdueLoans => _data?.Snapshot.OverdueLoans;
     public decimal? OutstandingFees => _data?.Snapshot.OutstandingFees;
-    public string OutstandingFeesText => OutstandingFees is decimal value ? $"{value:N0} ₫" : "—";
+    public string OutstandingFeesText => OutstandingFees is decimal value
+        ? value.ToString("C2", CultureInfo.GetCultureInfo("en-US"))
+        : "—";
 
     public IReadOnlyList<DashboardRecentBorrow> RecentBorrowings =>
         _data?.RecentBorrowings ?? Array.Empty<DashboardRecentBorrow>();
@@ -123,13 +126,6 @@ public sealed class DashboardViewModel : BaseViewModel
             .Select(point => Math.Max(point.BorrowCount, point.ReturnCount))
             .DefaultIfEmpty()
             .Max());
-
-    // Backward-compatible aliases for any existing bindings or callers.
-    public int? TotalBooks => TotalCopies;
-    public int? TotalReaders => ActiveReaders;
-    public int? AvailableBooks => AvailableCopies;
-    public int? CurrentlyBorrowed => ActiveLoans;
-    public int? OverdueBooks => OverdueLoans;
 
     public async Task RefreshAsync()
     {
@@ -162,12 +158,6 @@ public sealed class DashboardViewModel : BaseViewModel
             OnPropertyChanged(nameof(RecentReturningsEmptyMessage));
             OnPropertyChanged(nameof(Circulation));
             OnPropertyChanged(nameof(CirculationMaximum));
-            OnPropertyChanged(nameof(TotalBooks));
-            OnPropertyChanged(nameof(TotalReaders));
-            OnPropertyChanged(nameof(AvailableBooks));
-            OnPropertyChanged(nameof(CurrentlyBorrowed));
-            OnPropertyChanged(nameof(OverdueBooks));
-
             LastUpdated = _timeProvider.GetLocalNow();
             HasLoaded = true;
         }

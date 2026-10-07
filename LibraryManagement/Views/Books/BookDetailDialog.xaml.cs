@@ -26,38 +26,19 @@ public partial class BookDetailDialog : Window
         if (dialog.ShowDialog() == true) Run(() => _viewModel.UpdateBook(dialog.ResultBook));
     }
 
-    private async void AddCopy_Click(object sender, RoutedEventArgs e)
+    private void ManageCopies_Click(object sender, RoutedEventArgs e)
     {
-        if (_viewModel.IsArchived || !_viewModel.CanManage) return;
+        if (_viewModel.CurrentBook is not Book book || !_viewModel.CanManage) return;
+
         try
         {
-            int quantity = BookCopyService.ParseQuantity(QuantityBox.Text);
-            await _viewModel.AddCopiesAsync(quantity);
-            QuantityBox.Clear();
+            var dialog = new BookCopiesDialog(book) { Owner = this };
+            dialog.ShowDialog();
+            Run(_viewModel.Refresh);
         }
-        catch (BusinessRuleException exception)
-        {
-            MessageBox.Show(exception.Message, "Không thể thêm bản sách");
-            TryRefresh();
-        }
-        catch (Exception exception)
-        {
-            MessageBox.Show("Không thể thêm bản sách: " + exception.Message, "Lỗi");
-            TryRefresh();
-        }
+        catch (BusinessRuleException exception) { MessageBox.Show(exception.Message, "Book detail"); }
+        catch (Exception) { MessageBox.Show("Không thể mở danh sách bản sách. Vui lòng thử lại.", "Lỗi"); }
     }
-
-    private void ChangeStatus_Click(object sender, RoutedEventArgs e)
-    {
-        if (StatusBox.SelectedItem is not string status)
-        {
-            MessageBox.Show("Chọn bản sách và trạng thái đích hợp lệ.", "Book detail");
-            return;
-        }
-        Run(() => _viewModel.ChangeSelectedCopyStatus(status));
-    }
-
-    private void RetireCopy_Click(object sender, RoutedEventArgs e) => Run(_viewModel.RetireSelectedCopy);
 
     private void Archive_Click(object sender, RoutedEventArgs e)
     {

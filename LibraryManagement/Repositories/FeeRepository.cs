@@ -21,9 +21,6 @@ public class FeeRepository : IFeeBalanceReader
         return await reader.ReadAsync(cancellationToken) ? Map(reader) : null;
     }
 
-    public virtual Task<IReadOnlyList<Fee>> GetByReaderIdAsync(int readerId, CancellationToken cancellationToken = default) =>
-        ListByIdAsync("ReaderId", readerId, cancellationToken);
-
     public virtual Task<IReadOnlyList<Fee>> GetByBorrowIdAsync(int borrowId, CancellationToken cancellationToken = default) =>
         ListByIdAsync("BorrowId", borrowId, cancellationToken);
 

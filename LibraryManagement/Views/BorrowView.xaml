@@ -73,21 +73,6 @@
             <!-- Header -->
             <TextBlock Text="📖 Mượn Sách (Borrow Book)" FontSize="22" FontWeight="Bold" Foreground="{StaticResource TextBrush}"/>
             <TextBlock Text="Tìm kiếm độc giả và sách với gợi ý thông minh thời gian thực" Foreground="{StaticResource SecondaryTextBrush}" Margin="0,2,0,16"/>
-            <Border Style="{StaticResource CardStyle}" Margin="0,0,0,16">
-                <StackPanel>
-                    <TextBlock Text="Quét hoặc nhập barcode bản sách, rồi nhấn Enter" Foreground="{StaticResource TextBrush}" Margin="0,0,0,6"/>
-                    <DockPanel>
-                        <Button DockPanel.Dock="Right" Content="Tra barcode" Command="{Binding ResolveBarcodeCommand}" Margin="8,0,0,0"/>
-                        <TextBox x:Name="BarcodeInputBox" Text="{Binding BarcodeInput, UpdateSourceTrigger=PropertyChanged}" MaxLength="100">
-                            <TextBox.InputBindings>
-                                <KeyBinding Key="Enter" Command="{Binding ResolveBarcodeCommand}"/>
-                            </TextBox.InputBindings>
-                        </TextBox>
-                    </DockPanel>
-                    <TextBlock Text="{Binding BarcodeFeedback}" Foreground="{StaticResource SecondaryTextBrush}" TextWrapping="Wrap" Margin="0,6,0,0"/>
-                </StackPanel>
-            </Border>
-
             <!-- 2-Column Search & Recommendation Area -->
             <Grid Margin="0,0,0,16">
                 <Grid.ColumnDefinitions>
@@ -194,10 +179,20 @@
 
                         <!-- State 1: Searching (when HasNoSelectedBook is True) -->
                         <StackPanel Visibility="{Binding HasNoSelectedBook, Converter={StaticResource BoolToVis}}">
-                            <TextBox Text="{Binding BookSearchQuery, UpdateSourceTrigger=PropertyChanged}"
-                                     Tag="🔍 Gõ tên sách, tác giả, thể loại..."
+                            <TextBox x:Name="BookSearchInputBox"
+                                     Text="{Binding BookSearchQuery, UpdateSourceTrigger=PropertyChanged}"
+                                     Tag="🔍 Gõ tên sách, tác giả, thể loại hoặc barcode..."
                                      Style="{StaticResource PlaceholderTextBoxStyle}"
-                                     FontSize="13"/>
+                                     FontSize="13">
+                                <TextBox.InputBindings>
+                                    <KeyBinding Key="Enter" Command="{Binding SearchBookInputCommand}"/>
+                                </TextBox.InputBindings>
+                            </TextBox>
+                            <Border Background="#FFF1F2" BorderBrush="#FECDD3" BorderThickness="1"
+                                    CornerRadius="6" Padding="8,6" Margin="0,6,0,0"
+                                    Visibility="{Binding HasBookSearchError, Converter={StaticResource BoolToVis}}">
+                                <TextBlock Text="{Binding BookSearchError}" Foreground="#BE123C" TextWrapping="Wrap"/>
+                            </Border>
 
                             <!-- Recommendations Container -->
                             <Border Background="#F8FAFC" BorderBrush="{StaticResource TechBorderBrush}" BorderThickness="1"

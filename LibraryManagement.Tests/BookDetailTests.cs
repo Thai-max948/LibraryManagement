@@ -57,39 +57,34 @@ public class BookDetailTests
     }
 
     [Fact]
-    public void Detail_BulkAdd_RefreshesInventoryFromAllCopies()
+    public void Detail_RefreshReloadsCopiesAndInventoryAfterCopyManagement()
     {
         var books = new Mock<BookRepository>();
         books.Setup(repository => repository.GetById(10)).Returns(new Book { BookId = 10, Status = BookStatuses.Active });
         var physicalCopies = new List<BookCopy>
         {
-            new() { BookId = 10, CopyId = 1, Status = BookCopyStatuses.Available },
-            new() { BookId = 10, CopyId = 2, Status = BookCopyStatuses.Retired }
+            new() { BookId = 10, CopyId = 1, Status = BookCopyStatuses.Available }
         };
         var copies = new Mock<BookCopyRepository>();
         copies.Setup(repository => repository.GetByBookId(10)).Returns(() => physicalCopies.ToList());
-        copies.Setup(repository => repository.AddGeneratedCopies(10, 3, BookCopyStatuses.Available, "Good")).Callback(() =>
-        {
-            for (int id = 53; id <= 55; id++)
-                physicalCopies.Add(new BookCopy
-                {
-                    BookId = 10, CopyId = id, Barcode = BookCopyBarcode.Format(id),
-                    Status = BookCopyStatuses.Available, Condition = "Good"
-                });
-        }).Returns(new[] { 53, 54, 55 });
+        copies.Setup(repository => repository.SetStatus(1, BookCopyStatuses.UnderRepair))
+            .Callback(() => physicalCopies[0].Status = BookCopyStatuses.UnderRepair).Returns(true);
 
         var detail = Create(10, books, copies);
-        detail.AddCopies(3);
+        Assert.Equal(1, detail.Inventory.Available);
 
-        Assert.Equal(5, detail.Inventory.TotalCopies);
-        Assert.Equal(4, detail.Inventory.ActiveCopies);
-        Assert.Equal(4, detail.Inventory.Available);
-        Assert.Equal(1, detail.Inventory.Retired);
-        Assert.Equal(new[] { "BK-000053", "BK-000054", "BK-000055" }, detail.Copies.Skip(2).Select(copy => copy.Barcode));
+        new BookCopyService(copies.Object, books.Object).ChangeStatus(1, BookCopyStatuses.UnderRepair);
+        detail.Refresh();
+
+        Assert.Equal(1, detail.Inventory.TotalCopies);
+        Assert.Equal(1, detail.Inventory.ActiveCopies);
+        Assert.Equal(0, detail.Inventory.Available);
+        Assert.Equal(1, detail.Inventory.DamagedUnderRepair);
+        Assert.Equal(BookCopyStatuses.UnderRepair, Assert.Single(detail.Copies).Status);
     }
 
     [Fact]
-    public void Detail_ZeroCopyArchivedBook_RemainsViewableButCannotAddCopy()
+    public void Detail_ZeroCopyArchivedBook_RemainsViewableButCannotManageCopies()
     {
         var books = new Mock<BookRepository>();
         books.Setup(repository => repository.GetById(10)).Returns(new Book
@@ -102,60 +97,38 @@ public class BookDetailTests
         var detail = Create(10, books, copies);
 
         Assert.True(detail.IsArchived);
+        Assert.False(detail.CanManage);
         Assert.True(detail.HasNoCopies);
         Assert.Equal(0, detail.Inventory.TotalCopies);
-        Assert.Empty(detail.ManualTransitions);
-        Assert.Throws<BusinessRuleException>(() => detail.AddCopies(1));
-        copies.Verify(repository => repository.AddGeneratedCopies(It.IsAny<int>(), It.IsAny<int>(), It.IsAny<string>(), It.IsAny<string>()), Times.Never);
+        Assert.Empty(detail.Copies);
+        copies.Verify(repository => repository.GetByBookId(10), Times.Once);
     }
 
     [Fact]
-    public void Detail_AddRetireArchiveRestore_RefreshesAndKeepsCopyRetired()
+    public void Detail_ArchiveRestore_RefreshesBookAndKeepsCopiesReadOnly()
     {
         var book = new Book { BookId = 10, Title = "Book" };
-        var physicalCopies = new List<BookCopy>();
+        var physicalCopies = new List<BookCopy>
+        {
+            new() { BookId = 10, CopyId = 1, Status = BookCopyStatuses.Available }
+        };
         var books = new Mock<BookRepository>();
         books.Setup(repository => repository.GetById(10)).Returns(() => book);
         books.Setup(repository => repository.SetArchived(10, true)).Callback(() => book.Status = BookStatuses.Archived).Returns(true);
         books.Setup(repository => repository.SetArchived(10, false)).Callback(() => book.Status = BookStatuses.Active).Returns(true);
         var copies = new Mock<BookCopyRepository>();
         copies.Setup(repository => repository.GetByBookId(10)).Returns(() => physicalCopies.ToList());
-        copies.Setup(repository => repository.AddGeneratedCopies(10, 1, BookCopyStatuses.Available, "Good")).Callback(() => physicalCopies.Add(new BookCopy
-        {
-            BookId = 10, CopyId = 1, Barcode = "BK-000001", Status = BookCopyStatuses.Available
-        })).Returns(new[] { 1 });
-        copies.Setup(repository => repository.SetStatus(1, BookCopyStatuses.Retired))
-            .Callback(() => physicalCopies[0].Status = BookCopyStatuses.Retired).Returns(true);
 
         var detail = Create(10, books, copies);
-        detail.AddCopies(1);
         Assert.Equal(1, detail.Inventory.Available);
-        detail.SelectedCopy = Assert.Single(detail.Copies);
-        detail.RetireSelectedCopy();
-        Assert.Equal(1, detail.Inventory.Retired);
-        Assert.Equal(0, detail.Inventory.ActiveCopies);
+
         detail.Archive();
         Assert.True(detail.IsArchived);
+        Assert.False(detail.CanManage);
         detail.Restore();
         Assert.True(detail.CanManage);
-        Assert.Equal(BookCopyStatuses.Retired, Assert.Single(detail.Copies).Status);
-    }
-
-    [Fact]
-    public void Detail_BorrowedCopyCannotBeRetiredManually()
-    {
-        var books = new Mock<BookRepository>();
-        books.Setup(repository => repository.GetById(10)).Returns(new Book { BookId = 10 });
-        var copies = new Mock<BookCopyRepository>();
-        copies.Setup(repository => repository.GetByBookId(10)).Returns(new List<BookCopy>
-        {
-            new() { BookId = 10, CopyId = 1, Status = BookCopyStatuses.Borrowed }
-        });
-        var detail = Create(10, books, copies);
-        detail.SelectedCopy = Assert.Single(detail.Copies);
-
-        Assert.Empty(detail.ManualTransitions);
-        Assert.Throws<BusinessRuleException>(detail.RetireSelectedCopy);
+        Assert.Equal(1, detail.Inventory.Available);
+        Assert.Equal(BookCopyStatuses.Available, Assert.Single(detail.Copies).Status);
         copies.Verify(repository => repository.SetStatus(It.IsAny<int>(), It.IsAny<string>()), Times.Never);
     }
 

@@ -107,16 +107,6 @@ namespace LibraryManagement.Services
             return _userRepository.Add(user, password);
         }
 
-        public bool UpdateUser(User user)
-        {
-            EnsureAdmin();
-            if (user == null)
-            {
-                return false;
-            }
-            return _userRepository.Update(user);
-        }
-
         public (bool Success, string Message) UpdateAccount(
             int id, string fullName, string username, string email, string role, string? newPassword = null)
         {

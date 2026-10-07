@@ -119,6 +119,19 @@ public sealed class DashboardTests
     }
 
     [Fact]
+    public async Task ViewModel_FormatsOutstandingFeesAsEnUsCurrency()
+    {
+        var service = new Mock<IDashboardService>();
+        service.Setup(mock => mock.GetDashboardDataAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(DataWithSnapshot(new DashboardSnapshot(1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1234.56m)));
+
+        var viewModel = new DashboardViewModel(service.Object, Mock.Of<IUserDialogService>(), new FixedTimeProvider(Today));
+        await viewModel.InitialLoadTask;
+
+        Assert.Equal("$1,234.56", viewModel.OutstandingFeesText);
+    }
+
+    [Fact]
     public async Task ViewModel_ReportsInitialLoadFailureWithoutThrowing()
     {
         var service = new Mock<IDashboardService>();

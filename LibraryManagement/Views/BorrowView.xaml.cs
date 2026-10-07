@@ -12,7 +12,7 @@ namespace LibraryManagement.Views
             if (!DesignerProperties.GetIsInDesignMode(this))
             {
                 DataContext = new BorrowViewModel(new MessageBoxDialogService());
-                Loaded += (_, _) => BarcodeInputBox.Focus();
+                Loaded += (_, _) => BookSearchInputBox.Focus();
             }
         }
     }

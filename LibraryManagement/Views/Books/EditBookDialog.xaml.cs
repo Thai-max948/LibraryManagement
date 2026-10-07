@@ -89,7 +89,7 @@ namespace LibraryManagement.Views.Books
             if (TryParseBookPrice(ReplacementValueBox.Text, out decimal value))
             {
                 decimal rentalPrice = _pricingPolicy.CalculateRentalPrice(value);
-                RentalPriceBox.Text = rentalPrice.ToString("0.00", CultureInfo.CurrentCulture);
+                RentalPriceBox.Text = rentalPrice.ToString("0.00", CultureInfo.GetCultureInfo("en-US"));
                 PricingPreviewText.Text = $"{value.ToString("C2", CultureInfo.GetCultureInfo("en-US"))} × {_pricingPolicy.RentalRate.ToString("P0", CultureInfo.InvariantCulture)} = {rentalPrice.ToString("C2", CultureInfo.GetCultureInfo("en-US"))}";
             }
             else

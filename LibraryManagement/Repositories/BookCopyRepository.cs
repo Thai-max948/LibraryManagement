@@ -135,6 +135,13 @@ public class BookCopyRepository
         return reader.Read() ? Map(reader) : null;
     }
 
+    public virtual BookCopy? GetById(int copyId)
+    {
+        using var connection = Database.GetConnection();
+        connection.Open();
+        return GetById(connection, null, copyId);
+    }
+
     public virtual BookCopy? GetByIdForReturn(SqlConnection connection, SqlTransaction transaction, int copyId)
     {
         using var command = new SqlCommand(@"SELECT CopyId, BookId, Barcode, Status, Condition, CreatedAt

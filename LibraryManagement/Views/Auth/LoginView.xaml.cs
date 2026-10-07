@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
@@ -7,6 +8,8 @@ namespace LibraryManagement.Views.Auth
 {
     public partial class LoginView : UserControl
     {
+        private AuthViewModel? _observedViewModel;
+
         public event System.Action? RequestNavigateToRegister;
         public event System.Action<string>? RequestSignIn;
 
@@ -25,15 +28,28 @@ namespace LibraryManagement.Views.Auth
 
         private void LoginView_DataContextChanged(object sender, DependencyPropertyChangedEventArgs e)
         {
-            if (e.NewValue is AuthViewModel vm)
+            if (_observedViewModel != null)
             {
-                vm.PropertyChanged += (s, args) =>
-                {
-                    if (args.PropertyName == nameof(AuthViewModel.StatusMessage))
-                    {
-                        UpdateStatusVisibility(vm);
-                    }
-                };
+                _observedViewModel.PropertyChanged -= AuthViewModel_PropertyChanged;
+            }
+
+            _observedViewModel = e.NewValue as AuthViewModel;
+            if (_observedViewModel == null)
+            {
+                StatusCard.Visibility = Visibility.Collapsed;
+                return;
+            }
+
+            _observedViewModel.PropertyChanged += AuthViewModel_PropertyChanged;
+            UpdateStatusVisibility(_observedViewModel);
+        }
+
+        private void AuthViewModel_PropertyChanged(object? sender, PropertyChangedEventArgs e)
+        {
+            if ((e.PropertyName is nameof(AuthViewModel.StatusMessage) or nameof(AuthViewModel.IsStatusError))
+                && _observedViewModel != null)
+            {
+                UpdateStatusVisibility(_observedViewModel);
             }
         }
 
@@ -82,6 +98,8 @@ namespace LibraryManagement.Views.Auth
             }
             RequestNavigateToRegister?.Invoke();
         }
+
+        public void FocusFirstInput() => TxtUsernameOrEmail.Focus();
 
         public string GetPassword() => TxtPassword.Password;
     }

@@ -30,7 +30,6 @@ public sealed class FeesViewModel : BaseViewModel
     private int _page = 1;
     private int _totalCount;
     private int _pageSize = 50;
-    private IReadOnlyList<FeePayment> _paymentHistory = Array.Empty<FeePayment>();
     private readonly FeePaymentAttemptKey _paymentAttemptKey = new();
 
     public ObservableCollection<Fee> Fees { get; } = new();
@@ -101,8 +100,6 @@ public sealed class FeesViewModel : BaseViewModel
     public int PageCount => Math.Max(1, (TotalCount + PageSize - 1) / PageSize);
     public string PageText => TotalCount == 0 ? "Không có khoản phí" : $"Trang {Page}/{PageCount} · {TotalCount} khoản phí";
     public int PageSize { get => _pageSize; }
-    public IReadOnlyList<FeePayment> CurrentPaymentHistory => _paymentHistory;
-    public bool HasFees => Fees.Count > 0;
     public bool HasNoFees => !IsLoading && Fees.Count == 0 && string.IsNullOrEmpty(ErrorMessage);
     public bool CanRecordPayment => !IsLoading && SelectedFee is { Remaining: > 0m } fee && FeeStateRules.CanRecordPayment(fee);
     public bool CanWaive => !IsLoading && SelectedFee is { } fee && FeeStateRules.CanWaive(fee) && !string.IsNullOrWhiteSpace(WaiveReason);
@@ -127,7 +124,6 @@ public sealed class FeesViewModel : BaseViewModel
             TotalOutstanding = await _service.GetTotalOutstandingBalanceAsync();
             SelectedFee = selectedId.HasValue ? Fees.FirstOrDefault(f => f.FeeId == selectedId) : Fees.FirstOrDefault();
             StatusMessage = Fees.Count == 0 ? "Không tìm thấy khoản phí phù hợp." : $"Đang hiển thị {Fees.Count} khoản phí.";
-            OnPropertyChanged(nameof(HasFees));
             OnPropertyChanged(nameof(HasNoFees));
         }
         catch (Exception ex)
@@ -164,14 +160,12 @@ public sealed class FeesViewModel : BaseViewModel
             decimal outstanding = await _service.GetOutstandingBalanceAsync(fee.ReaderId);
             if (SelectedFee?.FeeId != id) return;
             foreach (FeePayment payment in history) PaymentHistory.Add(payment);
-            _paymentHistory = history;
             ReaderOutstanding = outstanding;
         }
         catch (Exception ex)
         {
             if (SelectedFee?.FeeId == id) ErrorMessage = "Không tải được chi tiết thanh toán: " + ex.Message;
         }
-        OnPropertyChanged(nameof(CurrentPaymentHistory));
         OnPropertyChanged(nameof(HasSelectedFee));
     }
 

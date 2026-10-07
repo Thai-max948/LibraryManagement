@@ -99,4 +99,82 @@ public class BookCopyBulkTests
         Assert.Equal("Không thể thêm bản sách cho đầu sách đã được archive.", exception.Message);
         copies.Verify(repository => repository.AddGeneratedCopies(It.IsAny<int>(), It.IsAny<int>(), It.IsAny<string>(), It.IsAny<string>()), Times.Never);
     }
+
+    [Theory]
+    [InlineData(BookCopyStatuses.Available, true)]
+    [InlineData(BookCopyStatuses.Damaged, true)]
+    [InlineData(BookCopyStatuses.UnderRepair, true)]
+    [InlineData(BookCopyStatuses.Lost, true)]
+    [InlineData(BookCopyStatuses.Borrowed, false)]
+    [InlineData(BookCopyStatuses.Retired, false)]
+    public void ManualTransitions_ExposeRetirementOnlyWhenRulesAllow(string currentStatus, bool canRetire)
+    {
+        var transitions = BookCopyService.GetManualTransitions(currentStatus);
+
+        Assert.Equal(canRetire, transitions.Contains(BookCopyStatuses.Retired));
+        Assert.DoesNotContain(BookCopyStatuses.Borrowed, transitions);
+        Assert.DoesNotContain(currentStatus, transitions);
+        Assert.All(transitions, nextStatus => Assert.True(BookCopyStatusRules.CanChangeManually(currentStatus, nextStatus)));
+    }
+
+    [Theory]
+    [InlineData(BookCopyStatuses.Damaged)]
+    [InlineData(BookCopyStatuses.UnderRepair)]
+    [InlineData(BookCopyStatuses.Lost)]
+    public void MarkAvailable_RecoversEligibleCopy(string currentStatus)
+    {
+        var copies = new Mock<BookCopyRepository>();
+        copies.Setup(repository => repository.GetById(7)).Returns(new BookCopy { CopyId = 7, Status = currentStatus });
+        copies.Setup(repository => repository.SetStatus(7, BookCopyStatuses.Available)).Returns(true);
+
+        new BookCopyService(copies.Object).MarkAvailable(7);
+
+        copies.Verify(repository => repository.GetById(7), Times.Once);
+        copies.Verify(repository => repository.SetStatus(7, BookCopyStatuses.Available), Times.Once);
+    }
+
+    [Theory]
+    [InlineData(BookCopyStatuses.Available, "Only lost or repair-needed copies can be marked available.")]
+    [InlineData(BookCopyStatuses.Borrowed, "This copy is currently borrowed and must be returned through the Return workflow.")]
+    [InlineData(BookCopyStatuses.Retired, "Retired copies cannot be returned to circulation.")]
+    public void MarkAvailable_RejectsIneligibleCopyWithoutMutation(string currentStatus, string expectedMessage)
+    {
+        var copies = new Mock<BookCopyRepository>();
+        copies.Setup(repository => repository.GetById(7)).Returns(new BookCopy { CopyId = 7, Status = currentStatus });
+        var service = new BookCopyService(copies.Object);
+
+        var exception = Assert.Throws<BusinessRuleException>(() => service.MarkAvailable(7));
+
+        Assert.Equal(expectedMessage, exception.Message);
+        copies.Verify(repository => repository.SetStatus(It.IsAny<int>(), It.IsAny<string>()), Times.Never);
+    }
+
+    [Theory]
+    [InlineData(BookCopyStatuses.Available)]
+    [InlineData(BookCopyStatuses.Damaged)]
+    [InlineData(BookCopyStatuses.UnderRepair)]
+    [InlineData(BookCopyStatuses.Lost)]
+    public void RetireCopy_UsesExistingAllowedTransition(string currentStatus)
+    {
+        var copies = new Mock<BookCopyRepository>();
+        copies.Setup(repository => repository.GetById(7)).Returns(new BookCopy { CopyId = 7, Status = currentStatus });
+        copies.Setup(repository => repository.SetStatus(7, BookCopyStatuses.Retired)).Returns(true);
+
+        new BookCopyService(copies.Object).RetireCopy(7);
+
+        copies.Verify(repository => repository.SetStatus(7, BookCopyStatuses.Retired), Times.Once);
+    }
+
+    [Theory]
+    [InlineData(BookCopyStatuses.Borrowed)]
+    [InlineData(BookCopyStatuses.Retired)]
+    public void RetireCopy_RejectsBorrowedAndRetiredCopies(string currentStatus)
+    {
+        var copies = new Mock<BookCopyRepository>();
+        copies.Setup(repository => repository.GetById(7)).Returns(new BookCopy { CopyId = 7, Status = currentStatus });
+
+        Assert.Throws<BusinessRuleException>(() => new BookCopyService(copies.Object).RetireCopy(7));
+
+        copies.Verify(repository => repository.SetStatus(It.IsAny<int>(), It.IsAny<string>()), Times.Never);
+    }
 }

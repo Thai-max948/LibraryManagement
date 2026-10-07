@@ -17,7 +17,6 @@ public class HistoryViewModel : BaseViewModel
     private int _totalPages = 1;
     private int _totalCount;
     private int _overdueCount;
-    private bool _isLoading;
     private string _errorMessage = string.Empty;
     private HistoryRow? _selectedRecord;
 
@@ -75,14 +74,7 @@ public class HistoryViewModel : BaseViewModel
     public bool HasOverdue => OverdueCount > 0;
     public bool HasPreviousPage => PageNumber > 1;
     public bool HasNextPage => PageNumber < TotalPages;
-    public bool HasRecords => Records.Count > 0;
     public string PageSummary => $"Page {PageNumber} of {TotalPages} · {TotalCount} records";
-
-    public bool IsLoading
-    {
-        get => _isLoading;
-        private set => SetProperty(ref _isLoading, value);
-    }
 
     public string ErrorMessage
     {
@@ -96,7 +88,6 @@ public class HistoryViewModel : BaseViewModel
         set => SetProperty(ref _selectedRecord, value);
     }
 
-    public ICommand RefreshCommand { get; }
     public ICommand FilterOverdueCommand { get; }
     public ICommand PreviousPageCommand { get; }
     public ICommand NextPageCommand { get; }
@@ -107,7 +98,6 @@ public class HistoryViewModel : BaseViewModel
     public HistoryViewModel(HistoryService historyService)
     {
         _historyService = historyService;
-        RefreshCommand = new RelayCommand(Load);
         FilterOverdueCommand = new RelayCommand(() => SelectedStatus = "Overdue");
         PreviousPageCommand = new RelayCommand(() => ChangePage(PageNumber - 1), () => HasPreviousPage);
         NextPageCommand = new RelayCommand(() => ChangePage(PageNumber + 1), () => HasNextPage);
@@ -156,14 +146,12 @@ public class HistoryViewModel : BaseViewModel
             Records.Clear();
             TotalCount = 0;
             TotalPages = 1;
-            OnPropertyChanged(nameof(HasRecords));
             OnPropertyChanged(nameof(HasPreviousPage));
             OnPropertyChanged(nameof(HasNextPage));
             SelectedRecord = null;
             return;
         }
 
-        IsLoading = true;
         ErrorMessage = string.Empty;
         try
         {
@@ -212,7 +200,6 @@ public class HistoryViewModel : BaseViewModel
                 Load();
                 return;
             }
-            OnPropertyChanged(nameof(HasRecords));
             OnPropertyChanged(nameof(HasPreviousPage));
             OnPropertyChanged(nameof(HasNextPage));
             SelectedRecord = Records.FirstOrDefault();
@@ -224,13 +211,8 @@ public class HistoryViewModel : BaseViewModel
             TotalCount = 0;
             TotalPages = 1;
             SelectedRecord = null;
-            OnPropertyChanged(nameof(HasRecords));
             OnPropertyChanged(nameof(HasPreviousPage));
             OnPropertyChanged(nameof(HasNextPage));
-        }
-        finally
-        {
-            IsLoading = false;
         }
     }
 

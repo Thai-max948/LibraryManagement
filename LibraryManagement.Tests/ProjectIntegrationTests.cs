@@ -179,7 +179,7 @@ public sealed class ProjectIntegrationTests : IClassFixture<SqlIntegrationFixtur
 
     [IntegrationFact]
     [Trait("Category", "Integration")]
-    public void BookDetail_LoadsFreshCopyInventoryAndSurvivesArchiveRestore()
+    public void BookDetail_ReadsCopyManagementChangesAndSurvivesArchiveRestore()
     {
         var books = new BookService();
         int bookId = books.AddBook(new Book
@@ -199,13 +199,15 @@ public sealed class ProjectIntegrationTests : IClassFixture<SqlIntegrationFixtur
         Assert.True(detail.HasNoCopies);
         Assert.Equal(0, detail.Inventory.TotalCopies);
 
-        detail.AddCopies(1);
+        var copies = new BookCopyService();
+        copies.AddCopies(bookId, 1);
+        detail.Refresh();
         Assert.Single(detail.Copies);
         Assert.Equal(1, detail.Inventory.Available);
         Assert.All(detail.Copies, copy => Assert.Equal(bookId, copy.BookId));
         Assert.DoesNotContain(detail.Copies, copy => copy.BookId == otherBookId);
-        detail.SelectedCopy = Assert.Single(detail.Copies);
-        detail.RetireSelectedCopy();
+        copies.ChangeStatus(Assert.Single(detail.Copies).CopyId, BookCopyStatuses.Retired);
+        detail.Refresh();
         Assert.Equal(1, detail.Inventory.Retired);
         Assert.Equal(0, detail.Inventory.ActiveCopies);
 
@@ -213,7 +215,7 @@ public sealed class ProjectIntegrationTests : IClassFixture<SqlIntegrationFixtur
         Assert.True(detail.IsArchived);
         Assert.Equal("vi", detail.CurrentBook!.Language);
         Assert.Equal("O'Reilly & Nhà xuất bản Trẻ", detail.CurrentBook.Publisher);
-        Assert.Throws<BusinessRuleException>(() => detail.AddCopies(1));
+        Assert.Throws<BusinessRuleException>(() => copies.AddCopies(bookId, 1));
         detail.Restore();
         Assert.Equal(BookCopyStatuses.Retired, Assert.Single(detail.Copies).Status);
         Assert.True(detail.CanManage);

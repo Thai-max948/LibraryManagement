@@ -130,6 +130,64 @@ namespace LibraryManagement.Services
         public List<Book> SearchArchivedBooks(string keyword) =>
             string.IsNullOrWhiteSpace(keyword) ? _bookRepo.GetArchived() : _bookRepo.SearchArchived(keyword);
 
+        public PagedResult<Book> GetPagedBooks(BookSearchQuery query)
+        {
+            ArgumentNullException.ThrowIfNull(query);
+            if (query.PageNumber < 1)
+                throw new BusinessRuleException("Page number must be at least 1.");
+            if (query.PageSize is < 1 or > 100)
+                throw new BusinessRuleException("Page size must be between 1 and 100.");
+            if (!IsSupportedSort(query.SortBy, query.SortDirection))
+                throw new BusinessRuleException("Book sort option is not supported.");
+            if (!Enum.IsDefined(query.Status))
+                throw new BusinessRuleException("Book status filter is not supported.");
+            if (query.PublishYearFrom is int yearFrom && query.PublishYearTo is int yearTo && yearFrom > yearTo)
+                throw new BusinessRuleException("Publish Year From must be less than or equal to Publish Year To.");
+            if (query.MinBookPrice is decimal minBookPrice && minBookPrice < 0m
+                || query.MaxBookPrice is decimal maxBookPrice && maxBookPrice < 0m)
+                throw new BusinessRuleException("Book price bounds must be zero or greater.");
+            if (query.MinBookPrice is decimal minimum && query.MaxBookPrice is decimal maximum && minimum > maximum)
+                throw new BusinessRuleException("Minimum book price must be less than or equal to maximum book price.");
+
+            return _bookRepo.GetPaged(query with
+            {
+                SearchText = NormalizeOptionalText(query.SearchText),
+                Category = NormalizeOptionalText(query.Category) ?? BookFilterCodes.All,
+                Author = NormalizeOptionalText(query.Author),
+                LanguageCode = NormalizeLanguageFilter(query.LanguageCode),
+                Publisher = NormalizeOptionalText(query.Publisher)
+            });
+        }
+
+        public IReadOnlyList<BookFilterOption> GetCategoryFilterOptions() => _bookRepo.GetCategoryFilterOptions();
+
+        public IReadOnlyList<string> GetDistinctAuthors() => _bookRepo.GetDistinctAuthors();
+
+        public IReadOnlyList<BookFilterOption> GetPublisherFilterOptions() => _bookRepo.GetPublisherFilterOptions();
+
+        public BookPriceRange GetBookPriceRange() => _bookRepo.GetBookPriceRange();
+
+        public BookCatalogMetrics GetActiveCatalogMetrics() => _bookRepo.GetActiveCatalogMetrics();
+
+        private static string? NormalizeOptionalText(string? value)
+            => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+
+        private static string NormalizeLanguageFilter(string? value)
+        {
+            string? languageCode = NormalizeOptionalText(value);
+            if (languageCode is null || string.Equals(languageCode, LanguageCatalog.AllFilterCode, StringComparison.OrdinalIgnoreCase))
+                return LanguageCatalog.AllFilterCode;
+            if (string.Equals(languageCode, LanguageCatalog.UnknownFilterCode, StringComparison.OrdinalIgnoreCase))
+                return LanguageCatalog.UnknownFilterCode;
+            return languageCode.ToLowerInvariant();
+        }
+
+        private static bool IsSupportedSort(string sortBy, string sortDirection)
+            => (sortBy, sortDirection?.ToUpperInvariant()) is
+                ("Title", "ASC" or "DESC")
+                or ("PublishYear", "ASC" or "DESC")
+                or ("CreatedAt", "DESC");
+
         private static void Validate(Book book)
         {
             if (book.ReplacementValue is decimal value &&

@@ -12,39 +12,64 @@ namespace LibraryManagement.Tests;
 public class ReturnWorkflowTests
 {
     [Fact]
-    public void Scan_SelectsExactLoanWithoutFallbackSearchAndFailedScanClearsSelection()
+    public void SearchSupportsReaderBookAndBarcode_EnterSelectsLoanWithoutReturningIt()
     {
-        var loans = new Mock<BorrowRepository>();
-        loans.Setup(x => x.GetBorrowingRecords()).Returns(new List<BorrowRecord>());
-        var copies = new Mock<BookCopyRepository>();
-        copies.Setup(x => x.GetByBarcode("BC2")).Returns(new BookCopy { CopyId = 2, Status = BookCopyStatuses.Borrowed });
-        loans.Setup(x => x.GetActiveByCopyId(2)).Returns(new BorrowRecord
-            { BorrowId = 9, BookId = 1, BookCopyId = 2, ReaderId = 3, BorrowDate = DateTime.Today, DueDate = DateTime.Today.AddDays(7) });
+        const string barcode = "BK-000002";
+        var loan = new BorrowRecord
+        {
+            BorrowId = 9, BookId = 1, BookCopyId = 2, ReaderId = 3,
+            BorrowDate = DateTime.Today, DueDate = DateTime.Today.AddDays(7)
+        };
+        var circulation = new Mock<IReturnCirculationService>();
+        circulation.Setup(x => x.GetBorrowingBooks()).Returns(new List<BorrowRecord> { loan });
+        circulation.Setup(x => x.GetCurrentLateDays(loan.DueDate)).Returns(0);
+        circulation.Setup(x => x.FindActiveReturnByBarcode(barcode)).Returns(loan);
+        circulation.Setup(x => x.FindActiveReturnByBarcode("BK-999999"))
+            .Throws(new BusinessRuleException("Barcode không tồn tại."));
+        circulation.Setup(x => x.FindActiveReturnByBarcode("BK-000003"))
+            .Throws(new BusinessRuleException("Không tìm thấy phiếu mượn đang hoạt động của barcode này."));
+
         var books = new Mock<BookRepository>();
-        books.Setup(x => x.GetAllIncludingArchived()).Returns(new List<Book>());
+        books.Setup(x => x.GetAllIncludingArchived()).Returns(new List<Book>
+            { new() { BookId = 1, Title = "Clean Code" } });
         books.Setup(x => x.GetById(1)).Returns(new Book { BookId = 1, Title = "Clean Code" });
         var readers = new Mock<ReaderRepository>();
-        readers.Setup(x => x.GetAll(true)).Returns(new List<Reader>());
+        readers.Setup(x => x.GetAll(true)).Returns(new List<Reader>
+            { new() { ReaderId = 3, FullName = "An" } });
         readers.Setup(x => x.GetById(3)).Returns(new Reader { ReaderId = 3, FullName = "An" });
-        var service = new BorrowService(books.Object, loans.Object, readers.Object, copies.Object);
+        var copies = new Mock<BookCopyRepository>();
+        copies.Setup(x => x.GetByBookId(1)).Returns(new List<BookCopy>
+            { new() { CopyId = 2, BookId = 1, Barcode = barcode, Status = BookCopyStatuses.Borrowed } });
         StaHelper.RunInSta(() =>
         {
-            var vm = new ReturnViewModel(service, new BookService(books.Object, loans.Object),
-                new ReaderService(readers.Object, loans.Object), new Mock<IUserDialogService>().Object);
-            vm.Barcode = "BC2";
-            vm.LookupBarcodeCommand.Execute(null);
+            var vm = new ReturnViewModel(circulation.Object, new BookService(books.Object, new BorrowRepository()),
+                new ReaderService(readers.Object, new BorrowRepository()), new Mock<IUserDialogService>().Object,
+                new BookCopyService(copies.Object, books.Object));
+
+            vm.SearchText = "An";
+            Assert.Single(vm.ActiveBorrowings);
+            vm.SearchText = "Clean Code";
+            Assert.Single(vm.ActiveBorrowings);
+
+            vm.SearchText = barcode;
+            vm.SearchEnterCommand.Execute(null);
             Assert.Equal(9, vm.SelectedRow!.BorrowId);
             Assert.Equal("An", vm.SelectedRow.ReaderName);
             Assert.Single(vm.ActiveBorrowings);
             Assert.True(vm.ReturnCommand.CanExecute(null));
-            vm.IsBusy = true;
-            Assert.False(vm.ReturnCommand.CanExecute(null));
-            vm.IsBusy = false;
-            vm.Barcode = "unknown";
-            vm.LookupBarcodeCommand.Execute(null);
+            circulation.Verify(x => x.ReturnBook(It.IsAny<int>(), It.IsAny<ReturnCondition>(), It.IsAny<string?>()), Times.Never);
+            circulation.Verify(x => x.ReturnBookByBarcode(It.IsAny<string>(), It.IsAny<ReturnCondition>(), It.IsAny<string?>()), Times.Never);
+
+            vm.SearchText = "BK-999999";
+            vm.SearchEnterCommand.Execute(null);
             Assert.Null(vm.SelectedRow);
-            Assert.False(vm.ReturnCommand.CanExecute(null));
-            Assert.Contains("không tồn tại", vm.LookupMessage);
+            Assert.Empty(vm.ActiveBorrowings);
+            Assert.Contains("Không tìm thấy barcode", vm.SearchErrorMessage);
+
+            vm.SearchText = "BK-000003";
+            vm.SearchEnterCommand.Execute(null);
+            Assert.Null(vm.SelectedRow);
+            Assert.Contains("Không có phiếu mượn đang hoạt động", vm.SearchErrorMessage);
         });
     }
 
