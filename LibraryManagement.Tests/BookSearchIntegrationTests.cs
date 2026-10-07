@@ -13,6 +13,8 @@ public sealed class BookSearchIntegrationTests : IClassFixture<SqlIntegrationFix
     public void BookSearch_CombinesFiltersPagingStableSortAndGlobalMetrics()
     {
         var service = new BookService();
+        const string testTitlePrefix = "Page Book ";
+        var baselineMetrics = service.GetActiveCatalogMetrics();
         var created = new List<Book>();
         for (int index = 1; index <= 60; index++)
         {
@@ -43,9 +45,9 @@ public sealed class BookSearchIntegrationTests : IClassFixture<SqlIntegrationFix
         copies.RetireCopy(copies.GetCopies(created[59].BookId).Single().CopyId);
         service.ArchiveBook(created[59].BookId);
 
-        var first = service.GetPagedBooks(new BookSearchQuery { PageNumber = 1, PageSize = 25 });
-        var second = service.GetPagedBooks(new BookSearchQuery { PageNumber = 2, PageSize = 25 });
-        var last = service.GetPagedBooks(new BookSearchQuery { PageNumber = 3, PageSize = 25 });
+        var first = service.GetPagedBooks(new BookSearchQuery { SearchText = testTitlePrefix, PageNumber = 1, PageSize = 25 });
+        var second = service.GetPagedBooks(new BookSearchQuery { SearchText = testTitlePrefix, PageNumber = 2, PageSize = 25 });
+        var last = service.GetPagedBooks(new BookSearchQuery { SearchText = testTitlePrefix, PageNumber = 3, PageSize = 25 });
 
         Assert.Equal(59, first.TotalCount);
         Assert.Equal(3, first.TotalPages);
@@ -55,7 +57,7 @@ public sealed class BookSearchIntegrationTests : IClassFixture<SqlIntegrationFix
         Assert.Equal(3, last.PageNumber);
         Assert.Equal(9, last.Items.Count);
 
-        var pagePastEnd = service.GetPagedBooks(new BookSearchQuery { PageNumber = 99, PageSize = 25 });
+        var pagePastEnd = service.GetPagedBooks(new BookSearchQuery { SearchText = testTitlePrefix, PageNumber = 99, PageSize = 25 });
         Assert.Equal(3, pagePastEnd.PageNumber);
         Assert.Equal(9, pagePastEnd.Items.Count);
 
@@ -76,22 +78,25 @@ public sealed class BookSearchIntegrationTests : IClassFixture<SqlIntegrationFix
             Assert.Equal("Robert C. Martin", book.Author);
         });
 
-        Assert.Equal(59, service.GetPagedBooks(new BookSearchQuery { Status = BookStatusFilter.Active }).TotalCount);
-        Assert.Equal(1, service.GetPagedBooks(new BookSearchQuery { Status = BookStatusFilter.Archived }).TotalCount);
-        Assert.Equal(60, service.GetPagedBooks(new BookSearchQuery { Status = BookStatusFilter.All }).TotalCount);
-        Assert.Equal(29, service.GetPagedBooks(new BookSearchQuery { LanguageCode = "en" }).TotalCount);
-        Assert.Equal(19, service.GetPagedBooks(new BookSearchQuery { Publisher = "Publisher A" }).TotalCount);
-        Assert.Equal(29, service.GetPagedBooks(new BookSearchQuery { Author = "Robert C. Martin" }).TotalCount);
-        Assert.Equal(30, service.GetPagedBooks(new BookSearchQuery { Author = "Martin Fowler" }).TotalCount);
-        Assert.Equal(40, service.GetPagedBooks(new BookSearchQuery { PublishYearFrom = 2010 }).TotalCount);
-        Assert.Equal(15, service.GetPagedBooks(new BookSearchQuery { PublishYearTo = 2005 }).TotalCount);
-        Assert.Equal(11, service.GetPagedBooks(new BookSearchQuery { PublishYearFrom = 2010, PublishYearTo = 2020 }).TotalCount);
-        Assert.Equal(15, service.GetPagedBooks(new BookSearchQuery { MinBookPrice = 20m }).TotalCount);
-        Assert.Equal(29, service.GetPagedBooks(new BookSearchQuery { MaxBookPrice = 10m }).TotalCount);
-        Assert.Equal(29, service.GetPagedBooks(new BookSearchQuery { MinBookPrice = 10m, MaxBookPrice = 10m }).TotalCount);
-        Assert.Equal(44, service.GetPagedBooks(new BookSearchQuery { MinBookPrice = 0m }).TotalCount);
-        Assert.Equal(new[] { "Publisher A", "Publisher B" }, service.GetPublisherFilterOptions().Skip(1).Select(option => option.Value));
-        Assert.Equal(new[] { "Martin Fowler", "Robert C. Martin" }, service.GetDistinctAuthors());
+        Assert.Equal(59, service.GetPagedBooks(new BookSearchQuery { SearchText = testTitlePrefix, Status = BookStatusFilter.Active }).TotalCount);
+        Assert.Equal(1, service.GetPagedBooks(new BookSearchQuery { SearchText = testTitlePrefix, Status = BookStatusFilter.Archived }).TotalCount);
+        Assert.Equal(60, service.GetPagedBooks(new BookSearchQuery { SearchText = testTitlePrefix, Status = BookStatusFilter.All }).TotalCount);
+        Assert.Equal(29, service.GetPagedBooks(new BookSearchQuery { SearchText = testTitlePrefix, LanguageCode = "en" }).TotalCount);
+        Assert.Equal(19, service.GetPagedBooks(new BookSearchQuery { SearchText = testTitlePrefix, Publisher = "Publisher A" }).TotalCount);
+        Assert.Equal(29, service.GetPagedBooks(new BookSearchQuery { SearchText = testTitlePrefix, Author = "Robert C. Martin" }).TotalCount);
+        Assert.Equal(30, service.GetPagedBooks(new BookSearchQuery { SearchText = testTitlePrefix, Author = "Martin Fowler" }).TotalCount);
+        Assert.Equal(40, service.GetPagedBooks(new BookSearchQuery { SearchText = testTitlePrefix, PublishYearFrom = 2010 }).TotalCount);
+        Assert.Equal(15, service.GetPagedBooks(new BookSearchQuery { SearchText = testTitlePrefix, PublishYearTo = 2005 }).TotalCount);
+        Assert.Equal(11, service.GetPagedBooks(new BookSearchQuery { SearchText = testTitlePrefix, PublishYearFrom = 2010, PublishYearTo = 2020 }).TotalCount);
+        Assert.Equal(15, service.GetPagedBooks(new BookSearchQuery { SearchText = testTitlePrefix, MinBookPrice = 20m }).TotalCount);
+        Assert.Equal(29, service.GetPagedBooks(new BookSearchQuery { SearchText = testTitlePrefix, MaxBookPrice = 10m }).TotalCount);
+        Assert.Equal(29, service.GetPagedBooks(new BookSearchQuery { SearchText = testTitlePrefix, MinBookPrice = 10m, MaxBookPrice = 10m }).TotalCount);
+        Assert.Equal(44, service.GetPagedBooks(new BookSearchQuery { SearchText = testTitlePrefix, MinBookPrice = 0m }).TotalCount);
+        Assert.Contains("Publisher A", service.GetPublisherFilterOptions().Select(option => option.Value));
+        Assert.Contains("Publisher B", service.GetPublisherFilterOptions().Select(option => option.Value));
+        var authors = service.GetDistinctAuthors();
+        Assert.Contains("Martin Fowler", authors);
+        Assert.Contains("Robert C. Martin", authors);
         Assert.Equal(new BookPriceRange(10m, 80m), service.GetBookPriceRange());
 
         var allFiltersCombined = service.GetPagedBooks(new BookSearchQuery
@@ -111,6 +116,7 @@ public sealed class BookSearchIntegrationTests : IClassFixture<SqlIntegrationFix
 
         var byYear = service.GetPagedBooks(new BookSearchQuery
         {
+            SearchText = testTitlePrefix,
             PageSize = 100,
             SortBy = "PublishYear",
             SortDirection = "ASC"
@@ -120,6 +126,7 @@ public sealed class BookSearchIntegrationTests : IClassFixture<SqlIntegrationFix
 
         var byRecent = service.GetPagedBooks(new BookSearchQuery
         {
+            SearchText = testTitlePrefix,
             PageSize = 100,
             SortBy = "CreatedAt",
             SortDirection = "DESC"
@@ -137,8 +144,8 @@ public sealed class BookSearchIntegrationTests : IClassFixture<SqlIntegrationFix
         Assert.Equal(1, empty.TotalPages);
 
         var metrics = service.GetActiveCatalogMetrics();
-        Assert.Equal(59, metrics.TotalBooks);
-        Assert.Equal(58, metrics.AvailableBooks);
-        Assert.Equal(1, metrics.BorrowedBooks);
+        Assert.Equal(59, metrics.TotalBooks - baselineMetrics.TotalBooks);
+        Assert.Equal(58, metrics.AvailableBooks - baselineMetrics.AvailableBooks);
+        Assert.Equal(1, metrics.BorrowedBooks - baselineMetrics.BorrowedBooks);
     }
 }
