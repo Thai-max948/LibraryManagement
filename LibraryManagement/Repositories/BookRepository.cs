@@ -1,4 +1,4 @@
-    using System;
+using System;
 using System.Collections.Generic;
 using System.Data;
 using LibraryManagement.Data;
@@ -31,14 +31,14 @@ namespace LibraryManagement.Repositories
                 if (archived && !hasStatus) return books;
                 using (var cmd = new SqlCommand(sql, conn))
                 {
-                if (!includeArchived && hasStatus) cmd.Parameters.AddWithValue("@Status", archived ? BookStatuses.Archived : BookStatuses.Active);
-                using (var reader = cmd.ExecuteReader())
-                {
-                    while (reader.Read())
+                    if (!includeArchived && hasStatus) cmd.Parameters.AddWithValue("@Status", archived ? BookStatuses.Archived : BookStatuses.Active);
+                    using (var reader = cmd.ExecuteReader())
                     {
-                        books.Add(BookDataMapper.Map(reader));
+                        while (reader.Read())
+                        {
+                            books.Add(BookDataMapper.Map(reader));
+                        }
                     }
-                }
                 }
             }
             return books;

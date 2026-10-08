@@ -8,11 +8,13 @@ Thư mục mã nguồn chính:
 
 - Views: XAML và code-behind cho giao diện.
 - ViewModels: state và command cho màn hình.
-- Services: điều phối nghiệp vụ, kiểm tra quy tắc và transaction.
+- Services: điều phối nghiệp vụ, kiểm tra quy tắc và transaction; nhóm file theo module khi module có nhiều file.
 - Repositories: SQL và ánh xạ dữ liệu.
-- Data: kết nối database và schema migrations.
-- Models: entity, request, result, query và policy.
+- Data: kết nối database và điều phối khởi động; các migration cụ thể nằm trong Data/Migrations.
+- Models: entity, request, result, query và policy, nhóm theo module.
 - Commands, Converters, Helpers, Properties: tiện ích WPF và assembly metadata.
+
+Xem [cấu trúc dự án](project-structure.md) để chọn vị trí đặt file. Các nhóm thư mục chỉ tổ chức file; namespace và hướng phụ thuộc hiện tại được giữ nguyên.
 
 ## Hướng gọi
 

@@ -111,11 +111,16 @@ namespace LibraryManagement.ViewModels
                 var reader = _readerService.GetReaderById(loan.ReaderId);
                 var row = new ActiveBorrowRow
                 {
-                    BorrowId = loan.BorrowId, BookId = loan.BookId, BookCopyId = loan.BookCopyId,
-                    CopyBarcode = barcode, IsBarcodeScan = true, BookTitle = book?.Title ?? "?",
+                    BorrowId = loan.BorrowId,
+                    BookId = loan.BookId,
+                    BookCopyId = loan.BookCopyId,
+                    CopyBarcode = barcode,
+                    IsBarcodeScan = true,
+                    BookTitle = book?.Title ?? "?",
                     ReaderName = reader?.FullName ?? "?",
                     BorrowDate = loan.BorrowDate.ToString("dd/MM/yyyy"),
-                    DueDate = loan.DueDate.ToString("dd/MM/yyyy"), BorrowDateValue = loan.BorrowDate,
+                    DueDate = loan.DueDate.ToString("dd/MM/yyyy"),
+                    BorrowDateValue = loan.BorrowDate,
                     OverdueDays = _borrowService.GetCurrentLateDays(loan.DueDate)
                 };
                 ActiveBorrowings.Clear();

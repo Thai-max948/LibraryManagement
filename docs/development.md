@@ -32,5 +32,6 @@ SQL integration nằm ngoài phạm vi xác minh mặc định của thay đổi
 - Service sở hữu điều phối nghiệp vụ/transaction; Repository không tham chiếu View hoặc WPF. Giữ các lazy compatibility guards hiện có khi cần tương thích.
 - Dùng IUserDialogService cho tương tác dialog của luồng mới; adapter WPF nằm trong Views.
 - Giữ ViewModel trong folder hiện tại, các service trong Services, persistence trong Repositories và migration trong Data. Không tạo Domain/Application/Infrastructure/Features chỉ để tổ chức lại.
+- Trong Models và Services, dùng nhóm module hiện có; migration cụ thể đặt trong Data/Migrations. Test đặt theo module trong LibraryManagement.Tests; helper dùng chung ở Support. Xem [cấu trúc dự án](project-structure.md).
 - Tìm module gần nhất trong docs/modules.md; đặt unit test cạnh nhóm test hiện hành. Chỉ dùng SQL integration khi cần xác minh SQL/persistence.
 - Trước khi xóa API legacy, migration helper, snapshot field hay idempotency check, tìm tất cả caller và kiểm tra ghi chú tương thích trong docs/architecture.md.

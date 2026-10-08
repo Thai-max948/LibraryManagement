@@ -30,9 +30,16 @@ public sealed class NotificationRepository : INotificationRepository
         catch (SqlException exception) when (idempotencyKey != null && exception.Number is 2601 or 2627) { return null; }
         return new Notification
         {
-            Id = id, Title = notification.Title, Message = notification.Message, Type = notification.Type,
-            SourceModule = notification.SourceModule, SourceEntityType = notification.SourceEntityType,
-            SourceEntityId = notification.SourceEntityId, IdempotencyKey = idempotencyKey, CreatedAt = notification.CreatedAt, IsRead = false
+            Id = id,
+            Title = notification.Title,
+            Message = notification.Message,
+            Type = notification.Type,
+            SourceModule = notification.SourceModule,
+            SourceEntityType = notification.SourceEntityType,
+            SourceEntityId = notification.SourceEntityId,
+            IdempotencyKey = idempotencyKey,
+            CreatedAt = notification.CreatedAt,
+            IsRead = false
         };
     }
 
@@ -98,11 +105,15 @@ public sealed class NotificationRepository : INotificationRepository
 
     private static Notification MapNotification(SqlDataReader reader) => new()
     {
-        Id = reader.GetInt32(0), Title = reader.GetString(1), Message = reader.GetString(2),
-        Type = (NotificationType)reader.GetInt32(3), SourceModule = reader.GetString(4),
+        Id = reader.GetInt32(0),
+        Title = reader.GetString(1),
+        Message = reader.GetString(2),
+        Type = (NotificationType)reader.GetInt32(3),
+        SourceModule = reader.GetString(4),
         SourceEntityType = reader.IsDBNull(5) ? null : reader.GetString(5),
         SourceEntityId = reader.IsDBNull(6) ? null : reader.GetString(6),
-        CreatedAt = reader.GetDateTime(7), IsRead = reader.GetBoolean(8)
+        CreatedAt = reader.GetDateTime(7),
+        IsRead = reader.GetBoolean(8)
     };
 
     public async Task<int> GetUnreadCountAsync(CancellationToken cancellationToken = default)

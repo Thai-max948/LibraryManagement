@@ -38,8 +38,12 @@ public class NotificationItemViewModel : BaseViewModel
 
     public static NotificationItemViewModel FromNotification(Notification notification) => new()
     {
-        Id = notification.Id, Title = notification.Title, Message = notification.Message,
-        Type = notification.Type, SourceModule = notification.SourceModule,
-        CreatedAt = notification.CreatedAt.ToLocalTime(), IsRead = notification.IsRead
+        Id = notification.Id,
+        Title = notification.Title,
+        Message = notification.Message,
+        Type = notification.Type,
+        SourceModule = notification.SourceModule,
+        CreatedAt = notification.CreatedAt.ToLocalTime(),
+        IsRead = notification.IsRead
     };
 }

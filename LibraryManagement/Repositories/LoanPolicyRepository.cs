@@ -22,8 +22,10 @@ public class LoanPolicyRepository
         using var reader = command.ExecuteReader();
         return reader.Read() ? new LoanPolicy
         {
-            LoanPolicyId = reader.GetInt32(0), ReaderType = reader.GetString(1),
-            LoanPeriodDays = reader.GetInt32(2), IsActive = reader.GetBoolean(3)
+            LoanPolicyId = reader.GetInt32(0),
+            ReaderType = reader.GetString(1),
+            LoanPeriodDays = reader.GetInt32(2),
+            IsActive = reader.GetBoolean(3)
         } : null;
     }
 }

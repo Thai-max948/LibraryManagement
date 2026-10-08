@@ -23,6 +23,9 @@ SQL integration tests do người dùng/môi trường quản lý. Xem [hướng
 
 ## Tài liệu
 
+- [Cấu trúc dự án và quy tắc đặt file](docs/project-structure.md)
 - [Kiến trúc và các luồng chính](docs/architecture.md)
 - [Bản đồ module](docs/modules.md)
 - [Hướng dẫn phát triển](docs/development.md)
+- [Quy ước viết mã](docs/coding-conventions.md)
+- [Báo cáo kiểm tra trước đây](docs/audits/README.md)

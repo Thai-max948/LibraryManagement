@@ -3,6 +3,7 @@
 [Oo]bj/
 _buildcheck/
 _objcheck/
+[Tt]est[Rr]esults/
 
 ## Visual Studio
 .vs/

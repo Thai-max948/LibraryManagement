@@ -185,12 +185,20 @@ ORDER BY b.BookId;";
             !bookCopies.Any(copy => copy.CopyId == loan.BookCopyId));
         return new InventoryCheckRow
         {
-            BookId = bookId, Title = title, StoredQuantity = storedQuantity, StoredAvailable = storedAvailable,
-            TotalCurrent = inventory.TotalCopies, AvailableCurrent = inventory.Available,
-            Borrowed = inventory.Borrowed, DamagedUnderRepair = inventory.DamagedUnderRepair,
-            Lost = inventory.Lost, Retired = inventory.Retired,
-            DerivedQuantity = inventory.ActiveCopies, DerivedAvailable = inventory.Available,
-            UnresolvedLegacyLoans = bookLoans.Count(loan => !loan.BookCopyId.HasValue), InconsistentCopies = inconsistent
+            BookId = bookId,
+            Title = title,
+            StoredQuantity = storedQuantity,
+            StoredAvailable = storedAvailable,
+            TotalCurrent = inventory.TotalCopies,
+            AvailableCurrent = inventory.Available,
+            Borrowed = inventory.Borrowed,
+            DamagedUnderRepair = inventory.DamagedUnderRepair,
+            Lost = inventory.Lost,
+            Retired = inventory.Retired,
+            DerivedQuantity = inventory.ActiveCopies,
+            DerivedAvailable = inventory.Available,
+            UnresolvedLegacyLoans = bookLoans.Count(loan => !loan.BookCopyId.HasValue),
+            InconsistentCopies = inconsistent
         };
     }
 }

@@ -10,7 +10,7 @@ namespace LibraryManagement.ViewModels
     {
         private readonly AuthService _authService;
 
-        private string _signInEmailOrUsername="";
+        private string _signInEmailOrUsername = "";
         public string SignInEmailOrUsername
         {
             get => _signInEmailOrUsername;

@@ -631,8 +631,10 @@ namespace LibraryManagement.Repositories
             using var reader = command.ExecuteReader();
             while (reader.Read()) records.Add(new BorrowRecord
             {
-                BorrowId = reader.GetInt32(0), ReaderId = reader.GetInt32(1),
-                DueDate = reader.GetDateTime(2), Status = reader.GetString(3)
+                BorrowId = reader.GetInt32(0),
+                ReaderId = reader.GetInt32(1),
+                DueDate = reader.GetDateTime(2),
+                Status = reader.GetString(3)
             });
             return records;
         }
