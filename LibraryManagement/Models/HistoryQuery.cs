@@ -2,12 +2,14 @@ namespace LibraryManagement.Models;
 
 public sealed class HistoryQuery
 {
+    public const int DefaultPageSize = 8;
+
     public string SearchText { get; init; } = string.Empty;
     public string Status { get; init; } = "All";
     public DateTime? FromDate { get; init; }
     public DateTime? ToDate { get; init; }
     public int PageNumber { get; init; } = 1;
-    public int PageSize { get; init; } = 50;
+    public int PageSize { get; init; } = DefaultPageSize;
 }
 
 public sealed class HistoryRecordDto
@@ -36,7 +38,7 @@ public sealed class HistoryPage
 {
     public IReadOnlyList<HistoryRecordDto> Records { get; init; } = Array.Empty<HistoryRecordDto>();
     public int PageNumber { get; init; } = 1;
-    public int PageSize { get; init; } = 50;
+    public int PageSize { get; init; } = HistoryQuery.DefaultPageSize;
     public int TotalCount { get; init; }
     public int OverdueCount { get; init; }
     public int TotalPages => Math.Max(1, (int)Math.Ceiling((double)TotalCount / Math.Max(1, PageSize)));

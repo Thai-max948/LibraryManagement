@@ -1,4 +1,6 @@
 using System.Collections.ObjectModel;
+using System.Threading;
+using System.Threading.Tasks;
 using System.Windows.Input;
 using LibraryManagement.Commands;
 using LibraryManagement.Models;
@@ -8,7 +10,10 @@ namespace LibraryManagement.ViewModels;
 
 public class HistoryViewModel : BaseViewModel
 {
+    private const int SearchDebounceMilliseconds = 300;
+
     private readonly HistoryService _historyService;
+    private CancellationTokenSource? _searchDebounceCts;
     private string _searchText = string.Empty;
     private string _selectedStatus = "All";
     private DateTime? _fromDate;
@@ -26,7 +31,14 @@ public class HistoryViewModel : BaseViewModel
     public string SearchText
     {
         get => _searchText;
-        set { if (SetProperty(ref _searchText, value ?? string.Empty)) ResetAndLoad(); }
+        set
+        {
+            if (!SetProperty(ref _searchText, value ?? string.Empty)) return;
+            PageNumber = 1;
+            OnPropertyChanged(nameof(HasPreviousPage));
+            OnPropertyChanged(nameof(HasNextPage));
+            ScheduleSearch();
+        }
     }
 
     public string SelectedStatus
@@ -50,7 +62,12 @@ public class HistoryViewModel : BaseViewModel
     public int PageNumber
     {
         get => _pageNumber;
-        private set { if (SetProperty(ref _pageNumber, value)) OnPropertyChanged(nameof(PageSummary)); }
+        private set
+        {
+            if (!SetProperty(ref _pageNumber, value)) return;
+            OnPropertyChanged(nameof(PageSummary));
+            OnPropertyChanged(nameof(RecordsSummary));
+        }
     }
 
     public int TotalPages
@@ -62,7 +79,12 @@ public class HistoryViewModel : BaseViewModel
     public int TotalCount
     {
         get => _totalCount;
-        private set { if (SetProperty(ref _totalCount, value)) OnPropertyChanged(nameof(PageSummary)); }
+        private set
+        {
+            if (!SetProperty(ref _totalCount, value)) return;
+            OnPropertyChanged(nameof(PageSummary));
+            OnPropertyChanged(nameof(RecordsSummary));
+        }
     }
 
     public int OverdueCount
@@ -74,7 +96,19 @@ public class HistoryViewModel : BaseViewModel
     public bool HasOverdue => OverdueCount > 0;
     public bool HasPreviousPage => PageNumber > 1;
     public bool HasNextPage => PageNumber < TotalPages;
-    public string PageSummary => $"Page {PageNumber} of {TotalPages} · {TotalCount} records";
+    public string PageSummary => $"Page {PageNumber} / {TotalPages}";
+    public string RecordsSummary
+    {
+        get
+        {
+            if (TotalCount == 0 || Records.Count == 0) return $"Showing 0 of {TotalCount}";
+            int firstRecord = ((PageNumber - 1) * HistoryService.DefaultPageSize) + 1;
+            int lastRecord = Math.Min(TotalCount, firstRecord + Records.Count - 1);
+            return $"Showing {firstRecord}–{lastRecord} of {TotalCount}";
+        }
+    }
+
+    public double GridHeight => Records.Count == 0 ? 110 : Math.Min(326, 38 + (Records.Count * 36));
 
     public string ErrorMessage
     {
@@ -116,6 +150,7 @@ public class HistoryViewModel : BaseViewModel
     private void ChangePage(int pageNumber)
     {
         if (pageNumber < 1 || pageNumber > TotalPages) return;
+        SelectedRecord = null;
         PageNumber = pageNumber;
         OnPropertyChanged(nameof(HasPreviousPage));
         OnPropertyChanged(nameof(HasNextPage));
@@ -138,12 +173,15 @@ public class HistoryViewModel : BaseViewModel
         Load();
     }
 
-    private void Load()
+    private void Load(bool allowPageClampRetry = true)
     {
+        CancelPendingSearch();
         if (FromDate.HasValue && ToDate.HasValue && FromDate.Value.Date > ToDate.Value.Date)
         {
             ErrorMessage = "From date must be on or before To date.";
             Records.Clear();
+            OnPropertyChanged(nameof(GridHeight));
+            OnPropertyChanged(nameof(RecordsSummary));
             TotalCount = 0;
             TotalPages = 1;
             OnPropertyChanged(nameof(HasPreviousPage));
@@ -165,6 +203,8 @@ public class HistoryViewModel : BaseViewModel
                 PageSize = HistoryService.DefaultPageSize
             });
 
+            int? selectedBorrowId = SelectedRecord?.BorrowId;
+            SelectedRecord = null;
             Records.Clear();
             foreach (var item in page.Records)
             {
@@ -191,28 +231,74 @@ public class HistoryViewModel : BaseViewModel
                 });
             }
 
+            OnPropertyChanged(nameof(GridHeight));
+            OnPropertyChanged(nameof(RecordsSummary));
             TotalCount = page.TotalCount;
             TotalPages = page.TotalPages;
             OverdueCount = page.OverdueCount;
             if (PageNumber > TotalPages)
             {
                 PageNumber = TotalPages;
-                Load();
+                if (allowPageClampRetry)
+                {
+                    Load(allowPageClampRetry: false);
+                    return;
+                }
+                OnPropertyChanged(nameof(HasPreviousPage));
+                OnPropertyChanged(nameof(HasNextPage));
                 return;
             }
             OnPropertyChanged(nameof(HasPreviousPage));
             OnPropertyChanged(nameof(HasNextPage));
-            SelectedRecord = Records.FirstOrDefault();
+            if (selectedBorrowId.HasValue)
+                SelectedRecord = Records.FirstOrDefault(record => record.BorrowId == selectedBorrowId.Value);
         }
         catch (Exception ex)
         {
             ErrorMessage = "Could not load History: " + ex.Message;
             Records.Clear();
+            OnPropertyChanged(nameof(GridHeight));
+            OnPropertyChanged(nameof(RecordsSummary));
             TotalCount = 0;
             TotalPages = 1;
             SelectedRecord = null;
             OnPropertyChanged(nameof(HasPreviousPage));
             OnPropertyChanged(nameof(HasNextPage));
+        }
+    }
+
+    private void ScheduleSearch()
+    {
+        CancelPendingSearch();
+        var debounceCts = new CancellationTokenSource();
+        _searchDebounceCts = debounceCts;
+        _ = DebounceSearchAsync(debounceCts);
+    }
+
+    private void CancelPendingSearch()
+    {
+        var pendingCts = _searchDebounceCts;
+        _searchDebounceCts = null;
+        pendingCts?.Cancel();
+    }
+
+    private async Task DebounceSearchAsync(CancellationTokenSource debounceCts)
+    {
+        try
+        {
+            await Task.Delay(SearchDebounceMilliseconds, debounceCts.Token);
+            if (!ReferenceEquals(_searchDebounceCts, debounceCts)) return;
+
+            _searchDebounceCts = null;
+            Load();
+        }
+        catch (OperationCanceledException)
+        {
+            // Explicit History actions cancel a pending text search and load immediately.
+        }
+        finally
+        {
+            debounceCts.Dispose();
         }
     }
 

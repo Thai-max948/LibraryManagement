@@ -70,7 +70,20 @@ public sealed class FeesViewModel : BaseViewModel
         CancelCommand = new RelayCommand(async _ => await CancelAsync(), _ => CanCancel);
     }
 
-    public bool IsLoading { get => _isLoading; private set { if (SetProperty(ref _isLoading, value)) NotifyCommands(); } }
+    public bool IsLoading
+    {
+        get => _isLoading;
+        private set
+        {
+            if (!SetProperty(ref _isLoading, value)) return;
+            OnPropertyChanged(nameof(CanRecordPayment));
+            OnPropertyChanged(nameof(CanWaive));
+            OnPropertyChanged(nameof(CanCancel));
+            OnPropertyChanged(nameof(CanEnterWaiveReason));
+            OnPropertyChanged(nameof(CanEnterCancelReason));
+            NotifyCommands();
+        }
+    }
     public string SearchText { get => _searchText; set => SetProperty(ref _searchText, value); }
     public string StatusMessage { get => _statusMessage; private set => SetProperty(ref _statusMessage, value); }
     public string ErrorMessage { get => _errorMessage; private set => SetProperty(ref _errorMessage, value); }
@@ -83,10 +96,20 @@ public sealed class FeesViewModel : BaseViewModel
         get => _selectedFee;
         set
         {
+            int? previousFeeId = _selectedFee?.FeeId;
             if (!SetProperty(ref _selectedFee, value)) return;
+            if (previousFeeId != value?.FeeId)
+            {
+                PaymentAmount = string.Empty;
+                PaymentNote = string.Empty;
+                WaiveReason = string.Empty;
+                CancelReason = string.Empty;
+            }
             OnPropertyChanged(nameof(CanRecordPayment));
             OnPropertyChanged(nameof(CanWaive));
             OnPropertyChanged(nameof(CanCancel));
+            OnPropertyChanged(nameof(CanEnterWaiveReason));
+            OnPropertyChanged(nameof(CanEnterCancelReason));
             NotifyCommands();
             _ = LoadSelectedFeeDetailsAsync(value);
         }
@@ -104,6 +127,8 @@ public sealed class FeesViewModel : BaseViewModel
     public bool CanRecordPayment => !IsLoading && SelectedFee is { Remaining: > 0m } fee && FeeStateRules.CanRecordPayment(fee);
     public bool CanWaive => !IsLoading && SelectedFee is { } fee && FeeStateRules.CanWaive(fee) && !string.IsNullOrWhiteSpace(WaiveReason);
     public bool CanCancel => !IsLoading && SelectedFee is { } fee && FeeStateRules.CanCancel(fee) && !string.IsNullOrWhiteSpace(CancelReason);
+    public bool CanEnterWaiveReason => !IsLoading && SelectedFee is { } fee && FeeStateRules.CanWaive(fee);
+    public bool CanEnterCancelReason => !IsLoading && SelectedFee is { } fee && FeeStateRules.CanCancel(fee);
 
     public Task LoadAsync() => LoadAsync(allowBusy: false);
 

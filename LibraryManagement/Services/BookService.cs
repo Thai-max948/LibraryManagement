@@ -68,10 +68,7 @@ namespace LibraryManagement.Services
 
             RejectDuplicateIsbn(book);
 
-            var activeLoans = _borrowRepo.GetBorrowingRecords();
-            int borrowing = activeLoans == null
-                ? existing.Quantity - existing.AvailableQuantity
-                : activeLoans.Count(record => record.BookId == book.BookId);
+            int borrowing = _borrowRepo.CountActiveBorrowsByBook(book.BookId);
             if (book.Quantity < borrowing)
             {
                 throw new BusinessRuleException($"Không thể đặt Quantity nhỏ hơn số đang được mượn ({borrowing}).");
@@ -116,6 +113,26 @@ namespace LibraryManagement.Services
         public List<Book> SearchBook(string keyword)
         {
             return string.IsNullOrWhiteSpace(keyword) ? _bookRepo.GetAll() : _bookRepo.Search(keyword);
+        }
+
+        public IReadOnlyList<BorrowBookSuggestion> SearchForBorrow(string? query, int limit = 10)
+        {
+            string normalizedQuery = query?.Trim() ?? string.Empty;
+            if (normalizedQuery.Length < 2) return Array.Empty<BorrowBookSuggestion>();
+
+            return _bookRepo.SearchForBorrow(normalizedQuery, Math.Clamp(limit, 1, 20));
+        }
+
+        public BorrowRecommendationPage<BorrowBookSuggestion> SearchForBorrow(
+            string? query, int pageNumber, int pageSize)
+        {
+            string normalizedQuery = query?.Trim() ?? string.Empty;
+            pageNumber = Math.Max(1, pageNumber);
+            pageSize = Math.Clamp(pageSize, 1, 20);
+            if (normalizedQuery.Length == 1)
+                return new BorrowRecommendationPage<BorrowBookSuggestion>(Array.Empty<BorrowBookSuggestion>(), false);
+
+            return _bookRepo.SearchForBorrow(normalizedQuery, pageNumber, pageSize);
         }
 
         public List<Book> GetAllBooks()

@@ -178,6 +178,10 @@ IF NOT EXISTS (SELECT 1 FROM sys.indexes
     WHERE object_id = OBJECT_ID('dbo.BookCopies') AND name = 'UX_BookCopies_Barcode_NotNull')
     CREATE UNIQUE INDEX UX_BookCopies_Barcode_NotNull
         ON dbo.BookCopies(Barcode) WHERE Barcode IS NOT NULL;
+IF NOT EXISTS (SELECT 1 FROM sys.indexes
+    WHERE object_id = OBJECT_ID('dbo.BookCopies') AND name = 'IX_BookCopies_BookId_Status')
+    CREATE INDEX IX_BookCopies_BookId_Status
+        ON dbo.BookCopies(BookId, Status);
 COMMIT TRANSACTION;
 END TRY
 BEGIN CATCH
@@ -195,6 +199,8 @@ BEGIN
         ReaderType NVARCHAR(50) NOT NULL DEFAULT 'Student',
         StudentId NVARCHAR(50) NULL,
         IdentityNumber NVARCHAR(50) NULL,
+        LecturerCode NVARCHAR(50) COLLATE Latin1_General_100_CI_AS NULL,
+        Department NVARCHAR(150) NULL,
         Phone NVARCHAR(20) NULL,
         Email NVARCHAR(150) NULL,
         Address NVARCHAR(255) NULL,
@@ -214,6 +220,10 @@ BEGIN
         ALTER TABLE Readers ADD StudentId NVARCHAR(50) NULL;
     IF NOT EXISTS (SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'Readers' AND COLUMN_NAME = 'IdentityNumber')
         ALTER TABLE Readers ADD IdentityNumber NVARCHAR(50) NULL;
+    IF COL_LENGTH('dbo.Readers', 'LecturerCode') IS NULL
+        ALTER TABLE dbo.Readers ADD LecturerCode NVARCHAR(50) COLLATE Latin1_General_100_CI_AS NULL;
+    IF COL_LENGTH('dbo.Readers', 'Department') IS NULL
+        ALTER TABLE dbo.Readers ADD Department NVARCHAR(150) NULL;
     IF NOT EXISTS (SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'Readers' AND COLUMN_NAME = 'Address')
         ALTER TABLE Readers ADD Address NVARCHAR(255) NULL;
     IF NOT EXISTS (SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'Readers' AND COLUMN_NAME = 'RegistrationDate')
@@ -231,6 +241,13 @@ BEGIN
 END
 GO
 
+IF NOT EXISTS (SELECT 1 FROM sys.indexes
+    WHERE object_id = OBJECT_ID('dbo.Readers') AND name = 'UX_Readers_LecturerCode_Active')
+    CREATE UNIQUE INDEX UX_Readers_LecturerCode_Active
+        ON dbo.Readers(LecturerCode)
+        WHERE ReaderType = N'Lecturer' AND LecturerCode IS NOT NULL AND IsDeleted = 0;
+GO
+
 -- 4. BẢNG BORROWRECORDS (Phiếu mượn/trả sách)
 IF OBJECT_ID('dbo.LoanPolicies', 'U') IS NULL
 BEGIN
@@ -243,8 +260,13 @@ BEGIN
         CONSTRAINT CK_LoanPolicies_LoanPeriodDays CHECK (LoanPeriodDays > 0)
     );
     INSERT INTO dbo.LoanPolicies (ReaderType, LoanPeriodDays)
-    VALUES ('Student', 14), ('External', 7);
+    VALUES ('Student', 14), ('Lecturer', 28), ('External', 7);
 END
+GO
+
+IF OBJECT_ID('dbo.LoanPolicies', 'U') IS NOT NULL
+   AND NOT EXISTS (SELECT 1 FROM dbo.LoanPolicies WHERE ReaderType = N'Lecturer')
+    INSERT INTO dbo.LoanPolicies (ReaderType, LoanPeriodDays) VALUES (N'Lecturer', 28);
 GO
 
 IF NOT EXISTS (SELECT * FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 'BorrowRecords')
@@ -477,6 +499,10 @@ DEALLOCATE books_needing_review;
 
 -- Preserve legacy snapshots. Current counts are read from physical copies;
 -- drift detection reports differences without silently rewriting old data.
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id = OBJECT_ID('dbo.BorrowRecords')
+    AND name = 'IX_BorrowRecords_ReaderId_Status')
+    CREATE INDEX IX_BorrowRecords_ReaderId_Status
+        ON dbo.BorrowRecords(ReaderId, Status) INCLUDE (DueDate);
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id = OBJECT_ID('dbo.BorrowRecords')
     AND name = 'UX_BorrowRecords_ActiveCopy')
     CREATE UNIQUE INDEX UX_BorrowRecords_ActiveCopy ON dbo.BorrowRecords(CopyId)

@@ -16,6 +16,16 @@ namespace LibraryManagement.Models
 
         public string? IdentityNumber { get; set; }
 
+        public string? LecturerCode { get; set; }
+
+        public string? Department { get; set; }
+
+        public string IdentificationLabel => IsExternal
+            ? "Số CCCD / Định danh"
+            : IsLecturer ? "Mã giảng viên" : "Mã sinh viên";
+
+        public string DisplayDepartment => string.IsNullOrWhiteSpace(Department) ? "-" : Department.Trim();
+
         public string DisplayIdentification
         {
             get
@@ -33,6 +43,9 @@ namespace LibraryManagement.Models
                     }
                     return new string('*', trimmed.Length - 3) + trimmed[^3..];
                 }
+
+                if (IsLecturer)
+                    return string.IsNullOrWhiteSpace(LecturerCode) ? "-" : LecturerCode.Trim();
 
                 return string.IsNullOrWhiteSpace(StudentId) ? "-" : StudentId.Trim();
             }
@@ -69,6 +82,8 @@ namespace LibraryManagement.Models
         public bool IsActive => string.Equals(Status, "Active", StringComparison.OrdinalIgnoreCase);
 
         public bool IsStudent => string.Equals(ReaderType, "Student", StringComparison.OrdinalIgnoreCase);
+
+        public bool IsLecturer => string.Equals(ReaderType, "Lecturer", StringComparison.OrdinalIgnoreCase);
 
         public bool IsExternal => string.Equals(ReaderType, "External", StringComparison.OrdinalIgnoreCase);
     }

@@ -37,6 +37,7 @@
                             <TextBlock Text="Loại độc giả (Reader Type)" FontWeight="SemiBold" Foreground="{StaticResource TextBrush}" Margin="0,0,0,4"/>
                             <ComboBox x:Name="ReaderTypeComboBox" Padding="8,6" SelectionChanged="ReaderType_SelectionChanged" BorderBrush="{StaticResource TechBorderBrush}">
                                 <ComboBoxItem Content="Student" IsSelected="True"/>
+                                <ComboBoxItem Content="Lecturer"/>
                                 <ComboBoxItem Content="External"/>
                             </ComboBox>
                         </StackPanel>
@@ -55,6 +56,13 @@
                     <StackPanel x:Name="IdentityNumberPanel" Visibility="Collapsed">
                         <TextBlock Text="Số CCCD / Định danh (Identity Number) *" FontWeight="SemiBold" Foreground="{StaticResource TextBrush}" Margin="0,0,0,4"/>
                         <TextBox x:Name="IdentityNumberBox" Padding="8,6" Margin="0,0,0,12" BorderBrush="{StaticResource TechBorderBrush}"/>
+                    </StackPanel>
+
+                    <StackPanel x:Name="LecturerInfoPanel" Visibility="Collapsed">
+                        <TextBlock Text="Mã giảng viên (Lecturer Code) *" FontWeight="SemiBold" Foreground="{StaticResource TextBrush}" Margin="0,0,0,4"/>
+                        <TextBox x:Name="LecturerCodeBox" Padding="8,6" Margin="0,0,0,12" BorderBrush="{StaticResource TechBorderBrush}"/>
+                        <TextBlock Text="Khoa / Bộ môn (Department / Faculty)" FontWeight="SemiBold" Foreground="{StaticResource TextBrush}" Margin="0,0,0,4"/>
+                        <TextBox x:Name="DepartmentBox" Padding="8,6" Margin="0,0,0,12" BorderBrush="{StaticResource TechBorderBrush}"/>
                     </StackPanel>
 
                     <!-- Phone & Email in 2 columns -->

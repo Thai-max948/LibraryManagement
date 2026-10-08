@@ -122,6 +122,45 @@ public class FeeRepository : IFeeBalanceReader
         return Convert.ToDecimal(command.ExecuteScalar());
     }
 
+    public virtual decimal GetBlockingOutstandingBalance(SqlConnection connection, SqlTransaction transaction,
+        int readerId)
+    {
+        using var command = CreateBlockingOutstandingBalanceCommand(connection, transaction, readerId);
+        return Convert.ToDecimal(command.ExecuteScalar());
+    }
+
+    public virtual decimal GetBlockingOutstandingBalance(int readerId)
+    {
+        using var connection = Database.GetConnection();
+        connection.Open();
+        using var command = CreateBlockingOutstandingBalanceCommand(connection, null, readerId);
+        return Convert.ToDecimal(command.ExecuteScalar());
+    }
+
+    private static SqlCommand CreateBlockingOutstandingBalanceCommand(SqlConnection connection,
+        SqlTransaction? transaction, int readerId)
+    {
+        string statusParameters = string.Join(", ",
+            Enumerable.Range(0, FeeFinancialStandingRules.OutstandingStatuses.Count)
+                .Select(index => $"@Status{index}"));
+        var command = new SqlCommand($@"SELECT COALESCE(SUM(Amount - PaidAmount), 0)
+            FROM dbo.Fees
+            WHERE ReaderId = @ReaderId
+              AND FeeType <> @NonBlockingFeeType
+              AND Status IN ({statusParameters})
+              AND Amount > PaidAmount", connection, transaction);
+        command.Parameters.Add("@ReaderId", SqlDbType.Int).Value = readerId;
+        command.Parameters.Add("@NonBlockingFeeType", SqlDbType.Int).Value =
+            (int)FeeFinancialStandingRules.NonBlockingBorrowFeeType;
+        for (int index = 0; index < FeeFinancialStandingRules.OutstandingStatuses.Count; index++)
+        {
+            command.Parameters.Add($"@Status{index}", SqlDbType.Int).Value =
+                (int)FeeFinancialStandingRules.OutstandingStatuses[index];
+        }
+
+        return command;
+    }
+
     internal virtual FeeSourceSnapshot? GetSourceSnapshot(SqlConnection connection, SqlTransaction transaction, int borrowId)
     {
         using var command = new SqlCommand(@"SELECT br.ReaderId, br.CopyId, rd.FullName, b.Title, bc.Barcode,

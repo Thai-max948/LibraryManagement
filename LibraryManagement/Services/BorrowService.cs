@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using LibraryManagement.Data;
 using LibraryManagement.Models;
 using LibraryManagement.Repositories;
@@ -9,6 +10,10 @@ namespace LibraryManagement.Services
     public class BorrowService : IReturnCirculationService
     {
         private const string StatusBorrowing = "Borrowing";
+        public const int DefaultCurrentBorrowingRowsLimit = 100;
+        public const int MaximumCurrentBorrowingRowsLimit = 200;
+        public const int DefaultActiveReturnLoanLimit = 100;
+        public const int MaximumActiveReturnLoanLimit = 200;
 
         private readonly BookRepository _bookRepo;
         private readonly BorrowRepository _borrowRepo;
@@ -103,7 +108,11 @@ namespace LibraryManagement.Services
             _feeService?.GetLateDays(dueDate, _timeProvider.GetLocalNow().DateTime) ?? 0;
 
         public int BorrowBook(int readerId, int bookCopyId)
+            => BorrowBooks(readerId, new[] { bookCopyId }).Single();
+
+        public virtual IReadOnlyList<int> BorrowBooks(int readerId, IReadOnlyList<int> bookCopyIds)
         {
+            int[] requestedCopyIds = ValidateBorrowCopyIds(readerId, bookCopyIds);
             EnsureFeeDependencies();
             var eligibility = _eligibilityService.CheckEligibility(readerId);
             if (!eligibility.IsEligible)
@@ -133,54 +142,100 @@ namespace LibraryManagement.Services
                 if (!authoritativeEligibility.IsEligible)
                     throw new BusinessRuleException(authoritativeEligibility.ReasonSummary);
 
+                int remainingSlots = Math.Max(0, ReaderEligibilityService.BorrowLimit - authoritativeEligibility.CurrentLoans);
+                if (requestedCopyIds.Length > remainingSlots)
+                    throw new BusinessRuleException($"Độc giả chỉ còn có thể mượn thêm {remainingSlots} sách.");
+
                 var currentReader = _readerRepo.GetById(conn, tran, readerId)!;
                 var policy = _loanPolicyService.GetPolicyFor(conn, tran, currentReader.ReaderType);
                 var actualBorrowDate = _timeProvider.GetLocalNow().DateTime;
                 var dueDate = LoanPolicyService.CalculateDueDate(policy, actualBorrowDate);
 
-                // Read the parent ID, then claim the exact scanned copy with a conditional UPDATE.
-                var book = _copyRepo.GetById(conn, tran, bookCopyId);
-                if (book == null)
-                    throw new BusinessRuleException("Bản sách không tồn tại.");
-
-                int bookId = book.BookId;
-                var parentStatus = _bookRepo.GetCirculationStatus(conn, tran, bookId);
-                if (parentStatus == null)
+                // Resolve all copies first, then lock parent books and claim copies in stable order.
+                var copiesById = new Dictionary<int, BookCopy>(requestedCopyIds.Length);
+                foreach (int copyId in requestedCopyIds.OrderBy(id => id))
                 {
-                    throw new BusinessRuleException("Sách không tồn tại.");
+                    var copy = _copyRepo.GetById(conn, tran, copyId);
+                    if (copy == null)
+                        throw new BusinessRuleException($"Bản sách #{copyId} không tồn tại.");
+
+                    string? blockReason = BookCopyService.GetBorrowBlockReason(copy);
+                    if (blockReason != null)
+                        throw new BusinessRuleException($"Bản sách {copy.Barcode} hiện không thể mượn: {blockReason}");
+
+                    copiesById.Add(copyId, copy);
                 }
-                if (parentStatus == BookStatuses.Archived)
-                    throw new BusinessRuleException("Đầu sách đã được lưu trữ, không thể mượn.");
-                if (!_copyRepo.TryClaimForBorrow(conn, tran, bookCopyId))
-                    throw new BusinessRuleException("Bản sách này không còn khả dụng. Có thể vừa được mượn hoặc trạng thái đã thay đổi.");
 
-                var record = new BorrowRecord
+                foreach (int bookId in copiesById.Values.Select(copy => copy.BookId).Distinct().OrderBy(id => id))
                 {
-                    BookId = bookId,
-                    BookCopyId = bookCopyId,
-                    ReaderId = readerId,
-                    BorrowDate = actualBorrowDate,
-                    DueDate = dueDate,
-                    LoanPeriodDaysApplied = policy.LoanPeriodDays,
-                    ReturnDate = null,
-                    Status = StatusBorrowing
-                };
-                int borrowId = _borrowRepo.Add(conn, tran, record);
-                _auditRepo.Add(conn, tran, CreateAuditEvent(borrowId, CirculationAuditEventType.BorrowCreated,
-                    actor, actualBorrowDate, bookCopyId, null));
-                var borrowFee = _feeService?.CreateBorrowFee(conn, tran, borrowId);
+                    var parentStatus = _bookRepo.GetCirculationStatus(conn, tran, bookId);
+                    if (parentStatus == null)
+                        throw new BusinessRuleException("Một trong các đầu sách không còn tồn tại.");
+                    if (parentStatus != BookStatuses.Active)
+                        throw new BusinessRuleException("Một trong các đầu sách đã được lưu trữ, không thể mượn.");
+                }
+
+                foreach (int copyId in requestedCopyIds.OrderBy(id => id))
+                {
+                    if (!_copyRepo.TryClaimForBorrow(conn, tran, copyId))
+                        throw new BusinessRuleException($"Bản sách {copiesById[copyId].Barcode} không còn khả dụng. Không có sách nào được mượn.");
+                }
+
+                var borrowIds = new List<int>(requestedCopyIds.Length);
+                var feeIds = new List<int>(requestedCopyIds.Length);
+                foreach (int copyId in requestedCopyIds)
+                {
+                    var copy = copiesById[copyId];
+                    var record = new BorrowRecord
+                    {
+                        BookId = copy.BookId,
+                        BookCopyId = copy.CopyId,
+                        ReaderId = readerId,
+                        BorrowDate = actualBorrowDate,
+                        DueDate = dueDate,
+                        LoanPeriodDaysApplied = policy.LoanPeriodDays,
+                        ReturnDate = null,
+                        Status = StatusBorrowing
+                    };
+                    int borrowId = _borrowRepo.Add(conn, tran, record);
+                    borrowIds.Add(borrowId);
+                    _auditRepo.Add(conn, tran, CreateAuditEvent(borrowId, CirculationAuditEventType.BorrowCreated,
+                        actor, actualBorrowDate, copy.CopyId, null));
+                    var borrowFee = _feeService?.CreateBorrowFee(conn, tran, borrowId);
+                    if (borrowFee != null) feeIds.Add(borrowFee.FeeId);
+                }
 
                 tran.Commit();
-                NotificationEvents.PublishAfterSuccess(new(BusinessAction.BorrowCreated, borrowId.ToString()));
-                if (borrowFee != null)
-                    NotificationEvents.PublishAfterSuccess(new(BusinessAction.FeeCreated, borrowFee.FeeId.ToString()));
-                return borrowId;
+                foreach (int borrowId in borrowIds)
+                    NotificationEvents.PublishAfterSuccess(new(BusinessAction.BorrowCreated, borrowId.ToString()));
+                foreach (int feeId in feeIds)
+                    NotificationEvents.PublishAfterSuccess(new(BusinessAction.FeeCreated, feeId.ToString()));
+                return borrowIds;
             }
             catch
             {
                 tran.Rollback();
                 throw;
             }
+        }
+
+        private static int[] ValidateBorrowCopyIds(int readerId, IReadOnlyList<int>? bookCopyIds)
+        {
+            if (readerId <= 0)
+                throw new BusinessRuleException("Mã độc giả không hợp lệ.");
+            if (bookCopyIds == null)
+                throw new BusinessRuleException("Vui lòng chọn ít nhất một bản sách để mượn.");
+            int[] copyIds = bookCopyIds.ToArray();
+            if (copyIds.Length == 0)
+                throw new BusinessRuleException("Vui lòng chọn ít nhất một bản sách để mượn.");
+            if (copyIds.Length > ReaderEligibilityService.BorrowLimit)
+                throw new BusinessRuleException($"Mỗi lượt chỉ có thể chọn tối đa {ReaderEligibilityService.BorrowLimit} bản sách.");
+            if (copyIds.Any(copyId => copyId <= 0))
+                throw new BusinessRuleException("Mã bản sách không hợp lệ.");
+            if (copyIds.Distinct().Count() != copyIds.Length)
+                throw new BusinessRuleException("Danh sách có bản sách bị chọn trùng.");
+
+            return copyIds;
         }
 
         public virtual BorrowRecord FindActiveReturnByBarcode(string barcode)
@@ -415,6 +470,20 @@ namespace LibraryManagement.Services
         }
 
         public List<BorrowRecord> GetBorrowingBooks() => _borrowRepo.GetBorrowingRecords();
+
+        public virtual List<CurrentBorrowingRow> GetCurrentBorrowingRows(int limit = DefaultCurrentBorrowingRowsLimit) =>
+            _borrowRepo.GetCurrentBorrowingRows(Math.Clamp(limit, 1, MaximumCurrentBorrowingRowsLimit));
+
+        public virtual CurrentBorrowingPage GetCurrentBorrowingPage(CurrentBorrowingPageQuery query) =>
+            _borrowRepo.GetCurrentBorrowingPage(query);
+
+        public virtual List<ActiveReturnLoanRow> SearchActiveLoansForReturn(
+            string? searchText, int limit = DefaultActiveReturnLoanLimit)
+        {
+            string normalizedSearch = searchText?.Trim() ?? string.Empty;
+            return _borrowRepo.SearchActiveLoansForReturn(normalizedSearch,
+                Math.Clamp(limit, 1, MaximumActiveReturnLoanLimit));
+        }
 
         public List<BorrowRecord> GetHistory(
             int? readerId = null,

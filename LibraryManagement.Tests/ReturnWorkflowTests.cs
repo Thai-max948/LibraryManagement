@@ -21,7 +21,16 @@ public class ReturnWorkflowTests
             BorrowDate = DateTime.Today, DueDate = DateTime.Today.AddDays(7)
         };
         var circulation = new Mock<IReturnCirculationService>();
-        circulation.Setup(x => x.GetBorrowingBooks()).Returns(new List<BorrowRecord> { loan });
+        circulation.Setup(x => x.SearchActiveLoansForReturn(It.IsAny<string?>(), It.IsAny<int>()))
+            .Returns(new List<ActiveReturnLoanRow>
+            {
+                new()
+                {
+                    BorrowId = loan.BorrowId, BookId = loan.BookId, BookCopyId = loan.BookCopyId,
+                    ReaderId = loan.ReaderId, ReaderName = "An", BookTitle = "Clean Code",
+                    Barcode = barcode, BorrowDate = loan.BorrowDate, DueDate = loan.DueDate
+                }
+            });
         circulation.Setup(x => x.GetCurrentLateDays(loan.DueDate)).Returns(0);
         circulation.Setup(x => x.FindActiveReturnByBarcode(barcode)).Returns(loan);
         circulation.Setup(x => x.FindActiveReturnByBarcode("BK-999999"))
@@ -47,8 +56,10 @@ public class ReturnWorkflowTests
                 new BookCopyService(copies.Object, books.Object));
 
             vm.SearchText = "An";
+            vm.Load();
             Assert.Single(vm.ActiveBorrowings);
             vm.SearchText = "Clean Code";
+            vm.Load();
             Assert.Single(vm.ActiveBorrowings);
 
             vm.SearchText = barcode;
@@ -57,6 +68,10 @@ public class ReturnWorkflowTests
             Assert.Equal("An", vm.SelectedRow.ReaderName);
             Assert.Single(vm.ActiveBorrowings);
             Assert.True(vm.ReturnCommand.CanExecute(null));
+            circulation.Verify(x => x.SearchActiveLoansForReturn("An", 100), Times.Once);
+            circulation.Verify(x => x.SearchActiveLoansForReturn("Clean Code", 100), Times.Once);
+            circulation.Verify(x => x.SearchActiveLoansForReturn(barcode, 100), Times.Never);
+            circulation.Verify(x => x.FindActiveReturnByBarcode(barcode), Times.Once);
             circulation.Verify(x => x.ReturnBook(It.IsAny<int>(), It.IsAny<ReturnCondition>(), It.IsAny<string?>()), Times.Never);
             circulation.Verify(x => x.ReturnBookByBarcode(It.IsAny<string>(), It.IsAny<ReturnCondition>(), It.IsAny<string?>()), Times.Never);
 

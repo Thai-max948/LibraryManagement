@@ -16,6 +16,7 @@ public sealed class LoanPolicyIntegrationTests : IClassFixture<SqlIntegrationFix
     public void StudentAndExternal_NewLoansUseCurrentPolicyAndSnapshotDays()
     {
         CheckLoan("Student", 14);
+        CheckLoan("Lecturer", 28);
         CheckLoan("External", 7);
     }
 
@@ -102,7 +103,8 @@ public sealed class LoanPolicyIntegrationTests : IClassFixture<SqlIntegrationFix
     {
         FullName = "Policy reader", ReaderType = readerType,
         StudentId = readerType == "Student" ? $"POL-{Guid.NewGuid():N}" : null,
-        IdentityNumber = readerType == "External" ? Guid.NewGuid().ToString("N") : null
+        IdentityNumber = readerType == "External" ? Guid.NewGuid().ToString("N") : null,
+        LecturerCode = readerType == "Lecturer" ? $"GV-{Guid.NewGuid():N}" : null
     });
 
     private static int NewCopy()

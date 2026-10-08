@@ -28,9 +28,14 @@ public static class LoanPolicyMigration
                     CONSTRAINT CK_LoanPolicies_LoanPeriodDays CHECK (LoanPeriodDays > 0)
                 );
                 INSERT INTO dbo.LoanPolicies (ReaderType, LoanPeriodDays)
-                VALUES ('Student', 14), ('External', 7);
+                VALUES ('Student', 14), ('Lecturer', 28), ('External', 7);
             END", connection, transaction);
         command.ExecuteNonQuery();
+        using var lecturerPolicy = new SqlCommand(@"
+            IF NOT EXISTS (SELECT 1 FROM dbo.LoanPolicies WHERE ReaderType = N'Lecturer')
+                INSERT INTO dbo.LoanPolicies (ReaderType, LoanPeriodDays) VALUES (N'Lecturer', 28);",
+            connection, transaction);
+        lecturerPolicy.ExecuteNonQuery();
         using var column = new SqlCommand(@"
             IF COL_LENGTH('dbo.BorrowRecords', 'LoanPeriodDaysApplied') IS NULL
                 ALTER TABLE dbo.BorrowRecords ADD LoanPeriodDaysApplied INT NULL", connection, transaction);

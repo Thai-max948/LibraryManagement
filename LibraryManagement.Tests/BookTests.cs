@@ -705,6 +705,7 @@ namespace LibraryManagement.Tests
             var existing = new Book { BookId = 1, Title = "Old Title", Author = "Author", Quantity = 5, AvailableQuantity = 5 };
             mockBookRepo.Setup(r => r.GetById(1)).Returns(existing);
             mockBookRepo.Setup(r => r.UpdateWithCopies(It.IsAny<Book>())).Returns(true);
+            mockBorrowRepo.Setup(r => r.CountActiveBorrowsByBook(1)).Returns(0);
 
             var service = new BookService(mockBookRepo.Object, mockBorrowRepo.Object);
 
@@ -715,6 +716,8 @@ namespace LibraryManagement.Tests
 
             // Assert
             mockBookRepo.Verify(r => r.UpdateWithCopies(It.Is<Book>(b => b.Title == "New Title")), Times.Once);
+            mockBorrowRepo.Verify(r => r.CountActiveBorrowsByBook(1), Times.Once);
+            mockBorrowRepo.Verify(r => r.GetBorrowingRecords(), Times.Never);
         }
 
         [Fact]
@@ -727,6 +730,7 @@ namespace LibraryManagement.Tests
             // 5 total, 2 available -> 3 currently borrowed
             var existing = new Book { BookId = 1, Title = "Title", Author = "Author", Quantity = 5, AvailableQuantity = 2 };
             mockBookRepo.Setup(r => r.GetById(1)).Returns(existing);
+            mockBorrowRepo.Setup(r => r.CountActiveBorrowsByBook(1)).Returns(3);
 
             var service = new BookService(mockBookRepo.Object, mockBorrowRepo.Object);
 
@@ -736,6 +740,8 @@ namespace LibraryManagement.Tests
             // Act & Assert
             var ex = Assert.Throws<BusinessRuleException>(() => service.UpdateBook(updated));
             Assert.Equal("Không thể đặt Quantity nhỏ hơn số đang được mượn (3).", ex.Message);
+            mockBorrowRepo.Verify(r => r.CountActiveBorrowsByBook(1), Times.Once);
+            mockBorrowRepo.Verify(r => r.GetBorrowingRecords(), Times.Never);
         }
 
         [Fact]
@@ -749,6 +755,7 @@ namespace LibraryManagement.Tests
             var existing = new Book { BookId = 1, Title = "Title", Author = "Author", Quantity = 5, AvailableQuantity = 2 };
             mockBookRepo.Setup(r => r.GetById(1)).Returns(existing);
             mockBookRepo.Setup(r => r.UpdateWithCopies(It.IsAny<Book>())).Returns(true);
+            mockBorrowRepo.Setup(r => r.CountActiveBorrowsByBook(1)).Returns(3);
 
             var service = new BookService(mockBookRepo.Object, mockBorrowRepo.Object);
 
@@ -761,6 +768,8 @@ namespace LibraryManagement.Tests
             // Assert
             Assert.Equal(0, updated.AvailableQuantity); // Available = 3 - 3 = 0
             mockBookRepo.Verify(r => r.UpdateWithCopies(updated), Times.Once);
+            mockBorrowRepo.Verify(r => r.CountActiveBorrowsByBook(1), Times.Once);
+            mockBorrowRepo.Verify(r => r.GetBorrowingRecords(), Times.Never);
         }
 
         [Fact]
@@ -774,6 +783,7 @@ namespace LibraryManagement.Tests
             var existing = new Book { BookId = 1, Title = "Title", Author = "Author", Quantity = 5, AvailableQuantity = 2 };
             mockBookRepo.Setup(r => r.GetById(1)).Returns(existing);
             mockBookRepo.Setup(r => r.UpdateWithCopies(It.IsAny<Book>())).Returns(true);
+            mockBorrowRepo.Setup(r => r.CountActiveBorrowsByBook(1)).Returns(3);
 
             var service = new BookService(mockBookRepo.Object, mockBorrowRepo.Object);
 
@@ -784,10 +794,12 @@ namespace LibraryManagement.Tests
 
             // Assert
             Assert.Equal(5, updated.AvailableQuantity); // 8 - 3 = 5
+            mockBorrowRepo.Verify(r => r.CountActiveBorrowsByBook(1), Times.Once);
+            mockBorrowRepo.Verify(r => r.GetBorrowingRecords(), Times.Never);
         }
 
         [Fact]
-        public void UpdateBook_UsesActiveLoansInsteadOfAllUnavailableCopies()
+        public void UpdateBook_UsesScalarActiveLoanCountWithoutLoadingAllBorrowings()
         {
             var bookRepository = new Mock<BookRepository>();
             var borrowRepository = new Mock<BorrowRepository>();
@@ -796,16 +808,15 @@ namespace LibraryManagement.Tests
                 BookId = 1, Quantity = 5, AvailableQuantity = 2
             });
             bookRepository.Setup(repository => repository.UpdateWithCopies(It.IsAny<Book>())).Returns(true);
-            borrowRepository.Setup(repository => repository.GetBorrowingRecords()).Returns(new List<BorrowRecord>
-            {
-                new() { BookId = 1, Status = "Borrowing" }
-            });
+            borrowRepository.Setup(repository => repository.CountActiveBorrowsByBook(1)).Returns(1);
             var service = new BookService(bookRepository.Object, borrowRepository.Object);
             var book = new Book { BookId = 1, Title = "Title", Author = "Author", PublishYear = 2025, Quantity = 4 };
 
             service.UpdateBook(book);
 
             Assert.Equal(3, book.AvailableQuantity);
+            borrowRepository.Verify(repository => repository.CountActiveBorrowsByBook(1), Times.Once);
+            borrowRepository.Verify(repository => repository.GetBorrowingRecords(), Times.Never);
         }
 
         [Fact]

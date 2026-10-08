@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text.RegularExpressions;
 using LibraryManagement.Models;
 using LibraryManagement.Repositories;
+using Microsoft.Data.SqlClient;
 
 namespace LibraryManagement.Services
 {
@@ -14,7 +15,6 @@ namespace LibraryManagement.Services
 
         private readonly ReaderRepository _readerRepo;
         private readonly BorrowRepository _borrowRepo;
-        private readonly BookRepository _bookRepo;
         private readonly ReaderEligibilityService _eligibilityService;
 
         public ReaderService() : this(new ReaderRepository(), new BorrowRepository(), new BookRepository())
@@ -30,25 +30,32 @@ namespace LibraryManagement.Services
         {
             _readerRepo = readerRepo;
             _borrowRepo = borrowRepo;
-            _bookRepo = bookRepo;
             _eligibilityService = new ReaderEligibilityService(readerRepo, borrowRepo);
         }
 
         public int AddReader(Reader reader)
         {
-            Validate(reader);
+            Validate(reader, preserveOtherIdentifiers: false);
             reader.Status = "Active";
             reader.SuspensionReason = string.Empty;
             reader.SuspendedDate = null;
             EnsureIdentificationIsUnique(reader);
-            int id = _readerRepo.Add(reader);
+            int id;
+            try
+            {
+                id = _readerRepo.Add(reader);
+            }
+            catch (SqlException ex) when (IsLecturerCodeUniqueViolation(ex))
+            {
+                throw new BusinessRuleException("Mã giảng viên đã được sử dụng bởi độc giả khác.");
+            }
             NotificationEvents.PublishAfterSuccess(new(BusinessAction.ReaderCreated, id.ToString()));
             return id;
         }
 
         public void UpdateReader(Reader reader)
         {
-            Validate(reader);
+            Validate(reader, preserveOtherIdentifiers: true);
 
             var existing = _readerRepo.GetById(reader.ReaderId);
             if (existing == null || existing.IsDeleted)
@@ -60,7 +67,17 @@ namespace LibraryManagement.Services
             ValidateLifecycleTransition(reader, existing);
             ApplyStatusAudit(reader, existing);
 
-            if (!_readerRepo.Update(reader))
+            bool updated;
+            try
+            {
+                updated = _readerRepo.Update(reader);
+            }
+            catch (SqlException ex) when (IsLecturerCodeUniqueViolation(ex))
+            {
+                throw new BusinessRuleException("Mã giảng viên đã được sử dụng bởi độc giả khác.");
+            }
+
+            if (!updated)
             {
                 throw new BusinessRuleException("Cập nhật độc giả thất bại.");
             }
@@ -75,14 +92,13 @@ namespace LibraryManagement.Services
                 throw new BusinessRuleException("Độc giả không tồn tại.");
             }
 
-            bool hasActiveBorrow = (_borrowRepo.GetBorrowingRecords() ?? new List<BorrowRecord>())
-                .Any(r => r.ReaderId == readerId);
+            bool hasActiveBorrow = _borrowRepo.HasActiveBorrowByReader(readerId);
             if (hasActiveBorrow)
             {
                 throw new BusinessRuleException("Không thể xóa độc giả đang có sách chưa trả.");
             }
 
-            bool hasHistory = (_borrowRepo.GetHistory(readerId: readerId) ?? new List<BorrowRecord>()).Count > 0;
+            bool hasHistory = _borrowRepo.HasBorrowHistoryByReader(readerId);
             if (hasHistory)
             {
                 throw new BusinessRuleException("Độc giả đã có lịch sử mượn trả. Hãy chuyển trạng thái sang Inactive thay vì xóa.");
@@ -146,8 +162,7 @@ namespace LibraryManagement.Services
             if (!reader.IsActive)
                 throw new BusinessRuleException($"Không thể chuyển trạng thái từ {reader.Status} sang Inactive.");
 
-            if ((_borrowRepo.GetBorrowingRecords() ?? new List<BorrowRecord>())
-                .Any(record => record.ReaderId == readerId))
+            if (_borrowRepo.HasActiveBorrowByReader(readerId))
                 throw new BusinessRuleException("Không thể chuyển Inactive khi độc giả còn sách chưa trả.");
 
             reader.Status = "Inactive";
@@ -204,6 +219,32 @@ namespace LibraryManagement.Services
             return _readerRepo.Search(keyword, typeFilter, statusFilter);
         }
 
+        public List<Reader> SearchForBorrow(string? query, int limit = 10)
+        {
+            string normalizedQuery = query?.Trim() ?? string.Empty;
+            if (normalizedQuery.Length == 0) return new List<Reader>();
+
+            bool isExactNumericIdentifier = int.TryParse(normalizedQuery, out _);
+            if (normalizedQuery.Length < 2 && !isExactNumericIdentifier)
+                return new List<Reader>();
+
+            return _readerRepo.SearchForBorrow(normalizedQuery, Math.Clamp(limit, 1, 20));
+        }
+
+        public BorrowRecommendationPage<Reader> SearchForBorrow(
+            string? query, int pageNumber, int pageSize)
+        {
+            string normalizedQuery = query?.Trim() ?? string.Empty;
+            pageNumber = Math.Max(1, pageNumber);
+            pageSize = Math.Clamp(pageSize, 1, 20);
+
+            bool isExactNumericIdentifier = int.TryParse(normalizedQuery, out _);
+            if (normalizedQuery.Length == 1 && !isExactNumericIdentifier)
+                return new BorrowRecommendationPage<Reader>(Array.Empty<Reader>(), false);
+
+            return _readerRepo.SearchForBorrow(normalizedQuery, pageNumber, pageSize);
+        }
+
         public List<Reader> GetAllReaders(bool includeDeleted = false)
         {
             return _readerRepo.GetAll(includeDeleted);
@@ -212,26 +253,8 @@ namespace LibraryManagement.Services
         public ReaderPage GetReaderPage(string keyword, string typeFilter, string statusFilter,
             string sortBy, int pageNumber, int pageSize)
         {
-            pageSize = Math.Clamp(pageSize, 5, 100);
-            var filtered = SearchReader(keyword, typeFilter, statusFilter);
-            IEnumerable<Reader> sorted = sortBy switch
-            {
-                "Name Z-A" => filtered.OrderByDescending(r => r.FullName, StringComparer.CurrentCultureIgnoreCase),
-                "Newest" => filtered.OrderByDescending(r => r.RegistrationDate),
-                "Oldest" => filtered.OrderBy(r => r.RegistrationDate),
-                "Status" => filtered.OrderBy(r => r.Status).ThenBy(r => r.FullName),
-                _ => filtered.OrderBy(r => r.FullName, StringComparer.CurrentCultureIgnoreCase)
-            };
-            int total = filtered.Count;
-            int totalPages = Math.Max(1, (int)Math.Ceiling(total / (double)pageSize));
-            pageNumber = Math.Clamp(pageNumber, 1, totalPages);
-            return new ReaderPage
-            {
-                Items = sorted.Skip((pageNumber - 1) * pageSize).Take(pageSize).ToList(),
-                TotalCount = total,
-                PageNumber = pageNumber,
-                PageSize = pageSize
-            };
+            var query = new ReaderPageQuery(keyword, typeFilter, statusFilter, sortBy, pageNumber, pageSize);
+            return _readerRepo.GetPage(query);
         }
 
         public ReaderProfile GetReaderProfile(int readerId)
@@ -240,37 +263,33 @@ namespace LibraryManagement.Services
             if (reader == null || reader.IsDeleted)
                 throw new BusinessRuleException("Độc giả không tồn tại.");
 
-            var records = _borrowRepo.GetHistory(readerId: readerId);
-            var history = records.Take(5).Select(record => new ReaderBorrowHistoryItem
-            {
-                BorrowId = record.BorrowId,
-                BookTitle = _bookRepo.GetById(record.BookId)?.Title ?? $"Book #{record.BookId}",
-                BorrowDate = record.BorrowDate,
-                DueDate = record.DueDate,
-                ReturnDate = record.ReturnDate,
-                Status = record.Status
-            }).ToList();
+            var borrowData = _borrowRepo.GetReaderProfileBorrowData(readerId, DateTime.Today, 5);
             return new ReaderProfile
             {
                 Reader = reader,
-                Eligibility = _eligibilityService.Evaluate(reader, records),
-                BorrowingHistory = history,
-                CurrentlyBorrowing = records.Count(r => string.Equals(r.Status, "Borrowing", StringComparison.OrdinalIgnoreCase)),
-                TotalBorrowed = records.Count,
-                OverdueCount = records.Count(r => string.Equals(r.Status, "Borrowing", StringComparison.OrdinalIgnoreCase)
-                    && r.DueDate.Date < DateTime.Today)
+                Eligibility = _eligibilityService.Evaluate(reader, borrowData.EligibilityRecords),
+                BorrowingHistory = borrowData.RecentHistory,
+                CurrentlyBorrowing = borrowData.CurrentlyBorrowing,
+                TotalBorrowed = borrowData.TotalBorrowed,
+                OverdueCount = borrowData.OverdueCount
             };
         }
 
         private void EnsureIdentificationIsUnique(Reader reader)
         {
-            string identification = reader.IsExternal ? reader.IdentityNumber! : reader.StudentId!;
+            string identification = reader.IsExternal
+                ? reader.IdentityNumber!
+                : reader.IsLecturer ? reader.LecturerCode! : reader.StudentId!;
             if (_readerRepo.IdentificationExists(reader.ReaderType, identification, reader.ReaderId))
             {
-                string label = reader.IsExternal ? "Số CCCD / Định danh" : "Mã sinh viên";
+                string label = reader.IdentificationLabel;
                 throw new BusinessRuleException($"{label} đã được sử dụng bởi độc giả khác.");
             }
         }
+
+        private static bool IsLecturerCodeUniqueViolation(SqlException exception) =>
+            (exception.Number is 2601 or 2627)
+            && exception.Message.Contains("UX_Readers_LecturerCode_Active", StringComparison.OrdinalIgnoreCase);
 
         private static void ApplyStatusAudit(Reader reader, Reader existing)
         {
@@ -304,12 +323,11 @@ namespace LibraryManagement.Services
                 throw new BusinessRuleException($"Không thể chuyển trạng thái từ {existing.Status} sang {reader.Status}.");
 
             if (reader.Status == "Inactive"
-                && (_borrowRepo.GetBorrowingRecords() ?? new List<BorrowRecord>())
-                    .Any(record => record.ReaderId == reader.ReaderId))
+                && _borrowRepo.HasActiveBorrowByReader(reader.ReaderId))
                 throw new BusinessRuleException("Không thể chuyển Inactive khi độc giả còn sách chưa trả.");
         }
 
-        private static void Validate(Reader reader)
+        private static void Validate(Reader reader, bool preserveOtherIdentifiers)
         {
             if (string.IsNullOrWhiteSpace(reader.FullName))
             {
@@ -328,27 +346,49 @@ namespace LibraryManagement.Services
                 throw new BusinessRuleException("Số điện thoại không hợp lệ.");
             }
 
-            if (!string.Equals(reader.ReaderType, "Student", StringComparison.OrdinalIgnoreCase)
-                && !string.Equals(reader.ReaderType, "External", StringComparison.OrdinalIgnoreCase))
+            if (!reader.IsStudent && !reader.IsLecturer && !reader.IsExternal)
             {
                 throw new BusinessRuleException("Loại độc giả không hợp lệ.");
             }
 
-            if (string.Equals(reader.ReaderType, "Student", StringComparison.OrdinalIgnoreCase))
+            if (reader.IsStudent)
             {
                 if (string.IsNullOrWhiteSpace(reader.StudentId))
                     throw new BusinessRuleException("Mã sinh viên không được để trống.");
                 reader.ReaderType = "Student";
                 reader.StudentId = reader.StudentId.Trim();
-                reader.IdentityNumber = null;
+                if (!preserveOtherIdentifiers)
+                {
+                    reader.IdentityNumber = null;
+                    reader.LecturerCode = null;
+                    reader.Department = null;
+                }
             }
-            else
+            else if (reader.IsExternal)
             {
                 if (string.IsNullOrWhiteSpace(reader.IdentityNumber))
                     throw new BusinessRuleException("Số CCCD / Định danh không được để trống.");
                 reader.ReaderType = "External";
                 reader.IdentityNumber = reader.IdentityNumber.Trim();
-                reader.StudentId = null;
+                if (!preserveOtherIdentifiers)
+                {
+                    reader.StudentId = null;
+                    reader.LecturerCode = null;
+                    reader.Department = null;
+                }
+            }
+            else
+            {
+                if (string.IsNullOrWhiteSpace(reader.LecturerCode))
+                    throw new BusinessRuleException("Mã giảng viên không được để trống.");
+                reader.ReaderType = "Lecturer";
+                reader.LecturerCode = reader.LecturerCode.Trim();
+                reader.Department = string.IsNullOrWhiteSpace(reader.Department) ? null : reader.Department.Trim();
+                if (!preserveOtherIdentifiers)
+                {
+                    reader.StudentId = null;
+                    reader.IdentityNumber = null;
+                }
             }
 
             if (!string.Equals(reader.Status, "Active", StringComparison.OrdinalIgnoreCase)

@@ -1,7 +1,7 @@
 <Window x:Class="LibraryManagement.Views.Readers.AddReaderDialog"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Add New Reader" Height="520" Width="480"
+        Title="Add New Reader" Height="620" Width="500"
         WindowStartupLocation="CenterOwner"
         Background="{StaticResource BackgroundBrush}">
     <Border Background="#FFFFFF" Margin="14" CornerRadius="8" Padding="20" BorderBrush="{StaticResource TechBorderBrush}" BorderThickness="1">
@@ -24,10 +24,11 @@
                 <StackPanel Margin="0,4,0,10">
                     <!-- Reader Type Selection -->
                     <TextBlock Text="Loại độc giả (Reader Type)" FontWeight="SemiBold" Foreground="{StaticResource TextBrush}" Margin="0,0,0,6"/>
-                    <StackPanel Orientation="Horizontal" Margin="0,0,0,14">
-                        <RadioButton x:Name="RadioStudent" Content="Sinh viên (Student)" IsChecked="True" Checked="ReaderType_Changed" Margin="0,0,24,0" FontWeight="Medium" VerticalAlignment="Center"/>
-                        <RadioButton x:Name="RadioExternal" Content="Người ngoài trường (External)" Checked="ReaderType_Changed" FontWeight="Medium" VerticalAlignment="Center"/>
-                    </StackPanel>
+                    <WrapPanel Margin="0,0,0,14">
+                        <RadioButton x:Name="RadioStudent" Content="Sinh viên (Student)" IsChecked="True" Checked="ReaderType_Changed" Margin="0,0,20,6" FontWeight="Medium" VerticalAlignment="Center"/>
+                        <RadioButton x:Name="RadioLecturer" Content="Giảng viên (Lecturer)" Checked="ReaderType_Changed" Margin="0,0,20,6" FontWeight="Medium" VerticalAlignment="Center"/>
+                        <RadioButton x:Name="RadioExternal" Content="Người ngoài trường (External)" Checked="ReaderType_Changed" Margin="0,0,0,6" FontWeight="Medium" VerticalAlignment="Center"/>
+                    </WrapPanel>
 
                     <!-- Full Name -->
                     <TextBlock Text="Họ và tên (Full Name) *" FontWeight="SemiBold" Foreground="{StaticResource TextBrush}" Margin="0,0,0,4"/>
@@ -42,6 +43,13 @@
                     <StackPanel x:Name="IdentityNumberPanel" Visibility="Collapsed">
                         <TextBlock Text="Số CCCD / Định danh (Identity Number) *" FontWeight="SemiBold" Foreground="{StaticResource TextBrush}" Margin="0,0,0,4"/>
                         <TextBox x:Name="IdentityNumberBox" Padding="8,6" Margin="0,0,0,12" BorderBrush="{StaticResource TechBorderBrush}"/>
+                    </StackPanel>
+
+                    <StackPanel x:Name="LecturerInfoPanel" Visibility="Collapsed">
+                        <TextBlock Text="Mã giảng viên (Lecturer Code) *" FontWeight="SemiBold" Foreground="{StaticResource TextBrush}" Margin="0,0,0,4"/>
+                        <TextBox x:Name="LecturerCodeBox" Padding="8,6" Margin="0,0,0,12" BorderBrush="{StaticResource TechBorderBrush}"/>
+                        <TextBlock Text="Khoa / Bộ môn (Department / Faculty)" FontWeight="SemiBold" Foreground="{StaticResource TextBrush}" Margin="0,0,0,4"/>
+                        <TextBox x:Name="DepartmentBox" Padding="8,6" Margin="0,0,0,12" BorderBrush="{StaticResource TechBorderBrush}"/>
                     </StackPanel>
 
                     <!-- Phone & Email in 2 columns -->

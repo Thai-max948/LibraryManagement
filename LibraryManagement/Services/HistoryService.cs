@@ -5,7 +5,7 @@ namespace LibraryManagement.Services;
 
 public class HistoryService
 {
-    public const int DefaultPageSize = 50;
+    public const int DefaultPageSize = HistoryQuery.DefaultPageSize;
     private const int MaximumPageSize = 100;
     private static readonly HashSet<string> SupportedStatuses = new(StringComparer.Ordinal)
     {

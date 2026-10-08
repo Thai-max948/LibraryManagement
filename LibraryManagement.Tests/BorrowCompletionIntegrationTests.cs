@@ -10,6 +10,27 @@ public sealed class BorrowCompletionIntegrationTests : IClassFixture<SqlIntegrat
 {
     [IntegrationFact]
     [Trait("Category", "Integration")]
+    public void ReaderBorrowExistenceQueries_MatchBorrowingStatusAndRetainReturnedHistory()
+    {
+        int bookId = NewBook();
+        int copyId = new BookCopyService().GetCopies(bookId).Single().CopyId;
+        int readerId = NewReader();
+        var repository = new BorrowRepository();
+
+        Assert.False(repository.HasActiveBorrowByReader(readerId));
+        Assert.False(repository.HasBorrowHistoryByReader(readerId));
+
+        int loanId = new BorrowService().BorrowBook(readerId, copyId);
+        Assert.True(repository.HasActiveBorrowByReader(readerId));
+        Assert.True(repository.HasBorrowHistoryByReader(readerId));
+
+        new BorrowService().ReturnBook(loanId, ReturnCondition.Normal);
+        Assert.False(repository.HasActiveBorrowByReader(readerId));
+        Assert.True(repository.HasBorrowHistoryByReader(readerId));
+    }
+
+    [IntegrationFact]
+    [Trait("Category", "Integration")]
     public void BorrowAndReturn_IgnoreLegacyCountersAndNeverUpdateThem()
     {
         int bookId = NewBook();

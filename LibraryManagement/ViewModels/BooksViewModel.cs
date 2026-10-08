@@ -11,6 +11,8 @@ namespace LibraryManagement.ViewModels;
 
 public class BooksViewModel : BaseViewModel
 {
+    private const int SearchDebounceMilliseconds = 300;
+
     private static readonly BookStatusFilterOption[] ViewScopeOptionsSource =
     [
         new(BookStatusFilter.Active, "Active Books"),
@@ -29,6 +31,7 @@ public class BooksViewModel : BaseViewModel
 
     private readonly BookService _bookService;
     private readonly List<string> _allAuthors = new();
+    private CancellationTokenSource? _searchDebounceCts;
     private BookSearchQuery _appliedFilters = new();
     private BookPriceRange _bookPriceRange = new(null, null);
     private Book? _selectedBook;
@@ -69,7 +72,9 @@ public class BooksViewModel : BaseViewModel
         get => _searchText;
         set
         {
-            if (SetProperty(ref _searchText, value ?? string.Empty)) ResetPageAndSearch();
+            if (!SetProperty(ref _searchText, value ?? string.Empty)) return;
+            PageNumber = 1;
+            ScheduleSearch();
         }
     }
 
@@ -421,6 +426,7 @@ public class BooksViewModel : BaseViewModel
 
     private void LoadPage()
     {
+        CancelPendingSearch();
         SelectedBook = null;
         try
         {
@@ -474,6 +480,41 @@ public class BooksViewModel : BaseViewModel
     {
         PageNumber = 1;
         LoadPage();
+    }
+
+    private void ScheduleSearch()
+    {
+        CancelPendingSearch();
+        var debounceCts = new CancellationTokenSource();
+        _searchDebounceCts = debounceCts;
+        _ = DebounceSearchAsync(debounceCts);
+    }
+
+    private void CancelPendingSearch()
+    {
+        var pendingCts = _searchDebounceCts;
+        _searchDebounceCts = null;
+        pendingCts?.Cancel();
+    }
+
+    private async Task DebounceSearchAsync(CancellationTokenSource debounceCts)
+    {
+        try
+        {
+            await Task.Delay(SearchDebounceMilliseconds, debounceCts.Token);
+            if (!ReferenceEquals(_searchDebounceCts, debounceCts)) return;
+
+            _searchDebounceCts = null;
+            LoadPage();
+        }
+        catch (OperationCanceledException)
+        {
+            // Explicit Books actions cancel a pending text search and load immediately.
+        }
+        finally
+        {
+            debounceCts.Dispose();
+        }
     }
 
     private void ChangePage(int pageNumber)

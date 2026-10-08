@@ -10,6 +10,7 @@ public static class LibraryDatabaseStartupMigration
         BookValueMigration.Apply();
         BookAuditMigration.Apply();
         var bookCopyMigration = BookCopyMigration.Apply();
+        LecturerReaderMigration.Apply();
         LoanPolicyMigration.Apply();
         ReturnOutcomeMigration.Apply();
         CirculationAuditMigration.Apply();

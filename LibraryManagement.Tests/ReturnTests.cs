@@ -27,26 +27,24 @@ namespace LibraryManagement.Tests
             var mockBookRepo = new Mock<BookRepository>();
             var mockReaderRepo = new Mock<ReaderRepository>();
             var mockBorrowRepo = new Mock<BorrowRepository>();
-
-            var books = new List<Book> { new Book { BookId = 1, Title = "Refactoring" } };
-            var readers = new List<Reader> { new Reader { ReaderId = 1, FullName = "Martin Fowler", IsDeleted = false } };
-            var activeBorrows = new List<BorrowRecord>
+            var mockCopyRepo = new Mock<BookCopyRepository>();
+            var activeBorrows = new List<ActiveReturnLoanRow>
             {
-                new BorrowRecord
+                new ActiveReturnLoanRow
                 {
                     BorrowId = 10,
                     BookId = 1,
                     ReaderId = 1,
+                    ReaderName = "Martin Fowler",
+                    BookTitle = "Refactoring",
+                    BookCopyId = 3,
+                    Barcode = "BK-000003",
                     BorrowDate = DateTime.Today.AddDays(-5),
-                    DueDate = DateTime.Today.AddDays(2),
-                    Status = "Borrowing"
+                    DueDate = DateTime.Today.AddDays(2)
                 }
             };
 
-            mockBookRepo.Setup(r => r.GetAll()).Returns(books);
-            mockBookRepo.Setup(r => r.GetAllIncludingArchived()).Returns(books);
-            mockReaderRepo.Setup(r => r.GetAll(true)).Returns(readers);
-            mockBorrowRepo.Setup(r => r.GetBorrowingRecords()).Returns(activeBorrows);
+            mockBorrowRepo.Setup(r => r.SearchActiveLoansForReturn("", 100)).Returns(activeBorrows);
 
             var bookService = new BookService(mockBookRepo.Object, mockBorrowRepo.Object);
             var readerService = new ReaderService(mockReaderRepo.Object, mockBorrowRepo.Object);
@@ -55,42 +53,49 @@ namespace LibraryManagement.Tests
             // Act & Assert
             StaHelper.RunInSta(() =>
             {
-                var vm = new ReturnViewModel(borrowService, bookService, readerService, new Mock<IUserDialogService>().Object);
+                var vm = new ReturnViewModel(borrowService, bookService, readerService,
+                    new Mock<IUserDialogService>().Object, new BookCopyService(mockCopyRepo.Object, mockBookRepo.Object));
                 Assert.Single(vm.ActiveBorrowings);
                 Assert.Equal(10, vm.ActiveBorrowings[0].BorrowId);
                 Assert.Equal("Refactoring", vm.ActiveBorrowings[0].BookTitle);
                 Assert.Equal("Martin Fowler", vm.ActiveBorrowings[0].ReaderName);
+                Assert.Equal("BK-000003", vm.ActiveBorrowings[0].CopyBarcode);
+                Assert.Equal(DateTime.Today.AddDays(-5).ToString("dd/MM/yyyy"), vm.ActiveBorrowings[0].BorrowDate);
+                Assert.Equal(DateTime.Today.AddDays(2).ToString("dd/MM/yyyy"), vm.ActiveBorrowings[0].DueDate);
             });
+            mockBorrowRepo.Verify(r => r.SearchActiveLoansForReturn("", 100), Times.Once);
+            mockBorrowRepo.Verify(r => r.GetBorrowingRecords(), Times.Never);
+            mockBookRepo.Verify(r => r.GetAll(), Times.Never);
+            mockBookRepo.Verify(r => r.GetAllIncludingArchived(), Times.Never);
+            mockReaderRepo.Verify(r => r.GetAll(true), Times.Never);
+            mockCopyRepo.Verify(r => r.GetByBookId(It.IsAny<int>()), Times.Never);
         }
 
         [Fact]
-        public void ReturnViewModel_SearchByReaderOrBook_FiltersActiveBorrowings()
+        public void ReturnViewModel_SearchByReaderOrBook_UsesBackendResults()
         {
             // Arrange (TC-RETURN-06)
             var mockBookRepo = new Mock<BookRepository>();
             var mockReaderRepo = new Mock<ReaderRepository>();
             var mockBorrowRepo = new Mock<BorrowRepository>();
 
-            var books = new List<Book>
+            var activeBorrows = new List<ActiveReturnLoanRow>
             {
-                new Book { BookId = 1, Title = "Clean Architecture" },
-                new Book { BookId = 2, Title = "Design Patterns" }
-            };
-            var readers = new List<Reader>
-            {
-                new Reader { ReaderId = 1, FullName = "Uncle Bob", IsDeleted = false },
-                new Reader { ReaderId = 2, FullName = "Gang of Four", IsDeleted = false }
-            };
-            var activeBorrows = new List<BorrowRecord>
-            {
-                new BorrowRecord { BorrowId = 1, BookId = 1, ReaderId = 1, Status = "Borrowing" },
-                new BorrowRecord { BorrowId = 2, BookId = 2, ReaderId = 2, Status = "Borrowing" }
+                new ActiveReturnLoanRow
+                {
+                    BorrowId = 1, BookId = 1, ReaderId = 1, ReaderName = "Uncle Bob",
+                    BookTitle = "Clean Architecture", BookCopyId = 101, Barcode = "BK-000101"
+                },
+                new ActiveReturnLoanRow
+                {
+                    BorrowId = 2, BookId = 2, ReaderId = 2, ReaderName = "Gang of Four",
+                    BookTitle = "Design Patterns", BookCopyId = 102, Barcode = "BK-000102"
+                }
             };
 
-            mockBookRepo.Setup(r => r.GetAll()).Returns(books);
-            mockBookRepo.Setup(r => r.GetAllIncludingArchived()).Returns(books);
-            mockReaderRepo.Setup(r => r.GetAll(true)).Returns(readers);
-            mockBorrowRepo.Setup(r => r.GetBorrowingRecords()).Returns(activeBorrows);
+            mockBorrowRepo.Setup(r => r.SearchActiveLoansForReturn("", 100)).Returns(activeBorrows);
+            mockBorrowRepo.Setup(r => r.SearchActiveLoansForReturn("Clean", 100)).Returns(new List<ActiveReturnLoanRow> { activeBorrows[0] });
+            mockBorrowRepo.Setup(r => r.SearchActiveLoansForReturn("Gang", 100)).Returns(new List<ActiveReturnLoanRow> { activeBorrows[1] });
 
             var bookService = new BookService(mockBookRepo.Object, mockBorrowRepo.Object);
             var readerService = new ReaderService(mockReaderRepo.Object, mockBorrowRepo.Object);
@@ -103,6 +108,7 @@ namespace LibraryManagement.Tests
 
                 // Act: Search for "Clean"
                 vm.SearchText = "Clean";
+                vm.Load();
 
                 // Assert
                 Assert.Single(vm.ActiveBorrowings);
@@ -110,11 +116,14 @@ namespace LibraryManagement.Tests
 
                 // Act: Search for "Gang"
                 vm.SearchText = "Gang";
+                vm.Load();
 
                 // Assert
                 Assert.Single(vm.ActiveBorrowings);
                 Assert.Equal("Gang of Four", vm.ActiveBorrowings[0].ReaderName);
             });
+            mockBorrowRepo.Verify(r => r.SearchActiveLoansForReturn("Clean", 100), Times.Once);
+            mockBorrowRepo.Verify(r => r.SearchActiveLoansForReturn("Gang", 100), Times.Once);
         }
 
         [Fact]
@@ -125,10 +134,7 @@ namespace LibraryManagement.Tests
             var mockReaderRepo = new Mock<ReaderRepository>();
             var mockBorrowRepo = new Mock<BorrowRepository>();
 
-            mockBookRepo.Setup(r => r.GetAll()).Returns(new List<Book>());
-            mockBookRepo.Setup(r => r.GetAllIncludingArchived()).Returns(new List<Book>());
-            mockReaderRepo.Setup(r => r.GetAll(true)).Returns(new List<Reader>());
-            mockBorrowRepo.Setup(r => r.GetBorrowingRecords()).Returns(new List<BorrowRecord>());
+            mockBorrowRepo.Setup(r => r.SearchActiveLoansForReturn("", 100)).Returns(new List<ActiveReturnLoanRow>());
 
             var bookService = new BookService(mockBookRepo.Object, mockBorrowRepo.Object);
             var readerService = new ReaderService(mockReaderRepo.Object, mockBorrowRepo.Object);
@@ -162,6 +168,7 @@ namespace LibraryManagement.Tests
                 h.ViewModel.ReturnCommand.Execute(null);
 
                 h.Circulation.Verify(x => x.ReturnBook(10, ReturnCondition.Normal, string.Empty), Times.Once);
+                h.Circulation.Verify(x => x.SearchActiveLoansForReturn(string.Empty, 100), Times.Exactly(2));
                 h.Dialog.Verify(x => x.ShowInfo(It.Is<string>(message => message.Contains("phiếu #10")), "Kết quả trả sách"), Times.Once);
             });
         }
@@ -211,7 +218,8 @@ namespace LibraryManagement.Tests
             Mock<IUserDialogService> Dialog) CreateReturnViewModel()
         {
             var circulation = new Mock<IReturnCirculationService>();
-            circulation.Setup(x => x.GetBorrowingBooks()).Returns(new List<BorrowRecord>());
+            circulation.Setup(x => x.SearchActiveLoansForReturn(string.Empty, It.IsAny<int>()))
+                .Returns(new List<ActiveReturnLoanRow>());
 
             var books = new Mock<BookRepository>();
             books.Setup(x => x.GetAllIncludingArchived()).Returns(new List<Book>());

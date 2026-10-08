@@ -1,5 +1,6 @@
     using System;
 using System.Collections.Generic;
+using System.Data;
 using LibraryManagement.Data;
 using LibraryManagement.Models;
 using LibraryManagement.Services;
@@ -399,6 +400,161 @@ namespace LibraryManagement.Repositories
 
             return new PagedResult<Book>(books, totalCount, pageNumber, query.PageSize);
         }
+
+        public virtual IReadOnlyList<BorrowBookSuggestion> SearchForBorrow(string query, int limit)
+        {
+            var suggestions = new List<BorrowBookSuggestion>();
+            if (string.IsNullOrWhiteSpace(query)) return suggestions;
+
+            using var connection = Database.GetConnection();
+            connection.Open();
+
+            // A database without the copy schema cannot provide authoritative borrow availability.
+            if (!new BookCopyRepository().HasSchema(connection, null)) return suggestions;
+
+            bool hasBookStatus = BookArchiveMigration.HasSchema(connection);
+            bool hasIsbn = BookIsbnMigration.HasSchema(connection);
+            bool hasCopyCondition;
+            using (var conditionColumn = new SqlCommand(
+                "SELECT CASE WHEN COL_LENGTH('dbo.BookCopies', 'Condition') IS NULL THEN 0 ELSE 1 END",
+                connection))
+            {
+                hasCopyCondition = Convert.ToInt32(conditionColumn.ExecuteScalar()) == 1;
+            }
+            if (!hasCopyCondition) return suggestions;
+
+            string isbnExpression = hasIsbn ? "b.ISBN" : "CAST(NULL AS NVARCHAR(13))";
+            string statusFilter = hasBookStatus ? " AND b.Status = @ActiveStatus" : string.Empty;
+            string isbnSearch = hasIsbn ? " OR b.ISBN LIKE @Pattern ESCAPE N'\\'" : string.Empty;
+            string exactIsbn = hasIsbn ? " OR b.ISBN = @Query" : string.Empty;
+
+            string sql = $@"SELECT TOP (@Limit)
+                    b.BookId, b.Title, b.Author, b.Category, {isbnExpression} AS ISBN,
+                    COUNT(*) AS AvailableCopyCount
+                FROM dbo.Books b
+                INNER JOIN dbo.BookCopies bc ON bc.BookId = b.BookId
+                WHERE bc.Status = @AvailableStatus
+                  AND bc.Condition <> @LegacyUnverified{statusFilter}
+                  AND (b.Title LIKE @Pattern ESCAPE N'\'
+                    OR b.Author LIKE @Pattern ESCAPE N'\'
+                    OR b.Category LIKE @Pattern ESCAPE N'\'{isbnSearch})
+                GROUP BY b.BookId, b.Title, b.Author, b.Category{(hasIsbn ? ", b.ISBN" : string.Empty)}
+                ORDER BY CASE WHEN (b.Title = @Query{exactIsbn}) THEN 0 ELSE 1 END,
+                    b.Title ASC, b.BookId ASC";
+
+            using var command = new SqlCommand(sql, connection);
+            command.Parameters.Add("@Limit", SqlDbType.Int).Value = Math.Clamp(limit, 1, 20);
+            command.Parameters.Add("@Query", SqlDbType.NVarChar, 4000).Value = query.Trim();
+            command.Parameters.Add("@Pattern", SqlDbType.NVarChar, 4000).Value = $"%{EscapeLikePattern(query.Trim())}%";
+            command.Parameters.Add("@AvailableStatus", SqlDbType.NVarChar, 20).Value = BookCopyStatuses.Available;
+            command.Parameters.Add("@LegacyUnverified", SqlDbType.NVarChar, 50).Value = "LegacyUnverified";
+            if (hasBookStatus)
+                command.Parameters.Add("@ActiveStatus", SqlDbType.NVarChar, 20).Value = BookStatuses.Active;
+
+            using var reader = command.ExecuteReader();
+            while (reader.Read())
+            {
+                suggestions.Add(new BorrowBookSuggestion(
+                    reader.GetInt32(reader.GetOrdinal("BookId")),
+                    reader.GetString(reader.GetOrdinal("Title")),
+                    reader.GetString(reader.GetOrdinal("Author")),
+                    reader.IsDBNull(reader.GetOrdinal("Category")) ? string.Empty : reader.GetString(reader.GetOrdinal("Category")),
+                    reader.IsDBNull(reader.GetOrdinal("ISBN")) ? null : reader.GetString(reader.GetOrdinal("ISBN")),
+                    reader.GetInt32(reader.GetOrdinal("AvailableCopyCount"))));
+            }
+
+            return suggestions;
+        }
+
+        public virtual BorrowRecommendationPage<BorrowBookSuggestion> SearchForBorrow(
+            string? query, int pageNumber, int pageSize)
+        {
+            string normalizedQuery = query?.Trim() ?? string.Empty;
+            pageNumber = Math.Max(1, pageNumber);
+            pageSize = Math.Clamp(pageSize, 1, 20);
+            bool hasQuery = normalizedQuery.Length > 0;
+
+            using var connection = Database.GetConnection();
+            connection.Open();
+
+            // A database without the copy schema cannot provide authoritative borrow availability.
+            if (!new BookCopyRepository().HasSchema(connection, null))
+                return new BorrowRecommendationPage<BorrowBookSuggestion>(Array.Empty<BorrowBookSuggestion>(), false);
+
+            bool hasBookStatus = BookArchiveMigration.HasSchema(connection);
+            bool hasIsbn = BookIsbnMigration.HasSchema(connection);
+            bool hasCopyCondition;
+            using (var conditionColumn = new SqlCommand(
+                "SELECT CASE WHEN COL_LENGTH('dbo.BookCopies', 'Condition') IS NULL THEN 0 ELSE 1 END",
+                connection))
+            {
+                hasCopyCondition = Convert.ToInt32(conditionColumn.ExecuteScalar()) == 1;
+            }
+            if (!hasCopyCondition)
+                return new BorrowRecommendationPage<BorrowBookSuggestion>(Array.Empty<BorrowBookSuggestion>(), false);
+
+            string isbnExpression = hasIsbn ? "b.ISBN" : "CAST(NULL AS NVARCHAR(13))";
+            string statusFilter = hasBookStatus ? " AND b.Status = @ActiveStatus" : string.Empty;
+            string isbnSearch = hasIsbn ? " OR b.ISBN LIKE @Pattern ESCAPE N'\\'" : string.Empty;
+            string exactIsbn = hasIsbn ? " OR b.ISBN = @Query" : string.Empty;
+            string searchFilter = hasQuery
+                ? $@" AND (b.Title LIKE @Pattern ESCAPE N'\\'
+                    OR b.Author LIKE @Pattern ESCAPE N'\\'
+                    OR b.Category LIKE @Pattern ESCAPE N'\\'{isbnSearch})"
+                : string.Empty;
+            string orderBy = hasQuery
+                ? $"CASE WHEN (b.Title = @Query{exactIsbn}) THEN 0 ELSE 1 END, b.Title ASC, b.BookId ASC"
+                : "b.BookId ASC";
+            long offset = ((long)pageNumber - 1) * pageSize;
+
+            string sql = $@"SELECT b.BookId, b.Title, b.Author, b.Category, {isbnExpression} AS ISBN,
+                    COUNT(*) AS AvailableCopyCount
+                FROM dbo.Books b
+                INNER JOIN dbo.BookCopies bc ON bc.BookId = b.BookId
+                WHERE bc.Status = @AvailableStatus
+                  AND bc.Condition <> @LegacyUnverified{statusFilter}{searchFilter}
+                GROUP BY b.BookId, b.Title, b.Author, b.Category{(hasIsbn ? ", b.ISBN" : string.Empty)}
+                ORDER BY {orderBy}
+                OFFSET @Offset ROWS FETCH NEXT @FetchSize ROWS ONLY";
+
+            using var command = new SqlCommand(sql, connection);
+            command.Parameters.Add("@AvailableStatus", SqlDbType.NVarChar, 20).Value = BookCopyStatuses.Available;
+            command.Parameters.Add("@LegacyUnverified", SqlDbType.NVarChar, 50).Value = "LegacyUnverified";
+            command.Parameters.Add("@Offset", SqlDbType.BigInt).Value = offset;
+            command.Parameters.Add("@FetchSize", SqlDbType.Int).Value = pageSize + 1;
+            if (hasQuery)
+            {
+                command.Parameters.Add("@Query", SqlDbType.NVarChar, 4000).Value = normalizedQuery;
+                command.Parameters.Add("@Pattern", SqlDbType.NVarChar, 4000).Value = $"%{EscapeLikePattern(normalizedQuery)}%";
+            }
+            if (hasBookStatus)
+                command.Parameters.Add("@ActiveStatus", SqlDbType.NVarChar, 20).Value = BookStatuses.Active;
+
+            var suggestions = new List<BorrowBookSuggestion>(pageSize + 1);
+            using (var reader = command.ExecuteReader())
+            {
+                while (reader.Read())
+                {
+                    suggestions.Add(new BorrowBookSuggestion(
+                        reader.GetInt32(reader.GetOrdinal("BookId")),
+                        reader.GetString(reader.GetOrdinal("Title")),
+                        reader.GetString(reader.GetOrdinal("Author")),
+                        reader.IsDBNull(reader.GetOrdinal("Category")) ? string.Empty : reader.GetString(reader.GetOrdinal("Category")),
+                        reader.IsDBNull(reader.GetOrdinal("ISBN")) ? null : reader.GetString(reader.GetOrdinal("ISBN")),
+                        reader.GetInt32(reader.GetOrdinal("AvailableCopyCount"))));
+                }
+            }
+
+            bool hasMore = suggestions.Count > pageSize;
+            if (hasMore) suggestions.RemoveAt(suggestions.Count - 1);
+            return new BorrowRecommendationPage<BorrowBookSuggestion>(suggestions, hasMore);
+        }
+
+        private static string EscapeLikePattern(string value)
+            => value.Replace("\\", "\\\\", StringComparison.Ordinal)
+                .Replace("%", "\\%", StringComparison.Ordinal)
+                .Replace("_", "\\_", StringComparison.Ordinal)
+                .Replace("[", "\\[", StringComparison.Ordinal);
 
         public virtual IReadOnlyList<BookFilterOption> GetCategoryFilterOptions()
         {

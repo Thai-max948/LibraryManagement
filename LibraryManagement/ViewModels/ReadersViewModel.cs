@@ -1,5 +1,7 @@
 using System;
 using System.Collections.ObjectModel;
+using System.Threading;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Input;
 using LibraryManagement.Commands;
@@ -11,11 +13,14 @@ namespace LibraryManagement.ViewModels
 {
     public class ReadersViewModel : BaseViewModel
     {
+        private const int SearchDebounceMilliseconds = 300;
+
         private readonly ReaderService _readerService;
+        private CancellationTokenSource? _searchDebounceCts;
 
         public ObservableCollection<Reader> Readers { get; set; } = new ObservableCollection<Reader>();
 
-        public ObservableCollection<string> TypeOptions { get; } = new ObservableCollection<string> { "All", "Student", "External" };
+        public ObservableCollection<string> TypeOptions { get; } = new ObservableCollection<string> { "All", "Student", "Lecturer", "External" };
         public ObservableCollection<string> StatusOptions { get; } = new ObservableCollection<string> { "All", "Active", "Suspended", "Inactive" };
         public ObservableCollection<string> SortOptions { get; } = new ObservableCollection<string> { "Name A-Z", "Name Z-A", "Newest", "Oldest", "Status" };
         public ObservableCollection<int> PageSizeOptions { get; } = new ObservableCollection<int> { 10, 20, 50 };
@@ -26,10 +31,10 @@ namespace LibraryManagement.ViewModels
             get => _searchText;
             set
             {
-                if (SetProperty(ref _searchText, value))
-                {
-                    ResetAndSearch();
-                }
+                if (!SetProperty(ref _searchText, value ?? string.Empty)) return;
+                CurrentPage = 1;
+                OnPropertyChanged(nameof(PageSummary));
+                ScheduleSearch();
             }
         }
 
@@ -127,6 +132,7 @@ namespace LibraryManagement.ViewModels
 
         public void Search()
         {
+            CancelPendingSearch();
             try
             {
                 var page = _readerService.GetReaderPage(SearchText, SelectedTypeFilter, SelectedStatusFilter,
@@ -151,6 +157,41 @@ namespace LibraryManagement.ViewModels
         {
             CurrentPage = 1;
             Search();
+        }
+
+        private void ScheduleSearch()
+        {
+            CancelPendingSearch();
+            var debounceCts = new CancellationTokenSource();
+            _searchDebounceCts = debounceCts;
+            _ = DebounceSearchAsync(debounceCts);
+        }
+
+        private void CancelPendingSearch()
+        {
+            var pendingCts = _searchDebounceCts;
+            _searchDebounceCts = null;
+            pendingCts?.Cancel();
+        }
+
+        private async Task DebounceSearchAsync(CancellationTokenSource debounceCts)
+        {
+            try
+            {
+                await Task.Delay(SearchDebounceMilliseconds, debounceCts.Token);
+                if (!ReferenceEquals(_searchDebounceCts, debounceCts)) return;
+
+                _searchDebounceCts = null;
+                Search();
+            }
+            catch (OperationCanceledException)
+            {
+                // Explicit Readers actions cancel a pending text search and search immediately.
+            }
+            finally
+            {
+                debounceCts.Dispose();
+            }
         }
 
         private void ChangePage(int delta)

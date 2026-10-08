@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Collections.Concurrent;
 using LibraryManagement.Models;
 using LibraryManagement.Repositories;
 using LibraryManagement.Services;
@@ -135,9 +136,10 @@ public class BookSearchTests
             Assert.Equal(BookStatusFilter.Active, queries[^1].Status);
             Assert.Equal(0, viewModel.FilterCount);
 
-            viewModel.SearchText = "clean";
-            Assert.Equal(1, queries[^1].PageNumber);
             int queryCount = queries.Count;
+            viewModel.SearchText = "clean";
+            Assert.Equal(1, viewModel.PageNumber);
+            Assert.Equal(queryCount, queries.Count);
             viewModel.IsFilterPanelOpen = true;
             viewModel.CategoryFilter = "Programming";
             viewModel.AuthorFilterText = "Robert C. Martin";
@@ -286,26 +288,149 @@ public class BookSearchTests
     }
 
     [Fact]
-    public void BooksViewModel_ShowsEmptyAndErrorStatesWithoutRetainingOldRows()
+    public async Task BooksViewModel_ShowsEmptyAndErrorStatesWithoutRetainingOldRows()
     {
         var repository = new Mock<BookRepository>();
         SetupFilterOptions(repository);
         repository.Setup(repo => repo.GetActiveCatalogMetrics()).Returns(new BookCatalogMetrics(0, 0, 0));
         repository.Setup(repo => repo.GetPaged(It.IsAny<BookSearchQuery>()))
             .Returns(new PagedResult<Book>(Array.Empty<Book>(), 0, 1, 50));
+        var viewModel = StaHelper.RunInSta(() => CreateViewModel(repository));
 
         StaHelper.RunInSta(() =>
         {
-            var viewModel = CreateViewModel(repository);
             Assert.True(viewModel.IsEmpty);
             Assert.False(viewModel.HasError);
 
             repository.Setup(repo => repo.GetPaged(It.IsAny<BookSearchQuery>())).Throws(new InvalidOperationException("query failed"));
             viewModel.SearchText = "unknown";
+        });
+
+        await Task.Delay(450);
+
+        StaHelper.RunInSta(() =>
+        {
             Assert.Empty(viewModel.Books);
             Assert.True(viewModel.HasError);
             Assert.False(viewModel.IsEmpty);
         });
+    }
+
+    [Fact]
+    public async Task BooksViewModel_DebouncesRapidSearchAndResetsToFirstPage()
+    {
+        var (repository, queries) = CreateConcurrentRepository();
+        var viewModel = StaHelper.RunInSta(() => CreateViewModel(repository));
+        StaHelper.RunInSta(() => viewModel.NextPageCommand.Execute(null));
+        Assert.Equal(2, viewModel.PageNumber);
+        Assert.Equal(2, queries.Count);
+
+        StaHelper.RunInSta(() =>
+        {
+            viewModel.SearchText = "c";
+            viewModel.SearchText = "cl";
+            viewModel.SearchText = "cle";
+        });
+
+        Assert.Equal(1, viewModel.PageNumber);
+        Assert.Equal(2, queries.Count);
+        await Task.Delay(100);
+        Assert.Equal(2, queries.Count);
+
+        await Task.Delay(450);
+
+        var completedQueries = queries.ToArray();
+        Assert.Equal(3, completedQueries.Length);
+        Assert.Equal("cle", completedQueries[^1].SearchText);
+        Assert.Equal(1, completedQueries[^1].PageNumber);
+    }
+
+    [Fact]
+    public async Task BooksViewModel_EmptySearchKeepsAppliedFiltersScopeSortAndPageSize()
+    {
+        var (repository, queries) = CreateConcurrentRepository();
+        var viewModel = StaHelper.RunInSta(() => CreateViewModel(repository));
+
+        StaHelper.RunInSta(() =>
+        {
+            viewModel.IsFilterPanelOpen = true;
+            viewModel.CategoryFilter = "Programming";
+            viewModel.ApplyFiltersCommand.Execute(null);
+            viewModel.ViewScope = BookStatusFilter.Archived;
+            viewModel.SelectedSortOption = viewModel.SortOptions.Single(option => option.SortBy == "CreatedAt");
+            viewModel.PageSize = 25;
+            viewModel.NextPageCommand.Execute(null);
+        });
+        Assert.Equal(2, viewModel.PageNumber);
+        int queryCount = queries.Count;
+
+        StaHelper.RunInSta(() =>
+        {
+            viewModel.SearchText = "temporary";
+            viewModel.SearchText = "  ";
+        });
+        Assert.Equal(1, viewModel.PageNumber);
+        Assert.Equal(queryCount, queries.Count);
+
+        await Task.Delay(450);
+
+        var query = queries.ToArray()[^1];
+        Assert.Null(query.SearchText);
+        Assert.Equal("Programming", query.Category);
+        Assert.Equal(BookStatusFilter.Archived, query.Status);
+        Assert.Equal("CreatedAt", query.SortBy);
+        Assert.Equal("DESC", query.SortDirection);
+        Assert.Equal(25, query.PageSize);
+        Assert.Equal(1, query.PageNumber);
+    }
+
+    [Fact]
+    public async Task BooksViewModel_ExplicitActionsLoadImmediatelyAndCancelPendingTextSearch()
+    {
+        var (repository, queries) = CreateConcurrentRepository();
+        var viewModel = StaHelper.RunInSta(() => CreateViewModel(repository));
+
+        StaHelper.RunInSta(() =>
+        {
+            viewModel.SearchText = "before-apply";
+            viewModel.IsFilterPanelOpen = true;
+            viewModel.CategoryFilter = "Programming";
+            viewModel.ApplyFiltersCommand.Execute(null);
+            Assert.Equal("before-apply", queries.ToArray()[^1].SearchText);
+            Assert.Equal("Programming", queries.ToArray()[^1].Category);
+
+            viewModel.SearchText = "before-clear";
+            viewModel.ClearFiltersCommand.Execute(null);
+            Assert.Equal("before-clear", queries.ToArray()[^1].SearchText);
+            Assert.Equal(BookFilterCodes.All, queries.ToArray()[^1].Category);
+
+            viewModel.SearchText = "before-scope";
+            viewModel.ViewScope = BookStatusFilter.Archived;
+            Assert.Equal("before-scope", queries.ToArray()[^1].SearchText);
+            Assert.Equal(BookStatusFilter.Archived, queries.ToArray()[^1].Status);
+
+            viewModel.SearchText = "before-sort";
+            viewModel.SelectedSortOption = viewModel.SortOptions.Single(option => option.SortBy == "CreatedAt");
+            Assert.Equal("before-sort", queries.ToArray()[^1].SearchText);
+            Assert.Equal("CreatedAt", queries.ToArray()[^1].SortBy);
+
+            viewModel.SearchText = "before-page-size";
+            viewModel.PageSize = 25;
+            Assert.Equal("before-page-size", queries.ToArray()[^1].SearchText);
+            Assert.Equal(25, queries.ToArray()[^1].PageSize);
+
+            viewModel.SearchText = "before-next";
+            viewModel.NextPageCommand.Execute(null);
+            Assert.Equal("before-next", queries.ToArray()[^1].SearchText);
+            Assert.Equal(2, queries.ToArray()[^1].PageNumber);
+
+            viewModel.PreviousPageCommand.Execute(null);
+            Assert.Equal(1, queries.ToArray()[^1].PageNumber);
+        });
+
+        int immediateQueryCount = queries.Count;
+        await Task.Delay(450);
+        Assert.Equal(immediateQueryCount, queries.Count);
     }
 
     private static BooksViewModel CreateViewModel(Mock<BookRepository> repository)
@@ -325,6 +450,20 @@ public class BookSearchTests
         repository.Setup(repo => repo.GetPaged(It.IsAny<BookSearchQuery>())).Returns((BookSearchQuery query) =>
         {
             queries.Add(query);
+            return new PagedResult<Book>(Array.Empty<Book>(), 120, query.PageNumber, query.PageSize);
+        });
+        return (repository, queries);
+    }
+
+    private static (Mock<BookRepository> Repository, ConcurrentQueue<BookSearchQuery> Queries) CreateConcurrentRepository()
+    {
+        var repository = new Mock<BookRepository>();
+        var queries = new ConcurrentQueue<BookSearchQuery>();
+        SetupFilterOptions(repository);
+        repository.Setup(repo => repo.GetActiveCatalogMetrics()).Returns(new BookCatalogMetrics(57, 42, 1));
+        repository.Setup(repo => repo.GetPaged(It.IsAny<BookSearchQuery>())).Returns((BookSearchQuery query) =>
+        {
+            queries.Enqueue(query);
             return new PagedResult<Book>(Array.Empty<Book>(), 120, query.PageNumber, query.PageSize);
         });
         return (repository, queries);

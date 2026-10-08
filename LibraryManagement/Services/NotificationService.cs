@@ -10,6 +10,7 @@ public interface INotificationService
         string? sourceEntityType = null, string? sourceEntityId = null, CancellationToken cancellationToken = default, string? idempotencyKey = null);
     Task<IReadOnlyList<Notification>> GetAllAsync(CancellationToken cancellationToken = default);
     Task<IReadOnlyList<Notification>> GetUnreadAsync(CancellationToken cancellationToken = default);
+    Task<NotificationPage> GetPageAsync(NotificationPageQuery query, CancellationToken cancellationToken = default);
     Task<int> GetUnreadCountAsync(CancellationToken cancellationToken = default);
     Task MarkAsReadAsync(int id, CancellationToken cancellationToken = default);
     Task MarkAllAsReadAsync(CancellationToken cancellationToken = default);
@@ -43,6 +44,11 @@ public sealed class NotificationService : INotificationService
 
     public Task<IReadOnlyList<Notification>> GetAllAsync(CancellationToken cancellationToken = default) => _repository.GetAllAsync(cancellationToken);
     public Task<IReadOnlyList<Notification>> GetUnreadAsync(CancellationToken cancellationToken = default) => _repository.GetUnreadAsync(cancellationToken);
+    public Task<NotificationPage> GetPageAsync(NotificationPageQuery query, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(query);
+        return _repository.GetPageAsync(query, cancellationToken);
+    }
     public Task<int> GetUnreadCountAsync(CancellationToken cancellationToken = default) => _repository.GetUnreadCountAsync(cancellationToken);
     public Task MarkAsReadAsync(int id, CancellationToken cancellationToken = default) => _repository.MarkAsReadAsync(id, cancellationToken);
     public Task MarkAllAsReadAsync(CancellationToken cancellationToken = default) => _repository.MarkAllAsReadAsync(cancellationToken);

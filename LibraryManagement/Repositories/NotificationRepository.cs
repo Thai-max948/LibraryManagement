@@ -39,6 +39,49 @@ public sealed class NotificationRepository : INotificationRepository
     public Task<IReadOnlyList<Notification>> GetAllAsync(CancellationToken cancellationToken = default) => ListAsync(false, cancellationToken);
     public Task<IReadOnlyList<Notification>> GetUnreadAsync(CancellationToken cancellationToken = default) => ListAsync(true, cancellationToken);
 
+    public async Task<NotificationPage> GetPageAsync(NotificationPageQuery query, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(query);
+
+        string whereClause = query.UnreadOnly ? " WHERE IsRead = 0" : string.Empty;
+        var items = new List<Notification>(query.PageSize);
+        int totalCount;
+
+        await using var connection = Database.GetConnection();
+        await connection.OpenAsync(cancellationToken);
+
+        await using (var countCommand = new SqlCommand(
+            $"SELECT COUNT_BIG(*) FROM dbo.Notifications{whereClause}", connection))
+        {
+            totalCount = checked(Convert.ToInt32(await countCommand.ExecuteScalarAsync(cancellationToken)));
+        }
+
+        int pageNumber = query.GetEffectivePageNumber(totalCount);
+        int offset = checked((pageNumber - 1) * query.PageSize);
+        string pageSql = $@"SELECT {Columns}
+            FROM dbo.Notifications AS n{whereClause}
+            ORDER BY {NotificationPageQuery.StableOrderBySql}
+            OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY";
+
+        await using (var pageCommand = new SqlCommand(pageSql, connection))
+        {
+            pageCommand.Parameters.Add("@Offset", SqlDbType.Int).Value = offset;
+            pageCommand.Parameters.Add("@PageSize", SqlDbType.Int).Value = query.PageSize;
+
+            await using var reader = await pageCommand.ExecuteReaderAsync(cancellationToken);
+            while (await reader.ReadAsync(cancellationToken))
+                items.Add(MapNotification(reader));
+        }
+
+        return new NotificationPage
+        {
+            Items = items,
+            TotalCount = totalCount,
+            PageNumber = pageNumber,
+            PageSize = query.PageSize
+        };
+    }
+
     private static async Task<IReadOnlyList<Notification>> ListAsync(bool unreadOnly, CancellationToken cancellationToken)
     {
         await using var connection = Database.GetConnection();
@@ -49,18 +92,18 @@ public sealed class NotificationRepository : INotificationRepository
         await using var reader = await command.ExecuteReaderAsync(cancellationToken);
         var results = new List<Notification>();
         while (await reader.ReadAsync(cancellationToken))
-        {
-            results.Add(new Notification
-            {
-                Id = reader.GetInt32(0), Title = reader.GetString(1), Message = reader.GetString(2),
-                Type = (NotificationType)reader.GetInt32(3), SourceModule = reader.GetString(4),
-                SourceEntityType = reader.IsDBNull(5) ? null : reader.GetString(5),
-                SourceEntityId = reader.IsDBNull(6) ? null : reader.GetString(6),
-                CreatedAt = reader.GetDateTime(7), IsRead = reader.GetBoolean(8)
-            });
-        }
+            results.Add(MapNotification(reader));
         return results;
     }
+
+    private static Notification MapNotification(SqlDataReader reader) => new()
+    {
+        Id = reader.GetInt32(0), Title = reader.GetString(1), Message = reader.GetString(2),
+        Type = (NotificationType)reader.GetInt32(3), SourceModule = reader.GetString(4),
+        SourceEntityType = reader.IsDBNull(5) ? null : reader.GetString(5),
+        SourceEntityId = reader.IsDBNull(6) ? null : reader.GetString(6),
+        CreatedAt = reader.GetDateTime(7), IsRead = reader.GetBoolean(8)
+    };
 
     public async Task<int> GetUnreadCountAsync(CancellationToken cancellationToken = default)
     {

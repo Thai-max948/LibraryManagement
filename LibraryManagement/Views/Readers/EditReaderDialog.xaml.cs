@@ -30,31 +30,35 @@ namespace LibraryManagement.Views.Readers
             AddressBox.Text = existing.Address;
             MembershipExpiresOnPicker.SelectedDate = existing.MembershipExpiresOn;
 
-            bool isExternal = string.Equals(existing.ReaderType, "External", StringComparison.OrdinalIgnoreCase);
-            ReaderTypeComboBox.SelectedIndex = isExternal ? 1 : 0;
-
             StudentIdBox.Text = existing.StudentId ?? string.Empty;
             IdentityNumberBox.Text = existing.IdentityNumber ?? string.Empty;
-
-            UpdateIdentificationVisibility(isExternal);
+            LecturerCodeBox.Text = existing.LecturerCode ?? string.Empty;
+            DepartmentBox.Text = existing.Department ?? string.Empty;
+            ReaderTypeComboBox.SelectedIndex = existing.IsExternal ? 2 : existing.IsLecturer ? 1 : 0;
+            UpdateIdentificationVisibility(existing.ReaderType);
 
         }
 
         private void ReaderType_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            if (StudentIdPanel == null || IdentityNumberPanel == null)
+            if (StudentIdPanel == null || IdentityNumberPanel == null || LecturerInfoPanel == null)
             {
                 return;
             }
 
-            bool isExternal = ReaderTypeComboBox.SelectedIndex == 1;
-            UpdateIdentificationVisibility(isExternal);
+            UpdateIdentificationVisibility(GetSelectedReaderType());
         }
 
-        private void UpdateIdentificationVisibility(bool isExternal)
+        private string GetSelectedReaderType() =>
+            (ReaderTypeComboBox.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "Student";
+
+        private void UpdateIdentificationVisibility(string readerType)
         {
-            StudentIdPanel.Visibility = isExternal ? Visibility.Collapsed : Visibility.Visible;
-            IdentityNumberPanel.Visibility = isExternal ? Visibility.Visible : Visibility.Collapsed;
+            bool isStudent = string.Equals(readerType, "Student", StringComparison.OrdinalIgnoreCase);
+            bool isLecturer = string.Equals(readerType, "Lecturer", StringComparison.OrdinalIgnoreCase);
+            StudentIdPanel.Visibility = isStudent ? Visibility.Visible : Visibility.Collapsed;
+            IdentityNumberPanel.Visibility = !isStudent && !isLecturer ? Visibility.Visible : Visibility.Collapsed;
+            LecturerInfoPanel.Visibility = isLecturer ? Visibility.Visible : Visibility.Collapsed;
         }
 
         private void Save_Click(object sender, RoutedEventArgs e)
@@ -65,12 +69,15 @@ namespace LibraryManagement.Views.Readers
                 return;
             }
 
-            bool isExternal = ReaderTypeComboBox.SelectedIndex == 1;
-            string readerType = isExternal ? "External" : "Student";
+            string readerType = GetSelectedReaderType();
+            bool isStudent = string.Equals(readerType, "Student", StringComparison.OrdinalIgnoreCase);
+            bool isLecturer = string.Equals(readerType, "Lecturer", StringComparison.OrdinalIgnoreCase);
+            bool isExternal = string.Equals(readerType, "External", StringComparison.OrdinalIgnoreCase);
             string studentId = StudentIdBox.Text.Trim();
             string identityNumber = IdentityNumberBox.Text.Trim();
+            string lecturerCode = LecturerCodeBox.Text.Trim();
 
-            if (!isExternal && string.IsNullOrWhiteSpace(studentId))
+            if (isStudent && string.IsNullOrWhiteSpace(studentId))
             {
                 MessageBox.Show("Mã sinh viên không được để trống.", "Thiếu thông tin");
                 return;
@@ -79,6 +86,12 @@ namespace LibraryManagement.Views.Readers
             if (isExternal && string.IsNullOrWhiteSpace(identityNumber))
             {
                 MessageBox.Show("Số CCCD / Định danh không được để trống.", "Thiếu thông tin");
+                return;
+            }
+
+            if (isLecturer && string.IsNullOrWhiteSpace(lecturerCode))
+            {
+                MessageBox.Show("Mã giảng viên không được để trống.", "Thiếu thông tin");
                 return;
             }
 
@@ -93,8 +106,10 @@ namespace LibraryManagement.Views.Readers
                 ReaderId = _readerId,
                 FullName = FullNameBox.Text.Trim(),
                 ReaderType = readerType,
-                StudentId = !isExternal ? studentId : null,
-                IdentityNumber = isExternal ? identityNumber : null,
+                StudentId = string.IsNullOrWhiteSpace(studentId) ? null : studentId,
+                IdentityNumber = string.IsNullOrWhiteSpace(identityNumber) ? null : identityNumber,
+                LecturerCode = string.IsNullOrWhiteSpace(lecturerCode) ? null : lecturerCode,
+                Department = string.IsNullOrWhiteSpace(DepartmentBox.Text) ? null : DepartmentBox.Text.Trim(),
                 Phone = PhoneBox.Text.Trim(),
                 Email = EmailBox.Text.Trim(),
                 Address = AddressBox.Text.Trim(),

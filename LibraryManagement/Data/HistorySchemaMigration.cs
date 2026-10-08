@@ -89,6 +89,10 @@ public static class HistorySchemaMigration
                     AND name = 'IX_BorrowRecords_ActiveDueDate')
                     CREATE INDEX IX_BorrowRecords_ActiveDueDate
                         ON dbo.BorrowRecords(DueDate) INCLUDE (BorrowId) WHERE Status = 'Borrowing';
+                IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id = OBJECT_ID('dbo.BorrowRecords')
+                    AND name = 'IX_BorrowRecords_ReaderId_Status')
+                    CREATE INDEX IX_BorrowRecords_ReaderId_Status
+                        ON dbo.BorrowRecords(ReaderId, Status) INCLUDE (DueDate);
             ");
             transaction.Commit();
         }

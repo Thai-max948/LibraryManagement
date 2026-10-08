@@ -8,6 +8,60 @@ public sealed record BookCopyMigrationResult(int CopiesCreated, int CopiesNeedin
 
 public static class BookCopyMigration
 {
+    private const string CompletionKey = "BookCopyBackfillV1";
+
+    public static void EnsureMigrationStateTable(SqlConnection connection, SqlTransaction? transaction = null)
+    {
+        ArgumentNullException.ThrowIfNull(connection);
+
+        using var command = new SqlCommand(@"
+            IF OBJECT_ID(N'dbo.BookCopyMigrationState', N'U') IS NULL
+            BEGIN
+                CREATE TABLE dbo.BookCopyMigrationState (
+                    MigrationKey NVARCHAR(100) NOT NULL
+                        CONSTRAINT PK_BookCopyMigrationState PRIMARY KEY,
+                    AppliedAt DATETIME2 NOT NULL
+                        CONSTRAINT DF_BookCopyMigrationState_AppliedAt DEFAULT SYSUTCDATETIME()
+                );
+            END;", connection, transaction);
+        command.ExecuteNonQuery();
+    }
+
+    public static bool IsBackfillCompleted(SqlConnection connection, SqlTransaction? transaction = null)
+    {
+        ArgumentNullException.ThrowIfNull(connection);
+        EnsureMigrationStateTable(connection, transaction);
+
+        using var command = new SqlCommand(@"
+            SELECT CASE WHEN EXISTS (
+                SELECT 1
+                FROM dbo.BookCopyMigrationState
+                WHERE MigrationKey = @MigrationKey
+            ) THEN 1 ELSE 0 END;", connection, transaction);
+        command.Parameters.Add("@MigrationKey", System.Data.SqlDbType.NVarChar, 100).Value = CompletionKey;
+        return Convert.ToInt32(command.ExecuteScalar()) == 1;
+    }
+
+    public static void MarkBackfillCompleted(SqlConnection connection, SqlTransaction transaction)
+    {
+        ArgumentNullException.ThrowIfNull(connection);
+        ArgumentNullException.ThrowIfNull(transaction);
+        EnsureMigrationStateTable(connection, transaction);
+
+        using var command = new SqlCommand(@"
+            IF NOT EXISTS (
+                SELECT 1
+                FROM dbo.BookCopyMigrationState WITH (UPDLOCK, HOLDLOCK)
+                WHERE MigrationKey = @MigrationKey
+            )
+            BEGIN
+                INSERT INTO dbo.BookCopyMigrationState (MigrationKey)
+                VALUES (@MigrationKey);
+            END;", connection, transaction);
+        command.Parameters.Add("@MigrationKey", System.Data.SqlDbType.NVarChar, 100).Value = CompletionKey;
+        command.ExecuteNonQuery();
+    }
+
     public static BookCopyMigrationResult Apply()
     {
         using var connection = Database.GetConnection();
@@ -72,6 +126,24 @@ public static class BookCopyMigration
                 IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name = 'FK_BorrowRecords_BookCopies')
                     ALTER TABLE dbo.BorrowRecords ADD CONSTRAINT FK_BorrowRecords_BookCopies
                         FOREIGN KEY (CopyId) REFERENCES dbo.BookCopies(CopyId);");
+            Execute(connection, transaction, @"
+                IF NOT EXISTS (SELECT 1 FROM sys.indexes
+                    WHERE object_id = OBJECT_ID('dbo.BookCopies')
+                      AND name = 'IX_BookCopies_BookId_Status')
+                    CREATE INDEX IX_BookCopies_BookId_Status
+                        ON dbo.BookCopies(BookId, Status);");
+            Execute(connection, transaction, @"
+                IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id = OBJECT_ID('dbo.BorrowRecords')
+                    AND name = 'UX_BorrowRecords_ActiveCopy')
+                    CREATE UNIQUE INDEX UX_BorrowRecords_ActiveCopy ON dbo.BorrowRecords(CopyId)
+                    WHERE CopyId IS NOT NULL AND Status = 'Borrowing';");
+
+            EnsureMigrationStateTable(connection, transaction);
+            if (IsBackfillCompleted(connection, transaction))
+            {
+                transaction.Commit();
+                return new BookCopyMigrationResult(0, 0, 0);
+            }
 
             var books = new List<(int Id, int Quantity, int Available)>();
             using (var command = new SqlCommand("SELECT BookId, Quantity, AvailableQuantity FROM dbo.Books WITH (UPDLOCK, HOLDLOCK) ORDER BY BookId", connection, transaction))
@@ -125,12 +197,7 @@ public static class BookCopyMigration
 
             }
 
-            Execute(connection, transaction, @"
-                IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id = OBJECT_ID('dbo.BorrowRecords')
-                    AND name = 'UX_BorrowRecords_ActiveCopy')
-                    CREATE UNIQUE INDEX UX_BorrowRecords_ActiveCopy ON dbo.BorrowRecords(CopyId)
-                    WHERE CopyId IS NOT NULL AND Status = 'Borrowing';");
-
+            MarkBackfillCompleted(connection, transaction);
             transaction.Commit();
             return new BookCopyMigrationResult(copiesCreated, copiesNeedingReview, unresolvedLoans);
         }

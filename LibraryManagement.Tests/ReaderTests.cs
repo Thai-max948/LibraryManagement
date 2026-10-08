@@ -354,7 +354,8 @@ namespace LibraryManagement.Tests
 
             var reader = new Reader { ReaderId = 1, IsDeleted = false };
             mockReaderRepo.Setup(r => r.GetById(1)).Returns(reader);
-            mockBorrowRepo.Setup(r => r.GetBorrowingRecords()).Returns(new List<BorrowRecord>());
+            mockBorrowRepo.Setup(r => r.HasActiveBorrowByReader(1)).Returns(false);
+            mockBorrowRepo.Setup(r => r.HasBorrowHistoryByReader(1)).Returns(false);
             mockReaderRepo.Setup(r => r.Delete(1)).Returns(true);
 
             var service = new ReaderService(mockReaderRepo.Object, mockBorrowRepo.Object);
@@ -364,6 +365,10 @@ namespace LibraryManagement.Tests
 
             // Assert
             mockReaderRepo.Verify(r => r.Delete(1), Times.Once);
+            mockBorrowRepo.Verify(r => r.HasActiveBorrowByReader(1), Times.Once);
+            mockBorrowRepo.Verify(r => r.HasBorrowHistoryByReader(1), Times.Once);
+            mockBorrowRepo.Verify(r => r.GetBorrowingRecords(), Times.Never);
+            mockBorrowRepo.Verify(r => r.GetHistory(It.IsAny<int?>(), It.IsAny<int?>(), It.IsAny<string?>(), It.IsAny<DateTime?>(), It.IsAny<DateTime?>()), Times.Never);
         }
 
         [Fact]
@@ -376,11 +381,7 @@ namespace LibraryManagement.Tests
             var reader = new Reader { ReaderId = 1, IsDeleted = false };
             mockReaderRepo.Setup(r => r.GetById(1)).Returns(reader);
 
-            var activeRecords = new List<BorrowRecord>
-            {
-                new BorrowRecord { ReaderId = 1, Status = "Borrowing" }
-            };
-            mockBorrowRepo.Setup(r => r.GetBorrowingRecords()).Returns(activeRecords);
+            mockBorrowRepo.Setup(r => r.HasActiveBorrowByReader(1)).Returns(true);
 
             var service = new ReaderService(mockReaderRepo.Object, mockBorrowRepo.Object);
 
@@ -388,6 +389,10 @@ namespace LibraryManagement.Tests
             var ex = Assert.Throws<BusinessRuleException>(() => service.DeleteReader(1));
             Assert.Equal("Không thể xóa độc giả đang có sách chưa trả.", ex.Message);
             mockReaderRepo.Verify(r => r.Delete(It.IsAny<int>()), Times.Never);
+            mockBorrowRepo.Verify(r => r.HasActiveBorrowByReader(1), Times.Once);
+            mockBorrowRepo.Verify(r => r.HasBorrowHistoryByReader(It.IsAny<int>()), Times.Never);
+            mockBorrowRepo.Verify(r => r.GetBorrowingRecords(), Times.Never);
+            mockBorrowRepo.Verify(r => r.GetHistory(It.IsAny<int?>(), It.IsAny<int?>(), It.IsAny<string?>(), It.IsAny<DateTime?>(), It.IsAny<DateTime?>()), Times.Never);
         }
 
         [Fact]
@@ -397,19 +402,76 @@ namespace LibraryManagement.Tests
             var borrowRepo = new Mock<BorrowRepository>();
             readerRepo.Setup(repository => repository.GetById(1))
                 .Returns(new Reader { ReaderId = 1, Status = "Active" });
-            borrowRepo.Setup(repository => repository.GetBorrowingRecords())
-                .Returns(new List<BorrowRecord>());
-            borrowRepo.Setup(repository => repository.GetHistory(1, null, null, null, null))
-                .Returns(new List<BorrowRecord>
-                {
-                    new() { ReaderId = 1, Status = "Returned", ReturnDate = DateTime.Today }
-                });
+            borrowRepo.Setup(repository => repository.HasActiveBorrowByReader(1)).Returns(false);
+            borrowRepo.Setup(repository => repository.HasBorrowHistoryByReader(1)).Returns(true);
             var service = new ReaderService(readerRepo.Object, borrowRepo.Object);
 
             var exception = Assert.Throws<BusinessRuleException>(() => service.DeleteReader(1));
 
-            Assert.Contains("Inactive", exception.Message);
+            Assert.Equal("Độc giả đã có lịch sử mượn trả. Hãy chuyển trạng thái sang Inactive thay vì xóa.", exception.Message);
             readerRepo.Verify(repository => repository.Delete(It.IsAny<int>()), Times.Never);
+            borrowRepo.Verify(repository => repository.HasActiveBorrowByReader(1), Times.Once);
+            borrowRepo.Verify(repository => repository.HasBorrowHistoryByReader(1), Times.Once);
+            borrowRepo.Verify(repository => repository.GetBorrowingRecords(), Times.Never);
+            borrowRepo.Verify(repository => repository.GetHistory(It.IsAny<int?>(), It.IsAny<int?>(), It.IsAny<string?>(), It.IsAny<DateTime?>(), It.IsAny<DateTime?>()), Times.Never);
+        }
+
+        [Theory]
+        [InlineData(false, false)]
+        [InlineData(true, true)]
+        public void DeleteReader_MissingOrDeletedReader_FailsBeforeBorrowQueries(bool exists, bool isDeleted)
+        {
+            var readerRepo = new Mock<ReaderRepository>();
+            var borrowRepo = new Mock<BorrowRepository>();
+            readerRepo.Setup(repository => repository.GetById(1))
+                .Returns(exists ? new Reader { ReaderId = 1, IsDeleted = isDeleted } : null);
+            var service = new ReaderService(readerRepo.Object, borrowRepo.Object);
+
+            var exception = Assert.Throws<BusinessRuleException>(() => service.DeleteReader(1));
+
+            Assert.Equal("Độc giả không tồn tại.", exception.Message);
+            borrowRepo.Verify(repository => repository.HasActiveBorrowByReader(It.IsAny<int>()), Times.Never);
+            borrowRepo.Verify(repository => repository.HasBorrowHistoryByReader(It.IsAny<int>()), Times.Never);
+            readerRepo.Verify(repository => repository.Delete(It.IsAny<int>()), Times.Never);
+        }
+
+        [Fact]
+        public void DeactivateReader_WithActiveBorrow_IsRejected()
+        {
+            var readerRepo = new Mock<ReaderRepository>();
+            var borrowRepo = new Mock<BorrowRepository>();
+            readerRepo.Setup(repository => repository.GetById(1))
+                .Returns(new Reader { ReaderId = 1, Status = "Active" });
+            borrowRepo.Setup(repository => repository.HasActiveBorrowByReader(1)).Returns(true);
+            var service = new ReaderService(readerRepo.Object, borrowRepo.Object);
+
+            var exception = Assert.Throws<BusinessRuleException>(() => service.DeactivateReader(1));
+
+            Assert.Equal("Không thể chuyển Inactive khi độc giả còn sách chưa trả.", exception.Message);
+            readerRepo.Verify(repository => repository.Update(It.IsAny<Reader>()), Times.Never);
+            borrowRepo.Verify(repository => repository.HasActiveBorrowByReader(1), Times.Once);
+            borrowRepo.Verify(repository => repository.GetBorrowingRecords(), Times.Never);
+        }
+
+        [Fact]
+        public void DeactivateReader_WithoutActiveBorrow_SetsInactive()
+        {
+            var readerRepo = new Mock<ReaderRepository>();
+            var borrowRepo = new Mock<BorrowRepository>();
+            var reader = new Reader { ReaderId = 1, Status = "Active", SuspensionReason = "old", SuspendedDate = DateTime.Today };
+            readerRepo.Setup(repository => repository.GetById(1)).Returns(reader);
+            readerRepo.Setup(repository => repository.Update(reader)).Returns(true);
+            borrowRepo.Setup(repository => repository.HasActiveBorrowByReader(1)).Returns(false);
+            var service = new ReaderService(readerRepo.Object, borrowRepo.Object);
+
+            service.DeactivateReader(1);
+
+            Assert.Equal("Inactive", reader.Status);
+            Assert.Empty(reader.SuspensionReason);
+            Assert.Null(reader.SuspendedDate);
+            readerRepo.Verify(repository => repository.Update(reader), Times.Once);
+            borrowRepo.Verify(repository => repository.HasActiveBorrowByReader(1), Times.Once);
+            borrowRepo.Verify(repository => repository.GetBorrowingRecords(), Times.Never);
         }
 
         [Fact]
@@ -420,8 +482,7 @@ namespace LibraryManagement.Tests
             readerRepo.Setup(repository => repository.GetById(1))
                 .Returns(new Reader { ReaderId = 1, Status = "Active" });
             readerRepo.Setup(repository => repository.Update(It.IsAny<Reader>())).Returns(true);
-            borrowRepo.Setup(repository => repository.GetBorrowingRecords())
-                .Returns(new List<BorrowRecord>());
+            borrowRepo.Setup(repository => repository.HasActiveBorrowByReader(1)).Returns(false);
             var service = new ReaderService(readerRepo.Object, borrowRepo.Object);
             var updated = new Reader
             {
@@ -439,6 +500,8 @@ namespace LibraryManagement.Tests
             Assert.Empty(updated.SuspensionReason);
             Assert.Null(updated.SuspendedDate);
             readerRepo.Verify(repository => repository.Update(updated), Times.Once);
+            borrowRepo.Verify(repository => repository.HasActiveBorrowByReader(1), Times.Once);
+            borrowRepo.Verify(repository => repository.GetBorrowingRecords(), Times.Never);
         }
 
         [Fact]
@@ -448,8 +511,7 @@ namespace LibraryManagement.Tests
             var borrowRepo = new Mock<BorrowRepository>();
             readerRepo.Setup(repository => repository.GetById(1))
                 .Returns(new Reader { ReaderId = 1, Status = "Active" });
-            borrowRepo.Setup(repository => repository.GetBorrowingRecords())
-                .Returns(new List<BorrowRecord> { new() { ReaderId = 1, Status = "Borrowing" } });
+            borrowRepo.Setup(repository => repository.HasActiveBorrowByReader(1)).Returns(true);
             var service = new ReaderService(readerRepo.Object, borrowRepo.Object);
             var updated = new Reader
             {
@@ -463,8 +525,10 @@ namespace LibraryManagement.Tests
 
             var exception = Assert.Throws<BusinessRuleException>(() => service.UpdateReader(updated));
 
-            Assert.Contains("còn sách chưa trả", exception.Message);
+            Assert.Equal("Không thể chuyển Inactive khi độc giả còn sách chưa trả.", exception.Message);
             readerRepo.Verify(repository => repository.Update(It.IsAny<Reader>()), Times.Never);
+            borrowRepo.Verify(repository => repository.HasActiveBorrowByReader(1), Times.Once);
+            borrowRepo.Verify(repository => repository.GetBorrowingRecords(), Times.Never);
         }
 
         [Fact]
@@ -565,7 +629,14 @@ namespace LibraryManagement.Tests
                 new Reader { ReaderId = 2, FullName = "R2" },
                 new Reader { ReaderId = 3, FullName = "R3" }
             };
-            mockReaderRepo.Setup(r => r.GetAll(false)).Returns(readers);
+            mockReaderRepo.Setup(r => r.GetPage(It.IsAny<ReaderPageQuery>()))
+                .Returns((ReaderPageQuery query) => new ReaderPage
+                {
+                    Items = readers,
+                    TotalCount = readers.Count,
+                    PageNumber = query.PageNumber,
+                    PageSize = query.PageSize
+                });
 
             var service = new ReaderService(mockReaderRepo.Object, mockBorrowRepo.Object);
 
@@ -593,7 +664,23 @@ namespace LibraryManagement.Tests
                     Status = "Active"
                 });
             }
-            mockReaderRepo.Setup(r => r.GetAll(false)).Returns(readers);
+            mockReaderRepo.Setup(r => r.GetPage(It.IsAny<ReaderPageQuery>()))
+                .Returns((ReaderPageQuery query) =>
+                {
+                    var pageItems = readers
+                        .OrderBy(reader => reader.FullName, StringComparer.CurrentCultureIgnoreCase)
+                        .ThenBy(reader => reader.ReaderId)
+                        .Skip((query.PageNumber - 1) * query.PageSize)
+                        .Take(query.PageSize)
+                        .ToList();
+                    return new ReaderPage
+                    {
+                        Items = pageItems,
+                        TotalCount = readers.Count,
+                        PageNumber = query.PageNumber,
+                        PageSize = query.PageSize
+                    };
+                });
 
             var service = new ReaderService(mockReaderRepo.Object, new Mock<BorrowRepository>().Object);
 
@@ -820,23 +907,31 @@ namespace LibraryManagement.Tests
         }
 
         [Fact]
-        public void GetReaderPage_SortsAndPaginatesFilteredResults()
+        public void GetReaderPage_UsesRepositoryPagingAndReturnsRepositoryPage()
         {
             var readerRepo = new Mock<ReaderRepository>();
-            readerRepo.Setup(r => r.GetAll(false)).Returns(new List<Reader>
+            var expectedPage = new ReaderPage
             {
-                new() { ReaderId = 1, FullName = "An" }, new() { ReaderId = 2, FullName = "Bình" },
-                new() { ReaderId = 3, FullName = "Chi" }, new() { ReaderId = 4, FullName = "Dũng" },
-                new() { ReaderId = 5, FullName = "Giang" }, new() { ReaderId = 6, FullName = "Hà" }
-            });
+                Items = new List<Reader> { new() { ReaderId = 7, FullName = "An" } },
+                TotalCount = 6,
+                PageNumber = 2,
+                PageSize = 5
+            };
+            readerRepo.Setup(r => r.GetPage(It.IsAny<ReaderPageQuery>())).Returns(expectedPage);
             var service = new ReaderService(readerRepo.Object, new Mock<BorrowRepository>().Object);
 
-            var page = service.GetReaderPage("", "All", "All", "Name Z-A", 2, 5);
+            var page = service.GetReaderPage(" R000123 ", " Student ", " Suspended ", "Newest", 2, 50);
 
-            Assert.Equal(6, page.TotalCount);
-            Assert.Equal(2, page.PageNumber);
-            Assert.Single(page.Items);
-            Assert.Equal("An", page.Items[0].FullName);
+            Assert.Same(expectedPage, page);
+            readerRepo.Verify(r => r.GetPage(It.Is<ReaderPageQuery>(query =>
+                query.Keyword == "R000123"
+                && query.ReaderType == "Student"
+                && query.Status == "Suspended"
+                && query.SortBy == "Newest"
+                && query.PageNumber == 2
+                && query.PageSize == 50)), Times.Once);
+            readerRepo.Verify(r => r.GetAll(It.IsAny<bool>()), Times.Never);
+            readerRepo.Verify(r => r.Search(It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<string?>()), Times.Never);
         }
 
         [Fact]
@@ -846,13 +941,19 @@ namespace LibraryManagement.Tests
             var borrowRepo = new Mock<BorrowRepository>();
             var bookRepo = new Mock<BookRepository>();
             readerRepo.Setup(r => r.GetById(7)).Returns(new Reader { ReaderId = 7, FullName = "Mai" });
-            borrowRepo.Setup(r => r.GetHistory(7, null, null, null, null)).Returns(new List<BorrowRecord>
+            borrowRepo.Setup(r => r.GetReaderProfileBorrowData(7, It.IsAny<DateTime>(), 5)).Returns(new ReaderProfileBorrowData
             {
-                new() { BorrowId = 1, ReaderId = 7, BookId = 11, Status = "Borrowing", DueDate = DateTime.Today.AddDays(-1) },
-                new() { BorrowId = 2, ReaderId = 7, BookId = 12, Status = "Returned", DueDate = DateTime.Today.AddDays(-5), ReturnDate = DateTime.Today.AddDays(-4) }
+                RecentHistory =
+                [
+                    new() { BorrowId = 1, BookTitle = "Clean Code", Status = "Borrowing" },
+                    new() { BorrowId = 2, BookTitle = "Refactoring", Status = "Returned" }
+                ],
+                EligibilityRecords =
+                [new() { BorrowId = 1, ReaderId = 7, Status = "Borrowing", DueDate = DateTime.Today.AddDays(-1) }],
+                CurrentlyBorrowing = 1,
+                TotalBorrowed = 2,
+                OverdueCount = 1
             });
-            bookRepo.Setup(r => r.GetById(11)).Returns(new Book { BookId = 11, Title = "Clean Code" });
-            bookRepo.Setup(r => r.GetById(12)).Returns(new Book { BookId = 12, Title = "Refactoring" });
             var service = new ReaderService(readerRepo.Object, borrowRepo.Object, bookRepo.Object);
 
             var profile = service.GetReaderProfile(7);
@@ -863,6 +964,10 @@ namespace LibraryManagement.Tests
             Assert.False(profile.Eligibility.IsEligible);
             Assert.Contains("quá hạn", profile.Eligibility.ReasonSummary);
             Assert.Contains(profile.BorrowingHistory, h => h.BookTitle == "Clean Code");
+            borrowRepo.Verify(r => r.GetReaderProfileBorrowData(7, DateTime.Today, 5), Times.Once);
+            borrowRepo.Verify(r => r.GetHistory(
+                It.IsAny<int?>(), It.IsAny<int?>(), It.IsAny<string?>(), It.IsAny<DateTime?>(), It.IsAny<DateTime?>()), Times.Never);
+            bookRepo.Verify(r => r.GetById(It.IsAny<int>()), Times.Never);
         }
 
         [Fact]
@@ -873,21 +978,23 @@ namespace LibraryManagement.Tests
             var bookRepo = new Mock<BookRepository>();
             readerRepo.Setup(repository => repository.GetById(8))
                 .Returns(new Reader { ReaderId = 8, FullName = "Lan", Status = "Active" });
-            var records = Enumerable.Range(1, 6)
-                .Select(id => new BorrowRecord
+            var recentHistory = Enumerable.Range(1, 5)
+                .Select(id => new ReaderBorrowHistoryItem
                 {
                     BorrowId = id,
-                    ReaderId = 8,
-                    BookId = id,
+                    BookTitle = $"Book {id}",
                     Status = "Returned",
                     BorrowDate = DateTime.Today.AddDays(-id),
                     DueDate = DateTime.Today.AddDays(7 - id),
                     ReturnDate = DateTime.Today.AddDays(1 - id)
                 })
                 .ToList();
-            borrowRepo.Setup(repository => repository.GetHistory(8, null, null, null, null)).Returns(records);
-            bookRepo.Setup(repository => repository.GetById(It.IsAny<int>()))
-                .Returns<int>(id => new Book { BookId = id, Title = $"Book {id}" });
+            borrowRepo.Setup(repository => repository.GetReaderProfileBorrowData(8, It.IsAny<DateTime>(), 5))
+                .Returns(new ReaderProfileBorrowData
+                {
+                    RecentHistory = recentHistory,
+                    TotalBorrowed = 6
+                });
             var service = new ReaderService(readerRepo.Object, borrowRepo.Object, bookRepo.Object);
 
             var profile = service.GetReaderProfile(8);
@@ -895,6 +1002,11 @@ namespace LibraryManagement.Tests
             Assert.Equal(6, profile.TotalBorrowed);
             Assert.Equal(5, profile.BorrowingHistory.Count);
             Assert.DoesNotContain(profile.BorrowingHistory, activity => activity.BorrowId == 6);
+            Assert.Same(recentHistory, profile.BorrowingHistory);
+            borrowRepo.Verify(repository => repository.GetReaderProfileBorrowData(8, DateTime.Today, 5), Times.Once);
+            borrowRepo.Verify(repository => repository.GetHistory(
+                It.IsAny<int?>(), It.IsAny<int?>(), It.IsAny<string?>(), It.IsAny<DateTime?>(), It.IsAny<DateTime?>()), Times.Never);
+            bookRepo.Verify(repository => repository.GetById(It.IsAny<int>()), Times.Never);
         }
 
         [Theory]

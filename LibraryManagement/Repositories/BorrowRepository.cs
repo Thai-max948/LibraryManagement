@@ -176,6 +176,275 @@ namespace LibraryManagement.Repositories
             return records;
         }
 
+        public virtual int CountActiveBorrowsByBook(int bookId)
+        {
+            const string sql = @"
+                DECLARE @CountSql NVARCHAR(MAX);
+                IF COL_LENGTH('dbo.BorrowRecords', 'CopyId') IS NOT NULL
+                    AND OBJECT_ID('dbo.BookCopies', 'U') IS NOT NULL
+                BEGIN
+                    SET @CountSql = N'
+                        SELECT COUNT_BIG(*)
+                        FROM dbo.BorrowRecords AS br
+                        LEFT JOIN dbo.BookCopies AS bc ON bc.CopyId = br.CopyId
+                        WHERE COALESCE(bc.BookId, br.BookId) = @BookId
+                          AND br.Status = N''Borrowing'';';
+                END
+                ELSE
+                BEGIN
+                    SET @CountSql = N'
+                        SELECT COUNT_BIG(*)
+                        FROM dbo.BorrowRecords AS br
+                        WHERE br.BookId = @BookId
+                          AND br.Status = N''Borrowing'';';
+                END;
+
+                EXEC sys.sp_executesql @CountSql, N'@BookId INT', @BookId = @BookId;";
+
+            using var connection = Database.GetConnection();
+            connection.Open();
+            using var command = new SqlCommand(sql, connection);
+            command.Parameters.Add("@BookId", System.Data.SqlDbType.Int).Value = bookId;
+            return checked((int)Convert.ToInt64(command.ExecuteScalar()));
+        }
+
+        public virtual bool HasActiveBorrowByReader(int readerId)
+        {
+            const string sql = @"
+                SELECT CASE WHEN EXISTS
+                (
+                    SELECT 1
+                    FROM dbo.BorrowRecords
+                    WHERE ReaderId = @ReaderId AND Status = N'Borrowing'
+                ) THEN 1 ELSE 0 END;";
+
+            using var connection = Database.GetConnection();
+            connection.Open();
+            using var command = new SqlCommand(sql, connection);
+            command.Parameters.Add("@ReaderId", System.Data.SqlDbType.Int).Value = readerId;
+            return Convert.ToInt32(command.ExecuteScalar()) == 1;
+        }
+
+        public virtual bool HasBorrowHistoryByReader(int readerId)
+        {
+            const string sql = @"
+                SELECT CASE WHEN EXISTS
+                (
+                    SELECT 1
+                    FROM dbo.BorrowRecords
+                    WHERE ReaderId = @ReaderId
+                ) THEN 1 ELSE 0 END;";
+
+            using var connection = Database.GetConnection();
+            connection.Open();
+            using var command = new SqlCommand(sql, connection);
+            command.Parameters.Add("@ReaderId", System.Data.SqlDbType.Int).Value = readerId;
+            return Convert.ToInt32(command.ExecuteScalar()) == 1;
+        }
+
+        public virtual List<CurrentBorrowingRow> GetCurrentBorrowingRows(int limit)
+        {
+            int boundedLimit = Math.Clamp(limit, 1, 200);
+            const string sql = @"
+                SELECT TOP (@Limit)
+                    br.BorrowId,
+                    br.ReaderId,
+                    CASE WHEN reader.IsDeleted = 1
+                        THEN CONCAT(COALESCE(NULLIF(LTRIM(RTRIM(br.ReaderNameSnapshot)), N''),
+                                             NULLIF(LTRIM(RTRIM(reader.FullName)), N''),
+                                             CONCAT(N'Reader #', br.ReaderId)), N' (Đã xóa)')
+                        ELSE COALESCE(NULLIF(LTRIM(RTRIM(br.ReaderNameSnapshot)), N''),
+                                      NULLIF(LTRIM(RTRIM(reader.FullName)), N''),
+                                      CONCAT(N'Reader #', br.ReaderId))
+                    END AS ReaderName,
+                    br.BookId,
+                    COALESCE(NULLIF(LTRIM(RTRIM(br.BookTitleSnapshot)), N''),
+                             NULLIF(LTRIM(RTRIM(book.Title)), N''),
+                             CONCAT(N'Book #', br.BookId)) AS BookTitle,
+                    br.CopyId AS BookCopyId,
+                    COALESCE(NULLIF(LTRIM(RTRIM(br.BarcodeSnapshot)), N''),
+                             NULLIF(LTRIM(RTRIM(copy.Barcode)), N'')) AS Barcode,
+                    br.BorrowDate,
+                    br.DueDate
+                FROM dbo.BorrowRecords AS br
+                LEFT JOIN dbo.Readers AS reader ON reader.ReaderId = br.ReaderId
+                LEFT JOIN dbo.Books AS book ON book.BookId = br.BookId
+                LEFT JOIN dbo.BookCopies AS copy ON copy.CopyId = br.CopyId AND copy.BookId = br.BookId
+                WHERE br.Status = N'Borrowing' AND br.ReturnDate IS NULL
+                ORDER BY br.BorrowId DESC;";
+
+            var rows = new List<CurrentBorrowingRow>();
+            using var connection = Database.GetConnection();
+            connection.Open();
+            using var command = new SqlCommand(sql, connection);
+            command.Parameters.Add("@Limit", System.Data.SqlDbType.Int).Value = boundedLimit;
+            using var reader = command.ExecuteReader();
+            while (reader.Read())
+            {
+                rows.Add(new CurrentBorrowingRow
+                {
+                    BorrowId = reader.GetInt32(0),
+                    ReaderId = reader.GetInt32(1),
+                    ReaderName = reader.GetString(2),
+                    BookId = reader.GetInt32(3),
+                    BookTitle = reader.GetString(4),
+                    BookCopyId = reader.IsDBNull(5) ? null : reader.GetInt32(5),
+                    Barcode = reader.IsDBNull(6) ? null : reader.GetString(6),
+                    BorrowDate = reader.GetDateTime(7),
+                    DueDate = reader.GetDateTime(8)
+                });
+            }
+            return rows;
+        }
+
+        public virtual CurrentBorrowingPage GetCurrentBorrowingPage(CurrentBorrowingPageQuery query)
+        {
+            ArgumentNullException.ThrowIfNull(query);
+
+            const string where = " FROM dbo.BorrowRecords AS br WHERE br.Status = N'Borrowing' AND br.ReturnDate IS NULL";
+            const string countSql = "SELECT COUNT_BIG(*)" + where + ";";
+            const string pageSql = @"
+                SELECT
+                    br.BorrowId,
+                    br.ReaderId,
+                    CASE WHEN reader.IsDeleted = 1
+                        THEN CONCAT(COALESCE(NULLIF(LTRIM(RTRIM(br.ReaderNameSnapshot)), N''),
+                                             NULLIF(LTRIM(RTRIM(reader.FullName)), N''),
+                                             CONCAT(N'Reader #', br.ReaderId)), N' (Đã xóa)')
+                        ELSE COALESCE(NULLIF(LTRIM(RTRIM(br.ReaderNameSnapshot)), N''),
+                                      NULLIF(LTRIM(RTRIM(reader.FullName)), N''),
+                                      CONCAT(N'Reader #', br.ReaderId))
+                    END AS ReaderName,
+                    br.BookId,
+                    COALESCE(NULLIF(LTRIM(RTRIM(br.BookTitleSnapshot)), N''),
+                             NULLIF(LTRIM(RTRIM(book.Title)), N''),
+                             CONCAT(N'Book #', br.BookId)) AS BookTitle,
+                    br.CopyId AS BookCopyId,
+                    COALESCE(NULLIF(LTRIM(RTRIM(br.BarcodeSnapshot)), N''),
+                             NULLIF(LTRIM(RTRIM(copy.Barcode)), N'')) AS Barcode,
+                    br.BorrowDate,
+                    br.DueDate
+                FROM dbo.BorrowRecords AS br
+                LEFT JOIN dbo.Readers AS reader ON reader.ReaderId = br.ReaderId
+                LEFT JOIN dbo.Books AS book ON book.BookId = br.BookId
+                LEFT JOIN dbo.BookCopies AS copy ON copy.CopyId = br.CopyId AND copy.BookId = br.BookId
+                WHERE br.Status = N'Borrowing' AND br.ReturnDate IS NULL
+                ORDER BY br.BorrowDate DESC, br.BorrowId DESC
+                OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY;";
+
+            using var connection = Database.GetConnection();
+            connection.Open();
+
+            long totalCount64;
+            using (var countCommand = new SqlCommand(countSql, connection))
+                totalCount64 = Convert.ToInt64(countCommand.ExecuteScalar());
+
+            int totalCount = checked((int)totalCount64);
+            int pageSize = CurrentBorrowingPageQuery.FixedPageSize;
+            int totalPages = totalCount == 0
+                ? 1
+                : (int)Math.Ceiling(totalCount / (double)pageSize);
+            int pageNumber = Math.Min(query.PageNumber, totalPages);
+            long offset = (long)(pageNumber - 1) * pageSize;
+
+            var rows = new List<CurrentBorrowingRow>(pageSize);
+            using (var pageCommand = new SqlCommand(pageSql, connection))
+            {
+                pageCommand.Parameters.Add("@Offset", System.Data.SqlDbType.BigInt).Value = offset;
+                pageCommand.Parameters.Add("@PageSize", System.Data.SqlDbType.Int).Value = pageSize;
+                using var reader = pageCommand.ExecuteReader();
+                while (reader.Read())
+                {
+                    rows.Add(new CurrentBorrowingRow
+                    {
+                        BorrowId = reader.GetInt32(0),
+                        ReaderId = reader.GetInt32(1),
+                        ReaderName = reader.GetString(2),
+                        BookId = reader.GetInt32(3),
+                        BookTitle = reader.GetString(4),
+                        BookCopyId = reader.IsDBNull(5) ? null : reader.GetInt32(5),
+                        Barcode = reader.IsDBNull(6) ? null : reader.GetString(6),
+                        BorrowDate = reader.GetDateTime(7),
+                        DueDate = reader.GetDateTime(8)
+                    });
+                }
+            }
+
+            return new CurrentBorrowingPage(rows, pageNumber, pageSize, totalCount);
+        }
+
+        public virtual List<ActiveReturnLoanRow> SearchActiveLoansForReturn(string? searchText, int limit)
+        {
+            int boundedLimit = Math.Clamp(limit, 1, 200);
+            string normalizedSearch = searchText?.Trim() ?? string.Empty;
+            string? searchPattern = normalizedSearch.Length == 0
+                ? null
+                : $"%{EscapeLikePattern(normalizedSearch)}%";
+            const string sql = @"
+                SELECT TOP (@Limit)
+                    br.BorrowId,
+                    br.ReaderId,
+                    display.ReaderName,
+                    br.BookId,
+                    display.BookTitle,
+                    br.CopyId AS BookCopyId,
+                    display.Barcode,
+                    br.BorrowDate,
+                    br.DueDate
+                FROM dbo.BorrowRecords AS br
+                LEFT JOIN dbo.Readers AS reader ON reader.ReaderId = br.ReaderId
+                LEFT JOIN dbo.Books AS book ON book.BookId = br.BookId
+                LEFT JOIN dbo.BookCopies AS copy ON copy.CopyId = br.CopyId AND copy.BookId = br.BookId
+                CROSS APPLY
+                (
+                    SELECT
+                        CASE WHEN reader.IsDeleted = 1
+                            THEN CONCAT(COALESCE(NULLIF(LTRIM(RTRIM(br.ReaderNameSnapshot)), N''),
+                                                 NULLIF(LTRIM(RTRIM(reader.FullName)), N''),
+                                                 CONCAT(N'Reader #', br.ReaderId)), N' (Đã xóa)')
+                            ELSE COALESCE(NULLIF(LTRIM(RTRIM(br.ReaderNameSnapshot)), N''),
+                                          NULLIF(LTRIM(RTRIM(reader.FullName)), N''),
+                                          CONCAT(N'Reader #', br.ReaderId))
+                        END AS ReaderName,
+                        COALESCE(NULLIF(LTRIM(RTRIM(br.BookTitleSnapshot)), N''),
+                                 NULLIF(LTRIM(RTRIM(book.Title)), N''),
+                                 CONCAT(N'Book #', br.BookId)) AS BookTitle,
+                        COALESCE(NULLIF(LTRIM(RTRIM(br.BarcodeSnapshot)), N''),
+                                 NULLIF(LTRIM(RTRIM(copy.Barcode)), N'')) AS Barcode
+                ) AS display
+                WHERE br.Status = N'Borrowing'
+                  AND br.ReturnDate IS NULL
+                  AND (@Pattern IS NULL OR display.ReaderName LIKE @Pattern ESCAPE N'\'
+                      OR display.BookTitle LIKE @Pattern ESCAPE N'\'
+                      OR display.Barcode LIKE @Pattern ESCAPE N'\')
+                ORDER BY br.BorrowDate DESC, br.BorrowId DESC;";
+
+            var rows = new List<ActiveReturnLoanRow>();
+            using var connection = Database.GetConnection();
+            connection.Open();
+            using var command = new SqlCommand(sql, connection);
+            command.Parameters.Add("@Limit", System.Data.SqlDbType.Int).Value = boundedLimit;
+            command.Parameters.Add("@Pattern", System.Data.SqlDbType.NVarChar, 4000).Value =
+                (object?)searchPattern ?? DBNull.Value;
+            using var reader = command.ExecuteReader();
+            while (reader.Read())
+            {
+                rows.Add(new ActiveReturnLoanRow
+                {
+                    BorrowId = reader.GetInt32(0),
+                    ReaderId = reader.GetInt32(1),
+                    ReaderName = reader.GetString(2),
+                    BookId = reader.GetInt32(3),
+                    BookTitle = reader.GetString(4),
+                    BookCopyId = reader.IsDBNull(5) ? null : reader.GetInt32(5),
+                    Barcode = reader.IsDBNull(6) ? null : reader.GetString(6),
+                    BorrowDate = reader.GetDateTime(7),
+                    DueDate = reader.GetDateTime(8)
+                });
+            }
+            return rows;
+        }
+
         public virtual List<BorrowRecord> GetHistory(
             int? readerId = null,
             int? bookId = null,
@@ -247,6 +516,98 @@ namespace LibraryManagement.Repositories
                 }
             }
             return records;
+        }
+
+        public virtual ReaderProfileBorrowData GetReaderProfileBorrowData(
+            int readerId,
+            DateTime asOfDate,
+            int recentLimit = 5)
+        {
+            int boundedRecentLimit = Math.Clamp(recentLimit, 0, 20);
+            const string sql = @"
+                SELECT
+                    COUNT_BIG(*) AS TotalBorrowed,
+                    COUNT_BIG(CASE WHEN UPPER(br.Status) = N'BORROWING' THEN 1 END) AS CurrentlyBorrowing,
+                    COUNT_BIG(CASE WHEN UPPER(br.Status) = N'BORROWING' AND br.DueDate < @AsOfDate THEN 1 END) AS OverdueCount
+                FROM dbo.BorrowRecords AS br
+                WHERE br.ReaderId = @ReaderId;
+
+                SELECT TOP (@RecentLimit)
+                    br.BorrowId,
+                    COALESCE(NULLIF(LTRIM(RTRIM(book.Title)), N''), CONCAT(N'Book #', br.BookId)) AS BookTitle,
+                    br.BorrowDate,
+                    br.DueDate,
+                    br.ReturnDate,
+                    br.Status
+                FROM dbo.BorrowRecords AS br
+                LEFT JOIN dbo.Books AS book ON book.BookId = br.BookId
+                WHERE br.ReaderId = @ReaderId
+                ORDER BY ISNULL(br.ReturnDate, br.BorrowDate) DESC, br.BorrowId DESC;
+
+                SELECT br.BorrowId, br.ReaderId, br.DueDate, br.Status
+                FROM dbo.BorrowRecords AS br
+                WHERE br.ReaderId = @ReaderId AND UPPER(br.Status) = N'BORROWING';";
+
+            using var connection = Database.GetConnection();
+            connection.Open();
+            using var command = new SqlCommand(sql, connection);
+            command.Parameters.Add("@ReaderId", System.Data.SqlDbType.Int).Value = readerId;
+            command.Parameters.Add("@AsOfDate", System.Data.SqlDbType.DateTime2).Value = asOfDate.Date;
+            command.Parameters.Add("@RecentLimit", System.Data.SqlDbType.Int).Value = boundedRecentLimit;
+
+            int totalBorrowed;
+            int currentlyBorrowing;
+            int overdueCount;
+            using (var reader = command.ExecuteReader())
+            {
+                if (!reader.Read())
+                    throw new InvalidOperationException("The reader profile summary query returned no result row.");
+
+                totalBorrowed = checked((int)reader.GetInt64(0));
+                currentlyBorrowing = checked((int)reader.GetInt64(1));
+                overdueCount = checked((int)reader.GetInt64(2));
+
+                if (!reader.NextResult())
+                    throw new InvalidOperationException("The reader profile history result set was not returned.");
+
+                var recentHistory = new List<ReaderBorrowHistoryItem>(boundedRecentLimit);
+                while (reader.Read())
+                {
+                    recentHistory.Add(new ReaderBorrowHistoryItem
+                    {
+                        BorrowId = reader.GetInt32(0),
+                        BookTitle = reader.GetString(1),
+                        BorrowDate = reader.GetDateTime(2),
+                        DueDate = reader.GetDateTime(3),
+                        ReturnDate = reader.IsDBNull(4) ? null : reader.GetDateTime(4),
+                        Status = reader.GetString(5)
+                    });
+                }
+
+                if (!reader.NextResult())
+                    throw new InvalidOperationException("The reader profile eligibility result set was not returned.");
+
+                var eligibilityRecords = new List<BorrowRecord>();
+                while (reader.Read())
+                {
+                    eligibilityRecords.Add(new BorrowRecord
+                    {
+                        BorrowId = reader.GetInt32(0),
+                        ReaderId = reader.GetInt32(1),
+                        DueDate = reader.GetDateTime(2),
+                        Status = reader.GetString(3)
+                    });
+                }
+
+                return new ReaderProfileBorrowData
+                {
+                    RecentHistory = recentHistory,
+                    EligibilityRecords = eligibilityRecords,
+                    CurrentlyBorrowing = currentlyBorrowing,
+                    TotalBorrowed = totalBorrowed,
+                    OverdueCount = overdueCount
+                };
+            }
         }
 
         public virtual int CountActiveBorrowsByReader(SqlConnection conn, SqlTransaction? tran, int readerId)
@@ -407,5 +768,11 @@ namespace LibraryManagement.Repositories
             HasCopyIdColumn(conn, tran) && HasBookCopiesSchema(conn, tran)
                 ? "COALESCE(bc.BookId, br.BookId)"
                 : "br.BookId";
+
+        private static string EscapeLikePattern(string value) => value
+            .Replace("\\", "\\\\", StringComparison.Ordinal)
+            .Replace("%", "\\%", StringComparison.Ordinal)
+            .Replace("_", "\\_", StringComparison.Ordinal)
+            .Replace("[", "\\[", StringComparison.Ordinal);
     }
 }

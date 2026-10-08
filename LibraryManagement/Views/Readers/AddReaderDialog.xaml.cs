@@ -15,14 +15,16 @@ namespace LibraryManagement.Views.Readers
 
         private void ReaderType_Changed(object sender, RoutedEventArgs e)
         {
-            if (StudentIdPanel == null || IdentityNumberPanel == null)
+            if (StudentIdPanel == null || IdentityNumberPanel == null || LecturerInfoPanel == null)
             {
                 return;
             }
 
             bool isStudent = RadioStudent.IsChecked == true;
+            bool isLecturer = RadioLecturer.IsChecked == true;
             StudentIdPanel.Visibility = isStudent ? Visibility.Visible : Visibility.Collapsed;
-            IdentityNumberPanel.Visibility = isStudent ? Visibility.Collapsed : Visibility.Visible;
+            IdentityNumberPanel.Visibility = isStudent || isLecturer ? Visibility.Collapsed : Visibility.Visible;
+            LecturerInfoPanel.Visibility = isLecturer ? Visibility.Visible : Visibility.Collapsed;
         }
 
         private void Save_Click(object sender, RoutedEventArgs e)
@@ -34,9 +36,11 @@ namespace LibraryManagement.Views.Readers
             }
 
             bool isStudent = RadioStudent.IsChecked == true;
-            string readerType = isStudent ? "Student" : "External";
+            bool isLecturer = RadioLecturer.IsChecked == true;
+            string readerType = isStudent ? "Student" : isLecturer ? "Lecturer" : "External";
             string studentId = StudentIdBox.Text.Trim();
             string identityNumber = IdentityNumberBox.Text.Trim();
+            string lecturerCode = LecturerCodeBox.Text.Trim();
 
             if (isStudent && string.IsNullOrWhiteSpace(studentId))
             {
@@ -44,9 +48,15 @@ namespace LibraryManagement.Views.Readers
                 return;
             }
 
-            if (!isStudent && string.IsNullOrWhiteSpace(identityNumber))
+            if (!isStudent && !isLecturer && string.IsNullOrWhiteSpace(identityNumber))
             {
                 MessageBox.Show("Số CCCD / Định danh không được để trống.", "Thiếu thông tin");
+                return;
+            }
+
+            if (isLecturer && string.IsNullOrWhiteSpace(lecturerCode))
+            {
+                MessageBox.Show("Mã giảng viên không được để trống.", "Thiếu thông tin");
                 return;
             }
 
@@ -61,7 +71,10 @@ namespace LibraryManagement.Views.Readers
                 FullName = FullNameBox.Text.Trim(),
                 ReaderType = readerType,
                 StudentId = isStudent ? studentId : null,
-                IdentityNumber = isStudent ? null : identityNumber,
+                IdentityNumber = !isStudent && !isLecturer ? identityNumber : null,
+                LecturerCode = isLecturer ? lecturerCode : null,
+                Department = isLecturer && !string.IsNullOrWhiteSpace(DepartmentBox.Text)
+                    ? DepartmentBox.Text.Trim() : null,
                 Phone = PhoneBox.Text.Trim(),
                 Email = EmailBox.Text.Trim(),
                 Address = AddressBox.Text.Trim(),

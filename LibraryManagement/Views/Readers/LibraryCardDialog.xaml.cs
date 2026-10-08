@@ -18,15 +18,25 @@ namespace LibraryManagement.Views.Readers
             FullNameText.Text = reader.FullName;
             ReaderIdText.Text = reader.FormattedId;
 
-            bool isExternal = string.Equals(reader.ReaderType, "External", StringComparison.OrdinalIgnoreCase);
+            DepartmentInfoPanel.Visibility = reader.IsLecturer ? Visibility.Visible : Visibility.Collapsed;
+            DepartmentValueText.Text = reader.DisplayDepartment;
 
-            if (isExternal)
+            if (reader.IsExternal)
             {
                 TypeText.Text = "EXTERNAL READER";
                 TypeText.Foreground = new SolidColorBrush(Color.FromRgb(194, 65, 12)); // Orange-700
                 TypeBadge.Background = new SolidColorBrush(Color.FromRgb(254, 243, 199)); // Amber-100
 
                 IdLabelText.Text = "IDENTITY NUMBER";
+                IdValueText.Text = reader.DisplayIdentification;
+            }
+            else if (reader.IsLecturer)
+            {
+                TypeText.Text = "LECTURER";
+                TypeText.Foreground = new SolidColorBrush(Color.FromRgb(109, 40, 217)); // Violet-700
+                TypeBadge.Background = new SolidColorBrush(Color.FromRgb(237, 233, 254)); // Violet-100
+
+                IdLabelText.Text = "LECTURER CODE";
                 IdValueText.Text = reader.DisplayIdentification;
             }
             else

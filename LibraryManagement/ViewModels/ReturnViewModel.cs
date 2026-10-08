@@ -2,6 +2,8 @@ using System;
 using System.Collections.ObjectModel;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 using System.Windows.Input;
 using LibraryManagement.Commands;
 using LibraryManagement.Models;
@@ -11,11 +13,14 @@ namespace LibraryManagement.ViewModels
 {
     public class ReturnViewModel : BaseViewModel
     {
+        private const int SearchDebounceMilliseconds = 300;
+
         private readonly IReturnCirculationService _borrowService;
         private readonly BookService _bookService;
         private readonly ReaderService _readerService;
         private readonly IUserDialogService _dialogService;
         private readonly BookCopyService _copyService;
+        private CancellationTokenSource? _searchDebounceCts;
 
         public ObservableCollection<ActiveBorrowRow> ActiveBorrowings { get; set; } = new ObservableCollection<ActiveBorrowRow>();
         public ObservableCollection<BookCopy> LegacyCopyChoices { get; } = new ObservableCollection<BookCopy>();
@@ -40,7 +45,7 @@ namespace LibraryManagement.ViewModels
                 if (SetProperty(ref _searchText, value))
                 {
                     SearchErrorMessage = string.Empty;
-                    Load();
+                    ScheduleSearch();
                 }
             }
         }
@@ -94,6 +99,7 @@ namespace LibraryManagement.ViewModels
             SearchErrorMessage = string.Empty;
             if (!BookCopyBarcode.LooksLikeBarcode(SearchText)) return;
 
+            CancelPendingSearch();
             string barcode = SearchText;
             SelectedRow = null;
             ConditionNote = string.Empty;
@@ -184,52 +190,82 @@ namespace LibraryManagement.ViewModels
 
         public void Load()
         {
+            CancelPendingSearch();
+            LoadCurrentSearch();
+        }
+
+        private void ScheduleSearch()
+        {
+            CancelPendingSearch();
+            var cancellation = new CancellationTokenSource();
+            _searchDebounceCts = cancellation;
+            _ = DebounceSearchAsync(SearchText, cancellation);
+        }
+
+        private void CancelPendingSearch()
+        {
+            var pending = _searchDebounceCts;
+            _searchDebounceCts = null;
+            pending?.Cancel();
+        }
+
+        private async Task DebounceSearchAsync(string query, CancellationTokenSource cancellation)
+        {
+            try
+            {
+                await Task.Delay(SearchDebounceMilliseconds, cancellation.Token);
+                if (cancellation.IsCancellationRequested ||
+                    !ReferenceEquals(_searchDebounceCts, cancellation) ||
+                    !string.Equals(query, SearchText, StringComparison.Ordinal))
+                    return;
+
+                _searchDebounceCts = null;
+                LoadCurrentSearch();
+            }
+            catch (OperationCanceledException) when (cancellation.IsCancellationRequested)
+            {
+                // A newer query or an immediate operation superseded this search.
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Trace.TraceError("Debounced return search failed: {0}", ex);
+                try
+                {
+                    _dialogService.ShowError("Không thể tải danh sách đang mượn lúc này.", "Lỗi");
+                }
+                catch (Exception dialogException)
+                {
+                    System.Diagnostics.Trace.TraceError("Reporting a return search failure failed: {0}", dialogException);
+                }
+            }
+            finally
+            {
+                cancellation.Dispose();
+            }
+        }
+
+        private void LoadCurrentSearch()
+        {
             try
             {
                 SelectedRow = null;
                 ActiveBorrowings.Clear();
-                var records = _borrowService.GetBorrowingBooks();
-                var books = _bookService.GetAllBooksIncludingArchived();
-                var readers = _readerService.GetAllReaders(includeDeleted: true);
-                var barcodes = new Dictionary<int, string>();
-                foreach (int bookId in records.Where(record => record.BookCopyId.HasValue).Select(record => record.BookId).Distinct())
-                    foreach (var copy in _copyService.GetCopies(bookId))
-                        barcodes[copy.CopyId] = copy.Barcode;
-
-                var rows = records.Select(r =>
+                var rows = _borrowService.SearchActiveLoansForReturn(SearchText);
+                foreach (var row in rows)
                 {
-                    var book = books.FirstOrDefault(b => b.BookId == r.BookId);
-                    var reader = readers.FirstOrDefault(x => x.ReaderId == r.ReaderId);
-                    return new ActiveBorrowRow
+                    ActiveBorrowings.Add(new ActiveBorrowRow
                     {
-                        BorrowId = r.BorrowId,
-                        BookId = r.BookId,
-                        BookCopyId = r.BookCopyId,
-                        CopyBarcode = r.BookCopyId.HasValue && barcodes.TryGetValue(r.BookCopyId.Value, out var barcode)
-                            ? barcode : "Cần đối chiếu",
-                        ReaderName = reader != null
-                            ? (reader.IsDeleted ? $"{reader.FullName} (Đã xóa)" : reader.FullName)
-                            : "?",
-                        BookTitle = book?.Title ?? "?",
-                        BorrowDate = r.BorrowDate.ToString("dd/MM/yyyy"),
-                        DueDate = r.DueDate.ToString("dd/MM/yyyy"),
-                        BorrowDateValue = r.BorrowDate,
-                        OverdueDays = _borrowService.GetCurrentLateDays(r.DueDate)
-                    };
-                });
-
-                if (!string.IsNullOrWhiteSpace(SearchText))
-                {
-                    var kw = SearchText.Trim();
-                    rows = rows.Where(x =>
-                        x.ReaderName.Contains(kw, StringComparison.OrdinalIgnoreCase) ||
-                        x.BookTitle.Contains(kw, StringComparison.OrdinalIgnoreCase) ||
-                        x.CopyBarcode.Contains(kw, StringComparison.OrdinalIgnoreCase));
-                }
-
-                foreach (var row in rows.OrderByDescending(x => x.BorrowDateValue).ThenByDescending(x => x.BorrowId))
-                {
-                    ActiveBorrowings.Add(row);
+                        BorrowId = row.BorrowId,
+                        BookId = row.BookId,
+                        BookCopyId = row.BookCopyId,
+                        CopyBarcode = row.BookCopyId.HasValue ? row.Barcode ?? "Cần đối chiếu" : "Cần đối chiếu",
+                        ReaderName = row.ReaderName,
+                        BookTitle = row.BookTitle,
+                        BorrowDate = row.BorrowDate.ToString("dd/MM/yyyy"),
+                        DueDate = row.DueDate.ToString("dd/MM/yyyy"),
+                        BorrowDateValue = row.BorrowDate,
+                        OverdueDays = _borrowService.GetCurrentLateDays(row.DueDate)
+                    });
                 }
             }
             catch (Exception ex)

@@ -265,6 +265,16 @@ namespace LibraryManagement.Tests
         }
 
         [Fact]
+        public void LoanPolicy_Lecturer_CalculatesTwentyEightCalendarDays()
+        {
+            var dueDate = LoanPolicyService.CalculateDueDate(
+                new LoanPolicy { ReaderType = "Lecturer", LoanPeriodDays = 28 },
+                new DateTime(2026, 10, 8, 15, 30, 0));
+
+            Assert.Equal(new DateTime(2026, 11, 5), dueDate);
+        }
+
+        [Fact]
         public void LoanPolicy_RejectsMissingOrInvalidConfiguration()
         {
             var repository = new Mock<LoanPolicyRepository>();

@@ -51,6 +51,24 @@ public class NotificationTests
         Assert.Equal(0, await service.GetUnreadCountAsync());
     }
 
+    [Fact]
+    public async Task GetPageAsync_ForwardsQueryAndCancellationToken()
+    {
+        var repository = new MemoryRepository();
+        var service = new NotificationService(repository);
+        var query = new NotificationPageQuery(unreadOnly: true, pageNumber: 4, pageSize: 7);
+        using var cancellation = new CancellationTokenSource();
+
+        var page = await service.GetPageAsync(query, cancellation.Token);
+
+        Assert.Same(query, repository.LastPageQuery);
+        Assert.Equal(cancellation.Token, repository.LastPageCancellationToken);
+        Assert.Empty(page.Items);
+        Assert.Equal(0, page.TotalCount);
+        Assert.Equal(1, page.PageNumber);
+        Assert.Equal(7, page.PageSize);
+    }
+
     [Theory]
     [InlineData(BusinessAction.BorrowCreated, "Borrow", NotificationType.Success)]
     [InlineData(BusinessAction.FeePaid, "Fee", NotificationType.Success)]
@@ -91,6 +109,8 @@ public class NotificationTests
     internal sealed class MemoryRepository : INotificationRepository
     {
         private readonly List<Notification> _items = new();
+        public NotificationPageQuery? LastPageQuery { get; private set; }
+        public CancellationToken LastPageCancellationToken { get; private set; }
 
         public Task<Notification?> AddAsync(Notification notification, string? idempotencyKey = null, CancellationToken cancellationToken = default)
         {
@@ -112,6 +132,30 @@ public class NotificationTests
 
         public Task<IReadOnlyList<Notification>> GetUnreadAsync(CancellationToken cancellationToken = default) =>
             Task.FromResult<IReadOnlyList<Notification>>(_items.Where(item => !item.IsRead).ToList());
+
+        public Task<NotificationPage> GetPageAsync(NotificationPageQuery query, CancellationToken cancellationToken = default)
+        {
+            LastPageQuery = query;
+            LastPageCancellationToken = cancellationToken;
+            IEnumerable<Notification> filtered = query.UnreadOnly
+                ? _items.Where(item => !item.IsRead)
+                : _items;
+            int totalCount = filtered.Count();
+            int pageNumber = query.GetEffectivePageNumber(totalCount);
+            var items = filtered
+                .OrderByDescending(item => item.CreatedAt)
+                .ThenByDescending(item => item.Id)
+                .Skip((pageNumber - 1) * query.PageSize)
+                .Take(query.PageSize)
+                .ToList();
+            return Task.FromResult(new NotificationPage
+            {
+                Items = items,
+                TotalCount = totalCount,
+                PageNumber = pageNumber,
+                PageSize = query.PageSize
+            });
+        }
 
         public Task<int> GetUnreadCountAsync(CancellationToken cancellationToken = default) =>
             Task.FromResult(_items.Count(item => !item.IsRead));

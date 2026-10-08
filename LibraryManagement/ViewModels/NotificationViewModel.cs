@@ -4,11 +4,11 @@ using System.ComponentModel;
 using System.Linq;
 using System.Windows.Data;
 using System.Windows.Input;
+using System.Windows.Threading;
 using LibraryManagement.Commands;
 using LibraryManagement.Models;
 using LibraryManagement.Services;
 using System.Diagnostics;
-using System.Windows;
 
 namespace LibraryManagement.ViewModels;
 
@@ -18,12 +18,25 @@ public class NotificationViewModel : BaseViewModel, IDisposable
     private bool _showUnreadOnly;
     private NotificationItemViewModel? _currentToast;
     private readonly INotificationService? _service;
+    private readonly Dispatcher _dispatcher;
     private string? _loadError;
+    private int _unreadCount;
+    private int _loadVersion;
+    private int _countMutationVersion;
+    private int _notificationMutationVersion;
     public string? LoadError { get => _loadError; private set => SetProperty(ref _loadError, value); }
 
     public ObservableCollection<NotificationItemViewModel> Notifications { get; }
     public ICollectionView FilteredNotifications { get; }
-    public int UnreadCount => Notifications.Count(item => !item.IsRead);
+    public int UnreadCount
+    {
+        get => _unreadCount;
+        private set
+        {
+            if (SetProperty(ref _unreadCount, Math.Max(0, value)))
+                OnPropertyChanged(nameof(HasUnread));
+        }
+    }
     public bool HasUnread => UnreadCount > 0;
     public bool HasVisibleNotifications => !FilteredNotifications.IsEmpty;
     public bool IsAllSelected => !ShowUnreadOnly;
@@ -35,10 +48,10 @@ public class NotificationViewModel : BaseViewModel, IDisposable
         private set
         {
             if (!SetProperty(ref _showUnreadOnly, value)) return;
-            FilteredNotifications.Refresh();
             OnPropertyChanged(nameof(IsAllSelected));
             OnPropertyChanged(nameof(IsUnreadSelected));
-            OnPropertyChanged(nameof(HasVisibleNotifications));
+            UpdateCounts();
+            if (_service != null) _ = LoadAsync();
         }
     }
     public NotificationItemViewModel? CurrentToast
@@ -70,9 +83,11 @@ public class NotificationViewModel : BaseViewModel, IDisposable
 
     public NotificationViewModel(IEnumerable<NotificationItemViewModel> items)
     {
+        _dispatcher = Dispatcher.CurrentDispatcher;
         Notifications = new ObservableCollection<NotificationItemViewModel>(items);
+        _unreadCount = Notifications.Count(item => !item.IsRead);
         FilteredNotifications = CollectionViewSource.GetDefaultView(Notifications);
-        FilteredNotifications.Filter = item => item is NotificationItemViewModel notification && (!ShowUnreadOnly || !notification.IsRead);
+        FilteredNotifications.Filter = item => item is NotificationItemViewModel;
         foreach (var item in Notifications) item.PropertyChanged += OnItemChanged;
         Notifications.CollectionChanged += (_, args) =>
         {
@@ -99,27 +114,87 @@ public class NotificationViewModel : BaseViewModel, IDisposable
     public async Task LoadAsync()
     {
         if (_service == null) return;
+
+        int requestVersion = ++_loadVersion;
+        bool unreadOnly = ShowUnreadOnly;
+        int countMutationVersion = _countMutationVersion;
+        int notificationMutationVersion = _notificationMutationVersion;
+        Task<NotificationPage>? pageTask = null;
+        Task<int>? unreadCountTask = null;
+        Exception? pageFailure = null;
+        Exception? countFailure = null;
+
         try
         {
-            var items = await _service.GetAllAsync();
-            Notifications.Clear();
-            foreach (var item in items) Notifications.Add(NotificationItemViewModel.FromNotification(item));
-            LoadError = null;
+            pageTask = _service.GetPageAsync(new NotificationPageQuery(
+                unreadOnly: unreadOnly,
+                pageNumber: 1,
+                pageSize: NotificationPageQuery.DefaultPageSize));
         }
         catch (Exception exception)
         {
+            pageFailure = exception;
+        }
+
+        try
+        {
+            unreadCountTask = _service.GetUnreadCountAsync();
+        }
+        catch (Exception exception)
+        {
+            countFailure = exception;
+        }
+
+        NotificationPage? page = null;
+        int? unreadCount = null;
+        if (pageTask != null)
+        {
+            try { page = await pageTask; }
+            catch (Exception exception) { pageFailure = exception; }
+        }
+        if (unreadCountTask != null)
+        {
+            try { unreadCount = await unreadCountTask; }
+            catch (Exception exception) { countFailure = exception; }
+        }
+
+        if (requestVersion != _loadVersion) return;
+
+        if (page != null && notificationMutationVersion == _notificationMutationVersion && unreadOnly == ShowUnreadOnly)
+        {
+            Notifications.Clear();
+            foreach (var item in page.Items.Take(NotificationPageQuery.DefaultPageSize))
+                Notifications.Add(NotificationItemViewModel.FromNotification(item));
+        }
+
+        if (unreadCount.HasValue && countMutationVersion == _countMutationVersion)
+            UnreadCount = unreadCount.Value;
+
+        if (pageFailure == null && countFailure == null)
+            LoadError = null;
+        else
+        {
             LoadError = "Không thể tải thông báo.";
-            Trace.TraceError($"Notification load failed: {exception}");
+            if (pageFailure != null) Trace.TraceError($"Notification page load failed: {pageFailure}");
+            if (countFailure != null) Trace.TraceError($"Notification unread count load failed: {countFailure}");
         }
     }
 
     private async Task MarkAsReadAsync(NotificationItemViewModel item)
     {
         if (item.IsRead) return;
+        bool wasUnread = !item.IsRead;
         try
         {
             if (_service != null) await _service.MarkAsReadAsync(item.Id);
             item.IsRead = true;
+            _notificationMutationVersion++;
+            if (wasUnread)
+            {
+                _countMutationVersion++;
+                UnreadCount--;
+            }
+            if (ShowUnreadOnly) Notifications.Remove(item);
             LoadError = null;
         }
         catch (Exception exception)
@@ -134,7 +209,13 @@ public class NotificationViewModel : BaseViewModel, IDisposable
         try
         {
             if (_service != null) await _service.MarkAllAsReadAsync();
-            foreach (var item in Notifications) item.IsRead = true;
+            _notificationMutationVersion++;
+            _countMutationVersion++;
+            UnreadCount = 0;
+            if (ShowUnreadOnly)
+                Notifications.Clear();
+            else
+                foreach (var item in Notifications) item.IsRead = true;
             LoadError = null;
         }
         catch (Exception exception)
@@ -150,11 +231,18 @@ public class NotificationViewModel : BaseViewModel, IDisposable
         {
             var item = NotificationItemViewModel.FromNotification(notification);
             Notifications.Insert(0, item);
+            _notificationMutationVersion++;
+            while (Notifications.Count > NotificationPageQuery.DefaultPageSize)
+                Notifications.RemoveAt(Notifications.Count - 1);
+            if (!notification.IsRead)
+            {
+                _countMutationVersion++;
+                UnreadCount++;
+            }
             CurrentToast = item;
         }
-        var dispatcher = Application.Current?.Dispatcher;
-        if (dispatcher == null || dispatcher.CheckAccess()) Add();
-        else dispatcher.BeginInvoke((Action)Add);
+        if (_dispatcher.CheckAccess()) Add();
+        else _dispatcher.BeginInvoke((Action)Add);
     }
 
     public void Dispose()
@@ -170,8 +258,6 @@ public class NotificationViewModel : BaseViewModel, IDisposable
     private void UpdateCounts()
     {
         FilteredNotifications.Refresh();
-        OnPropertyChanged(nameof(UnreadCount));
-        OnPropertyChanged(nameof(HasUnread));
         OnPropertyChanged(nameof(HasVisibleNotifications));
     }
 

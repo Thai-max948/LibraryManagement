@@ -3,7 +3,8 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="clr-namespace:LibraryManagement.ViewModels">
 
-    <StackPanel Margin="10">
+    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+      <StackPanel Margin="10">
         <!-- Title and Overdue Quick Filter Card -->
         <Grid Margin="0,0,0,16">
             <Grid.ColumnDefinitions>
@@ -87,8 +88,9 @@
 
         <TextBlock Text="{Binding ErrorMessage}" Foreground="{StaticResource TechAccentRose}" TextWrapping="Wrap" Margin="0,0,0,8"/>
 
-        <DataGrid ItemsSource="{Binding Records}" SelectedItem="{Binding SelectedRecord}" AutoGenerateColumns="False" IsReadOnly="True"
-                  Style="{StaticResource AppDataGridStyle}" Height="330">
+        <Grid Height="{Binding GridHeight}">
+            <DataGrid ItemsSource="{Binding Records}" SelectedItem="{Binding SelectedRecord}" AutoGenerateColumns="False" IsReadOnly="True"
+                      Style="{StaticResource AppDataGridStyle}" RowHeight="36" VerticalAlignment="Stretch">
             <DataGrid.Columns>
                 <DataGridTextColumn Header="Reader" Binding="{Binding ReaderName}" Width="*"/>
                 <DataGridTextColumn Header="Book" Binding="{Binding BookTitle}" Width="*"/>
@@ -125,14 +127,39 @@
                     </DataGridTemplateColumn.CellTemplate>
                 </DataGridTemplateColumn>
             </DataGrid.Columns>
-        </DataGrid>
+            </DataGrid>
+            <TextBlock Text="No history records match the current filters."
+                       HorizontalAlignment="Center" VerticalAlignment="Center"
+                       Foreground="{StaticResource SecondaryTextBrush}" IsHitTestVisible="False">
+                <TextBlock.Style>
+                    <Style TargetType="TextBlock">
+                        <Setter Property="Visibility" Value="Collapsed"/>
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding Records.Count}" Value="0">
+                                <Setter Property="Visibility" Value="Visible"/>
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </TextBlock.Style>
+            </TextBlock>
+        </Grid>
 
-        <DockPanel Margin="0,10,0,0" LastChildFill="False">
-            <Button DockPanel.Dock="Left" Content="Clear filters" Command="{Binding ClearFiltersCommand}" Padding="10,5" Margin="0,0,8,0"/>
-            <Button DockPanel.Dock="Right" Content="Next ›" Command="{Binding NextPageCommand}" IsEnabled="{Binding HasNextPage}" Padding="12,5"/>
-            <Button DockPanel.Dock="Right" Content="‹ Previous" Command="{Binding PreviousPageCommand}" IsEnabled="{Binding HasPreviousPage}" Padding="12,5" Margin="0,0,8,0"/>
-            <TextBlock DockPanel.Dock="Right" Text="{Binding PageSummary}" VerticalAlignment="Center" Margin="0,0,12,0"/>
-        </DockPanel>
+        <Grid Margin="0,10,0,0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <Button Grid.Column="0" Content="Clear filters" Command="{Binding ClearFiltersCommand}" Padding="10,5" Margin="0,0,8,0"/>
+            <TextBlock Grid.Column="1" Text="{Binding RecordsSummary}" VerticalAlignment="Center"
+                       Foreground="{StaticResource SecondaryTextBrush}" HorizontalAlignment="Center"/>
+            <StackPanel Grid.Column="2" Orientation="Horizontal">
+                <Button Content="‹ Previous" Command="{Binding PreviousPageCommand}" IsEnabled="{Binding HasPreviousPage}"
+                        Padding="12,5" Margin="0,0,8,0"/>
+                <TextBlock Text="{Binding PageSummary}" VerticalAlignment="Center" Margin="0,0,12,0"/>
+                <Button Content="Next ›" Command="{Binding NextPageCommand}" IsEnabled="{Binding HasNextPage}" Padding="12,5"/>
+            </StackPanel>
+        </Grid>
 
         <Border Margin="0,12,0,0" Padding="12" CornerRadius="6"
                 Background="#F8FAFC" BorderBrush="{StaticResource TechBorderBrush}" BorderThickness="1">
@@ -142,5 +169,6 @@
                            Foreground="{StaticResource SecondaryTextBrush}" TextWrapping="Wrap"/>
             </StackPanel>
         </Border>
-    </StackPanel>
+      </StackPanel>
+    </ScrollViewer>
 </UserControl>

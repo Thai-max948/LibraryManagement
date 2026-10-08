@@ -4,6 +4,39 @@
              xmlns:vm="clr-namespace:LibraryManagement.ViewModels"
              xmlns:model="clr-namespace:LibraryManagement.Models"
              Loaded="FeesView_Loaded">
+    <UserControl.Resources>
+        <Style x:Key="FeeMultilineTextBoxStyle" TargetType="TextBox" BasedOn="{StaticResource PlaceholderTextBoxStyle}">
+            <Setter Property="Padding" Value="10,8" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="TextBox">
+                        <Border Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="1" CornerRadius="6">
+                            <Grid>
+                                <TextBlock x:Name="Placeholder" Text="{TemplateBinding Tag}"
+                                           Foreground="#94A3B8" Margin="{TemplateBinding Padding}"
+                                           VerticalAlignment="Top" TextWrapping="Wrap"
+                                           IsHitTestVisible="False" Visibility="Collapsed" />
+                                <ScrollViewer x:Name="PART_ContentHost"
+                                              Margin="{TemplateBinding Padding}"
+                                              VerticalAlignment="Stretch"
+                                              VerticalScrollBarVisibility="Auto" />
+                            </Grid>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="Text" Value="">
+                                <Setter TargetName="Placeholder" Property="Visibility" Value="Visible" />
+                            </Trigger>
+                            <Trigger Property="IsKeyboardFocused" Value="True">
+                                <Setter Property="BorderBrush" Value="{StaticResource TechAccentCyan}" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </UserControl.Resources>
     <UserControl.DataContext>
         <vm:FeesViewModel />
     </UserControl.DataContext>
@@ -126,9 +159,10 @@
 
             <Border Grid.Column="1" Style="{StaticResource CardStyle}" Padding="0" Margin="0">
                 <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-                    <StackPanel Margin="16">
+                    <StackPanel Margin="14">
                         <TextBlock Text="Chi tiết khoản phí" FontSize="17" FontWeight="Bold" Foreground="{StaticResource TextBrush}" />
-                        <TextBlock Text="Chọn một dòng để xem snapshot và lịch sử." Foreground="{StaticResource SecondaryTextBrush}" Margin="0,3,0,12">
+                        <TextBlock Text="Chọn một dòng để xem thông tin và thao tác."
+                                   Foreground="{StaticResource SecondaryTextBrush}" Margin="0,3,0,12">
                             <TextBlock.Style>
                                 <Style TargetType="TextBlock">
                                     <Setter Property="Visibility" Value="Collapsed" />
@@ -140,6 +174,7 @@
                                 </Style>
                             </TextBlock.Style>
                         </TextBlock>
+
                         <StackPanel DataContext="{Binding SelectedFee}">
                             <StackPanel.Style>
                                 <Style TargetType="StackPanel">
@@ -151,101 +186,246 @@
                                     </Style.Triggers>
                                 </Style>
                             </StackPanel.Style>
-                            <TextBlock Text="{Binding ReaderNameSnapshot}" FontSize="15" FontWeight="SemiBold" Foreground="{StaticResource TextBrush}" TextWrapping="Wrap" />
-                            <TextBlock Text="{Binding BookTitleSnapshot}" FontSize="13" Foreground="{StaticResource TextBrush}" Margin="0,2,0,0" TextWrapping="Wrap" />
-                            <TextBlock Text="{Binding BarcodeSnapshot, TargetNullValue=Không có barcode}" FontSize="11" Foreground="{StaticResource SecondaryTextBrush}" Margin="0,2,0,8" />
 
-                            <Grid Margin="0,0,0,8">
-                                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                            <Border Background="#F8FAFC" BorderBrush="#E2E8F0" BorderThickness="1"
+                                    CornerRadius="10" Padding="12" Margin="0,0,0,10">
                                 <StackPanel>
-                                    <TextBlock Text="MÃ FEE" FontSize="9" Foreground="{StaticResource SecondaryTextBrush}" />
-                                    <TextBlock Text="{Binding FeeId}" FontWeight="SemiBold" />
+                                    <TextBlock Text="CHI TIẾT KHOẢN PHÍ" FontSize="10" FontWeight="Bold"
+                                               Foreground="{StaticResource SecondaryTextBrush}" Margin="0,0,0,8" />
+                                    <Grid>
+                                        <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                        <StackPanel>
+                                            <TextBlock Text="{Binding ReaderNameSnapshot}" FontSize="14" FontWeight="SemiBold"
+                                                       Foreground="{StaticResource TextBrush}" TextWrapping="Wrap" />
+                                            <TextBlock Text="{Binding BookTitleSnapshot}" FontSize="12" Foreground="{StaticResource TextBrush}"
+                                                       Margin="0,2,0,0" TextWrapping="Wrap" />
+                                            <TextBlock Text="{Binding BarcodeSnapshot, TargetNullValue=Không có barcode}"
+                                                       FontSize="10" Foreground="{StaticResource SecondaryTextBrush}" Margin="0,2,0,0" />
+                                        </StackPanel>
+                                        <Border Grid.Column="1" CornerRadius="9" Padding="8,4"
+                                                VerticalAlignment="Top" Margin="8,0,0,0">
+                                            <Border.Style>
+                                                <Style TargetType="Border">
+                                                    <Setter Property="Background" Value="#FFF7ED" />
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding Status}" Value="{x:Static model:FeeStatus.Partial}">
+                                                            <Setter Property="Background" Value="#EFF6FF" />
+                                                        </DataTrigger>
+                                                        <DataTrigger Binding="{Binding Status}" Value="{x:Static model:FeeStatus.Paid}">
+                                                            <Setter Property="Background" Value="#ECFDF5" />
+                                                        </DataTrigger>
+                                                        <DataTrigger Binding="{Binding Status}" Value="{x:Static model:FeeStatus.Waived}">
+                                                            <Setter Property="Background" Value="#F5F3FF" />
+                                                        </DataTrigger>
+                                                        <DataTrigger Binding="{Binding Status}" Value="{x:Static model:FeeStatus.Cancelled}">
+                                                            <Setter Property="Background" Value="#F1F5F9" />
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Border.Style>
+                                            <TextBlock Text="{Binding StatusLabel}" FontSize="10" FontWeight="SemiBold">
+                                                <TextBlock.Style>
+                                                    <Style TargetType="TextBlock">
+                                                        <Setter Property="Foreground" Value="#9A3412" />
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding Status}" Value="{x:Static model:FeeStatus.Partial}">
+                                                                <Setter Property="Foreground" Value="#1D4ED8" />
+                                                            </DataTrigger>
+                                                            <DataTrigger Binding="{Binding Status}" Value="{x:Static model:FeeStatus.Paid}">
+                                                                <Setter Property="Foreground" Value="#047857" />
+                                                            </DataTrigger>
+                                                            <DataTrigger Binding="{Binding Status}" Value="{x:Static model:FeeStatus.Waived}">
+                                                                <Setter Property="Foreground" Value="#6D28D9" />
+                                                            </DataTrigger>
+                                                            <DataTrigger Binding="{Binding Status}" Value="{x:Static model:FeeStatus.Cancelled}">
+                                                                <Setter Property="Foreground" Value="#475569" />
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </TextBlock.Style>
+                                            </TextBlock>
+                                        </Border>
+                                    </Grid>
+                                    <Grid Margin="0,10,0,0">
+                                        <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                        <StackPanel>
+                                            <TextBlock Text="MÃ KHOẢN PHÍ" FontSize="9" Foreground="{StaticResource SecondaryTextBrush}" />
+                                            <TextBlock Text="{Binding FeeId}" FontSize="11" FontWeight="SemiBold" />
+                                        </StackPanel>
+                                        <StackPanel Grid.Column="1">
+                                            <TextBlock Text="LOẠI PHÍ" FontSize="9" Foreground="{StaticResource SecondaryTextBrush}" />
+                                            <TextBlock Text="{Binding FeeTypeLabel}" FontSize="11" FontWeight="SemiBold" TextWrapping="Wrap" />
+                                        </StackPanel>
+                                    </Grid>
+                                    <Grid Margin="0,10,0,0">
+                                        <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                        <StackPanel>
+                                            <TextBlock Text="SỐ TIỀN" FontSize="9" Foreground="{StaticResource SecondaryTextBrush}" />
+                                            <TextBlock Text="{Binding Amount, StringFormat={}{0:N2} ₫}" FontSize="11" FontWeight="SemiBold" />
+                                        </StackPanel>
+                                        <StackPanel Grid.Column="1" Margin="6,0,0,0">
+                                            <TextBlock Text="ĐÃ THANH TOÁN" FontSize="9" Foreground="{StaticResource SecondaryTextBrush}" />
+                                            <TextBlock Text="{Binding PaidAmount, StringFormat={}{0:N2} ₫}" FontSize="11" FontWeight="SemiBold" />
+                                        </StackPanel>
+                                        <StackPanel Grid.Column="2" Margin="6,0,0,0">
+                                            <TextBlock Text="CÒN PHẢI THU" FontSize="9" Foreground="{StaticResource SecondaryTextBrush}" />
+                                            <TextBlock Text="{Binding Remaining, StringFormat={}{0:N2} ₫}" FontSize="11" FontWeight="Bold" Foreground="{StaticResource TechAccentAmber}" />
+                                        </StackPanel>
+                                    </Grid>
+                                    <Expander Header="Thông tin phí và snapshot" Margin="0,8,0,0" Foreground="{StaticResource SecondaryTextBrush}">
+                                        <StackPanel Margin="0,8,0,0">
+                                            <TextBlock Text="{Binding Reason}" TextWrapping="Wrap" Foreground="{StaticResource TextBrush}" Margin="0,0,0,4" />
+                                            <TextBlock Text="{Binding Description}" TextWrapping="Wrap" Foreground="{StaticResource SecondaryTextBrush}" Margin="0,0,0,4" />
+                                            <TextBlock Text="{Binding SourceDisplay, StringFormat='Nguồn: {0}'}" FontSize="10" Foreground="{StaticResource SecondaryTextBrush}" />
+                                            <TextBlock Text="Replacement Value lúc ghi phí" FontSize="9" Foreground="{StaticResource SecondaryTextBrush}" Margin="0,6,0,0" />
+                                            <TextBlock Text="{Binding BookPriceSnapshot, StringFormat='{}{0:N2} ₫', TargetNullValue='Chưa cấu hình'}" FontSize="10" />
+                                            <TextBlock Text="{Binding DamageLevel, StringFormat='Mức hư hỏng: {0}', TargetNullValue=''}" FontSize="10" Foreground="{StaticResource SecondaryTextBrush}" Margin="0,4,0,0" />
+                                            <TextBlock Text="Rental Price snapshot" FontSize="9" Foreground="{StaticResource SecondaryTextBrush}" Margin="0,4,0,0" />
+                                            <TextBlock Text="{Binding RentalPriceSnapshot, StringFormat='{}{0:N2} ₫', TargetNullValue='Chưa cấu hình'}" FontSize="10" />
+                                            <TextBlock Text="Cơ sở tính" FontSize="9" Foreground="{StaticResource SecondaryTextBrush}" Margin="0,4,0,0" />
+                                            <TextBlock Text="{Binding BaseAmount, StringFormat='{}{0:N2} ₫', TargetNullValue='Không lưu (dữ liệu cũ)'}" FontSize="10" />
+                                            <TextBlock Text="{Binding LateDays, StringFormat='Ngày trễ: {0}', TargetNullValue=''}" FontSize="10" Foreground="{StaticResource SecondaryTextBrush}" Margin="0,4,0,0" />
+                                            <TextBlock Text="{Binding DueDateSnapshot, StringFormat='Hạn trả (giờ thư viện): {0:dd/MM/yyyy HH:mm}', TargetNullValue=''}" FontSize="10" Foreground="{StaticResource SecondaryTextBrush}" />
+                                            <TextBlock Text="{Binding ResolvedAtSnapshot, StringFormat='Thời điểm trả/xử lý (giờ thư viện): {0:dd/MM/yyyy HH:mm}', TargetNullValue=''}" FontSize="10" Foreground="{StaticResource SecondaryTextBrush}" />
+                                            <TextBlock Text="{Binding Units, StringFormat='Đơn vị: {0:N4}', TargetNullValue=''}" FontSize="10" Foreground="{StaticResource SecondaryTextBrush}" />
+                                            <TextBlock Text="{Binding AppliedRate, StringFormat='Tỷ lệ áp dụng: {0:P2}', TargetNullValue=''}" FontSize="10" Foreground="{StaticResource SecondaryTextBrush}" />
+                                            <TextBlock Text="{Binding AppliedCapRate, StringFormat='Mức trần: {0:P2}', TargetNullValue=''}" FontSize="10" Foreground="{StaticResource SecondaryTextBrush}" />
+                                            <TextBlock Text="{Binding CapAmount, StringFormat='Số tiền trần: {0:N2} ₫', TargetNullValue=''}" FontSize="10" Foreground="{StaticResource SecondaryTextBrush}" />
+                                            <TextBlock Text="{Binding UncappedAmount, StringFormat='Trước mức trần: {0:N2} ₫', TargetNullValue=''}" FontSize="10" Foreground="{StaticResource SecondaryTextBrush}" />
+                                            <TextBlock Text="{Binding WaivedAmount, StringFormat='Đã miễn: {0:N2} ₫'}" FontSize="10" Foreground="{StaticResource SecondaryTextBrush}" />
+                                            <TextBlock Text="{Binding CreatedAt, StringFormat='Tạo lúc (UTC): {0:dd/MM/yyyy HH:mm}'}" FontSize="10" Foreground="{StaticResource SecondaryTextBrush}" Margin="0,4,0,0" />
+                                            <TextBlock Text="{Binding WaiveReason, StringFormat=Lý do miễn: {0}}" TextWrapping="Wrap" Foreground="{StaticResource SecondaryTextBrush}" Margin="0,4,0,0" />
+                                            <TextBlock Text="{Binding WaivedAt, StringFormat=Miễn lúc UTC: {0:dd/MM/yyyy HH:mm}}" FontSize="10" Foreground="{StaticResource SecondaryTextBrush}" />
+                                            <TextBlock Text="{Binding CancelReason, StringFormat=Lý do hủy: {0}}" TextWrapping="Wrap" Foreground="{StaticResource SecondaryTextBrush}" Margin="0,4,0,0" />
+                                            <TextBlock Text="{Binding CancelledAt, StringFormat=Hủy lúc UTC: {0:dd/MM/yyyy HH:mm}}" FontSize="10" Foreground="{StaticResource SecondaryTextBrush}" />
+                                        </StackPanel>
+                                    </Expander>
                                 </StackPanel>
-                                <StackPanel Grid.Column="1">
-                                    <TextBlock Text="LOẠI / TRẠNG THÁI" FontSize="9" Foreground="{StaticResource SecondaryTextBrush}" />
-                                    <TextBlock Text="{Binding FeeTypeLabel}" FontWeight="SemiBold" />
-                                    <TextBlock Text="{Binding StatusLabel}" FontSize="11" Foreground="{StaticResource SecondaryTextBrush}" />
-                                </StackPanel>
-                            </Grid>
-                            <Grid Margin="0,0,0,8">
-                                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-                                <StackPanel>
-                                    <TextBlock Text="SỐ TIỀN" FontSize="9" Foreground="{StaticResource SecondaryTextBrush}" />
-                                    <TextBlock Text="{Binding Amount, StringFormat={}{0:N2} ₫}" FontWeight="SemiBold" />
-                                </StackPanel>
-                                <StackPanel Grid.Column="1">
-                                    <TextBlock Text="CÒN PHẢI THU" FontSize="9" Foreground="{StaticResource SecondaryTextBrush}" />
-                                    <TextBlock Text="{Binding Remaining, StringFormat={}{0:N2} ₫}" FontWeight="Bold" Foreground="{StaticResource TechAccentAmber}" />
-                                </StackPanel>
-                            </Grid>
-                            <TextBlock Text="{Binding PaidAmount, StringFormat='Đã thanh toán: {0:N2} ₫'}" FontSize="10" Foreground="{StaticResource SecondaryTextBrush}" Margin="0,0,0,8" />
-                            <TextBlock Text="{Binding Reason}" TextWrapping="Wrap" Foreground="{StaticResource TextBrush}" Margin="0,0,0,8" />
-                            <TextBlock Text="{Binding Description}" TextWrapping="Wrap" Foreground="{StaticResource SecondaryTextBrush}" Margin="0,0,0,8" />
-                            <TextBlock Text="{Binding SourceDisplay}" FontSize="10" Foreground="{StaticResource SecondaryTextBrush}" />
-                            <TextBlock Text="Replacement Value lúc ghi phí" FontSize="9" Foreground="{StaticResource SecondaryTextBrush}" Margin="0,8,0,0" />
-                            <TextBlock Text="{Binding BookPriceSnapshot, StringFormat='{}{0:N2} ₫', TargetNullValue='Chưa cấu hình'}" FontSize="10" />
-                            <TextBlock Text="{Binding DamageLevel, StringFormat='Mức hư hỏng: {0}', TargetNullValue=''}" FontSize="10" Foreground="{StaticResource SecondaryTextBrush}" Margin="0,4,0,0" />
-                            <TextBlock Text="Rental Price snapshot" FontSize="9" Foreground="{StaticResource SecondaryTextBrush}" Margin="0,4,0,0" />
-                            <TextBlock Text="{Binding RentalPriceSnapshot, StringFormat='{}{0:N2} ₫', TargetNullValue='Chưa cấu hình'}" FontSize="10" />
-                            <TextBlock Text="Cơ sở tính" FontSize="9" Foreground="{StaticResource SecondaryTextBrush}" Margin="0,4,0,0" />
-                            <TextBlock Text="{Binding BaseAmount, StringFormat='{}{0:N2} ₫', TargetNullValue='Không lưu (dữ liệu cũ)'}" FontSize="10" />
-                            <TextBlock Text="{Binding LateDays, StringFormat='Ngày trễ: {0}', TargetNullValue=''}" FontSize="10" Foreground="{StaticResource SecondaryTextBrush}" Margin="0,4,0,0" />
-                            <TextBlock Text="{Binding DueDateSnapshot, StringFormat='Hạn trả (giờ thư viện): {0:dd/MM/yyyy HH:mm}', TargetNullValue=''}" FontSize="10" Foreground="{StaticResource SecondaryTextBrush}" />
-                            <TextBlock Text="{Binding ResolvedAtSnapshot, StringFormat='Thời điểm trả/xử lý (giờ thư viện): {0:dd/MM/yyyy HH:mm}', TargetNullValue=''}" FontSize="10" Foreground="{StaticResource SecondaryTextBrush}" />
-                            <TextBlock Text="{Binding Units, StringFormat='Đơn vị: {0:N4}', TargetNullValue=''}" FontSize="10" Foreground="{StaticResource SecondaryTextBrush}" />
-                            <TextBlock Text="{Binding AppliedRate, StringFormat='Tỷ lệ áp dụng: {0:P2}', TargetNullValue=''}" FontSize="10" Foreground="{StaticResource SecondaryTextBrush}" />
-                            <TextBlock Text="{Binding AppliedCapRate, StringFormat='Mức trần: {0:P2}', TargetNullValue=''}" FontSize="10" Foreground="{StaticResource SecondaryTextBrush}" />
-                            <TextBlock Text="{Binding CapAmount, StringFormat='Số tiền trần: {0:N2} ₫', TargetNullValue=''}" FontSize="10" Foreground="{StaticResource SecondaryTextBrush}" />
-                            <TextBlock Text="{Binding UncappedAmount, StringFormat='Trước mức trần: {0:N2} ₫', TargetNullValue=''}" FontSize="10" Foreground="{StaticResource SecondaryTextBrush}" />
-                            <TextBlock Text="{Binding WaivedAmount, StringFormat='Đã miễn: {0:N2} ₫'}" FontSize="10" Foreground="{StaticResource SecondaryTextBrush}" />
-                            <TextBlock Text="Tạo lúc (UTC)" FontSize="9" Foreground="{StaticResource SecondaryTextBrush}" Margin="0,2,0,0" />
-                            <TextBlock Text="{Binding CreatedAt, StringFormat='{}{0:dd/MM/yyyy HH:mm}'}" FontSize="10" Foreground="{StaticResource SecondaryTextBrush}" Margin="0,0,0,8" />
-                            <TextBlock Text="{Binding WaiveReason, StringFormat=Lý do miễn: {0}}" TextWrapping="Wrap" Foreground="{StaticResource SecondaryTextBrush}" Margin="0,0,0,4" />
-                            <TextBlock Text="{Binding WaivedAt, StringFormat=Miễn lúc UTC: {0:dd/MM/yyyy HH:mm}}" FontSize="10" Foreground="{StaticResource SecondaryTextBrush}" />
-                            <TextBlock Text="{Binding CancelReason, StringFormat=Lý do hủy: {0}}" TextWrapping="Wrap" Foreground="{StaticResource SecondaryTextBrush}" Margin="0,0,0,8" />
-                            <TextBlock Text="{Binding CancelledAt, StringFormat=Hủy lúc UTC: {0:dd/MM/yyyy HH:mm}}" FontSize="10" Foreground="{StaticResource SecondaryTextBrush}" />
+                            </Border>
 
-                            <Border Background="#F8FAFC" CornerRadius="6" Padding="10" Margin="0,0,0,10">
+                            <Border Background="#F8FAFC" BorderBrush="#E2E8F0" BorderThickness="1"
+                                    CornerRadius="10" Padding="12" Margin="0,0,0,10">
                                 <StackPanel>
-                                    <TextBlock Text="LỊCH SỬ THANH TOÁN" FontSize="10" FontWeight="Bold" Foreground="{StaticResource SecondaryTextBrush}" />
-                                    <DataGrid ItemsSource="{Binding DataContext.PaymentHistory, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                                              AutoGenerateColumns="False" IsReadOnly="True" HeadersVisibility="Column" Height="105"
-                                              RowHeight="28" GridLinesVisibility="None" Background="Transparent" BorderThickness="0">
-                                        <DataGrid.Columns>
-                                            <DataGridTextColumn Header="Thời điểm UTC" Binding="{Binding PaidAt, StringFormat={}{0:dd/MM HH:mm}}" Width="95" />
-                                            <DataGridTextColumn Header="Số tiền" Binding="{Binding Amount, StringFormat={}{0:N2}}" Width="85" />
-                                            <DataGridTextColumn Header="Ghi chú" Binding="{Binding Note}" Width="*" />
-                                        </DataGrid.Columns>
-                                    </DataGrid>
-                                    <TextBlock Text="Dư nợ độc giả" FontSize="10" FontWeight="SemiBold" Foreground="{StaticResource SecondaryTextBrush}" HorizontalAlignment="Right" Margin="0,4,0,0" />
+                                    <TextBlock Text="LỊCH SỬ THANH TOÁN" FontSize="10" FontWeight="Bold"
+                                               Foreground="{StaticResource SecondaryTextBrush}" Margin="0,0,0,8" />
+                                    <Grid>
+                                        <DataGrid ItemsSource="{Binding DataContext.PaymentHistory, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                  AutoGenerateColumns="False" IsReadOnly="True" HeadersVisibility="Column"
+                                                  MinHeight="42" MaxHeight="190" MinWidth="0"
+                                                  GridLinesVisibility="Horizontal" HorizontalGridLinesBrush="#E2E8F0"
+                                                  Background="Transparent" BorderThickness="0"
+                                                  HorizontalScrollBarVisibility="Disabled">
+                                            <DataGrid.Style>
+                                                <Style TargetType="DataGrid" BasedOn="{StaticResource AppDataGridStyle}">
+                                                    <Setter Property="Visibility" Value="Visible" />
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding DataContext.PaymentHistory.Count, RelativeSource={RelativeSource AncestorType=UserControl}}" Value="0">
+                                                            <Setter Property="Visibility" Value="Collapsed" />
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </DataGrid.Style>
+                                            <DataGrid.Columns>
+                                                <DataGridTextColumn Header="Thời điểm UTC" Binding="{Binding PaidAt, StringFormat={}{0:dd/MM HH:mm}}" Width="90" />
+                                                <DataGridTextColumn Header="Số tiền" Binding="{Binding Amount, StringFormat={}{0:N2}}" Width="74" />
+                                                <DataGridTemplateColumn Header="Ghi chú" Width="*">
+                                                    <DataGridTemplateColumn.CellTemplate>
+                                                        <DataTemplate>
+                                                            <TextBlock Text="{Binding Note, TargetNullValue=—}" TextWrapping="Wrap" VerticalAlignment="Center" Margin="3,3" />
+                                                        </DataTemplate>
+                                                    </DataGridTemplateColumn.CellTemplate>
+                                                </DataGridTemplateColumn>
+                                            </DataGrid.Columns>
+                                        </DataGrid>
+                                        <TextBlock Text="Chưa có giao dịch thanh toán." Foreground="{StaticResource SecondaryTextBrush}"
+                                                   VerticalAlignment="Center" Margin="4,10">
+                                            <TextBlock.Style>
+                                                <Style TargetType="TextBlock">
+                                                    <Setter Property="Visibility" Value="Collapsed" />
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding DataContext.PaymentHistory.Count, RelativeSource={RelativeSource AncestorType=UserControl}}" Value="0">
+                                                            <Setter Property="Visibility" Value="Visible" />
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </TextBlock.Style>
+                                        </TextBlock>
+                                    </Grid>
+                                    <TextBlock Text="Dư nợ độc giả" FontSize="10" FontWeight="SemiBold"
+                                               Foreground="{StaticResource SecondaryTextBrush}" HorizontalAlignment="Right" Margin="0,6,0,0" />
                                     <TextBlock Text="{Binding DataContext.ReaderOutstanding, RelativeSource={RelativeSource AncestorType=UserControl}, StringFormat='{}{0:N2} ₫'}"
                                                FontSize="10" FontWeight="SemiBold" Foreground="{StaticResource SecondaryTextBrush}" HorizontalAlignment="Right" />
                                 </StackPanel>
                             </Border>
 
-                            <TextBlock Text="GHI NHẬN THANH TOÁN" FontSize="10" FontWeight="Bold" Foreground="{StaticResource SecondaryTextBrush}" Margin="0,0,0,5" />
-                            <Grid Margin="0,0,0,6">
-                                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-                                <TextBox Text="{Binding DataContext.PaymentAmount, RelativeSource={RelativeSource AncestorType=UserControl, Mode=FindAncestor}, UpdateSourceTrigger=PropertyChanged}"
-                                         Height="32" VerticalContentAlignment="Center" ToolTip="Số tiền thanh toán" />
-                                <Button Grid.Column="1" Content="Ghi nhận" Command="{Binding DataContext.RecordPaymentCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                                        IsEnabled="{Binding DataContext.CanRecordPayment, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                                        Style="{StaticResource PrimaryButtonStyle}" Margin="8,0,0,0" Padding="10,6" />
-                            </Grid>
-                            <TextBox Text="{Binding DataContext.PaymentNote, RelativeSource={RelativeSource AncestorType=UserControl}, UpdateSourceTrigger=PropertyChanged}"
-                                     Height="32" VerticalContentAlignment="Center" ToolTip="Ghi chú thanh toán (không bắt buộc)" Margin="0,0,0,10" />
+                            <Border Background="#F0F9FF" BorderBrush="#BAE6FD" BorderThickness="1"
+                                    CornerRadius="10" Padding="12" Margin="0,0,0,10">
+                                <StackPanel>
+                                    <TextBlock Text="GHI NHẬN THANH TOÁN" FontSize="11" FontWeight="Bold" Foreground="#0369A1" />
+                                    <TextBlock Text="Ghi nhận số tiền độc giả đã thanh toán cho khoản phí này."
+                                               FontSize="10" Foreground="{StaticResource SecondaryTextBrush}" TextWrapping="Wrap" Margin="0,3,0,10" />
+                                    <TextBlock Text="Số tiền thanh toán" FontSize="10" FontWeight="SemiBold" Foreground="{StaticResource TextBrush}" Margin="0,0,0,4" />
+                                    <TextBox Text="{Binding DataContext.PaymentAmount, RelativeSource={RelativeSource AncestorType=UserControl}, UpdateSourceTrigger=PropertyChanged}"
+                                             Style="{StaticResource PlaceholderTextBoxStyle}" Tag="Nhập số tiền thực nhận" Height="38"
+                                             VerticalContentAlignment="Center"
+                                             IsEnabled="{Binding DataContext.CanRecordPayment, RelativeSource={RelativeSource AncestorType=UserControl}}" />
+                                    <TextBlock Text="Số tiền được ghi nhận vào khoản phí đang chọn."
+                                               FontSize="9" Foreground="{StaticResource SecondaryTextBrush}" TextWrapping="Wrap" Margin="0,4,0,10" />
+                                    <TextBlock Text="Ghi chú thanh toán (không bắt buộc)" FontSize="10" FontWeight="SemiBold"
+                                               Foreground="{StaticResource TextBrush}" Margin="0,0,0,4" />
+                                    <TextBox Text="{Binding DataContext.PaymentNote, RelativeSource={RelativeSource AncestorType=UserControl}, UpdateSourceTrigger=PropertyChanged}"
+                                             Style="{StaticResource FeeMultilineTextBoxStyle}" Tag="Ví dụ: Thu tiền mặt tại quầy thư viện"
+                                             MinHeight="64" MaxHeight="100" AcceptsReturn="True" TextWrapping="Wrap"
+                                             IsEnabled="{Binding DataContext.CanRecordPayment, RelativeSource={RelativeSource AncestorType=UserControl}}" />
+                                    <TextBlock Text="Ghi lại thông tin bổ sung về lần thanh toán. Nội dung sẽ được lưu trong lịch sử thanh toán."
+                                               FontSize="9" Foreground="{StaticResource SecondaryTextBrush}" TextWrapping="Wrap" Margin="0,4,0,10" />
+                                    <Button Content="Ghi nhận thanh toán"
+                                            Command="{Binding DataContext.RecordPaymentCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                            IsEnabled="{Binding DataContext.CanRecordPayment, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                            Style="{StaticResource PrimaryButtonStyle}" HorizontalAlignment="Left" Padding="14,8" />
+                                </StackPanel>
+                            </Border>
 
-                            <TextBlock Text="MIỄN PHÍ / HỦY PHÍ" FontSize="10" FontWeight="Bold" Foreground="{StaticResource SecondaryTextBrush}" Margin="0,0,0,5" />
-                            <TextBox Text="{Binding DataContext.WaiveReason, RelativeSource={RelativeSource AncestorType=UserControl}, UpdateSourceTrigger=PropertyChanged}"
-                                     Height="32" VerticalContentAlignment="Center" ToolTip="Lý do miễn phí" />
-                            <Button Content="Miễn khoản phí" Command="{Binding DataContext.WaiveCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                                    IsEnabled="{Binding DataContext.CanWaive, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                                    Style="{StaticResource SecondaryButtonStyle}" HorizontalAlignment="Left" Margin="0,6,0,10" />
-                            <TextBox Text="{Binding DataContext.CancelReason, RelativeSource={RelativeSource AncestorType=UserControl}, UpdateSourceTrigger=PropertyChanged}"
-                                     Height="32" VerticalContentAlignment="Center" ToolTip="Lý do hủy phí" />
-                            <Button Content="Hủy khoản phí" Command="{Binding DataContext.CancelCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                                    IsEnabled="{Binding DataContext.CanCancel, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                                    Style="{StaticResource DangerButtonStyle}" HorizontalAlignment="Left" Margin="0,6,0,0" />
+                            <Border Background="#FAF5FF" BorderBrush="#DDD6FE" BorderThickness="1"
+                                    CornerRadius="10" Padding="12" Margin="0,0,0,10">
+                                <StackPanel>
+                                    <TextBlock Text="MIỄN KHOẢN PHÍ" FontSize="11" FontWeight="Bold" Foreground="#6D28D9" />
+                                    <TextBlock Text="Miễn khoản phí theo chính sách hoặc quyết định của thư viện."
+                                               FontSize="10" Foreground="{StaticResource SecondaryTextBrush}" TextWrapping="Wrap" Margin="0,3,0,10" />
+                                    <TextBlock Text="Lý do miễn khoản phí" FontSize="10" FontWeight="SemiBold" Foreground="{StaticResource TextBrush}" Margin="0,0,0,4" />
+                                    <TextBox Text="{Binding DataContext.WaiveReason, RelativeSource={RelativeSource AncestorType=UserControl}, UpdateSourceTrigger=PropertyChanged}"
+                                             Style="{StaticResource PlaceholderTextBoxStyle}" Tag="Ví dụ: Miễn phí theo quyết định của quản lý thư viện"
+                                             Height="38" VerticalContentAlignment="Center"
+                                             IsEnabled="{Binding DataContext.CanEnterWaiveReason, RelativeSource={RelativeSource AncestorType=UserControl}}" />
+                                    <TextBlock Text="Cần nhập lý do. Khoản phí chưa thanh toán hết mới có thể miễn; lý do được lưu để kiểm tra và đối chiếu."
+                                               FontSize="9" Foreground="{StaticResource SecondaryTextBrush}" TextWrapping="Wrap" Margin="0,4,0,10" />
+                                    <Button Content="Xác nhận miễn phí"
+                                            Command="{Binding DataContext.WaiveCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                            IsEnabled="{Binding DataContext.CanWaive, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                            Style="{StaticResource SecondaryButtonStyle}" Foreground="#6D28D9" BorderBrush="#DDD6FE"
+                                            HorizontalAlignment="Left" Padding="14,8" />
+                                </StackPanel>
+                            </Border>
+
+                            <Border Background="#FFF7F8" BorderBrush="#FECDD3" BorderThickness="1"
+                                    CornerRadius="10" Padding="12" Margin="0,0,0,0">
+                                <StackPanel>
+                                    <TextBlock Text="HỦY KHOẢN PHÍ" FontSize="11" FontWeight="Bold" Foreground="#BE123C" />
+                                    <TextBlock Text="Hủy khoản phí không còn hợp lệ hoặc được tạo nhầm."
+                                               FontSize="10" Foreground="{StaticResource SecondaryTextBrush}" TextWrapping="Wrap" Margin="0,3,0,10" />
+                                    <TextBlock Text="Lý do hủy khoản phí" FontSize="10" FontWeight="SemiBold" Foreground="{StaticResource TextBrush}" Margin="0,0,0,4" />
+                                    <TextBox Text="{Binding DataContext.CancelReason, RelativeSource={RelativeSource AncestorType=UserControl}, UpdateSourceTrigger=PropertyChanged}"
+                                             Style="{StaticResource PlaceholderTextBoxStyle}" Tag="Ví dụ: Khoản phí được tạo nhầm"
+                                             Height="38" VerticalContentAlignment="Center"
+                                             IsEnabled="{Binding DataContext.CanEnterCancelReason, RelativeSource={RelativeSource AncestorType=UserControl}}" />
+                                    <TextBlock Text="Cần nhập lý do. Chỉ khoản phí chưa thanh toán mới có thể hủy; nguyên nhân được lưu vào lịch sử kiểm tra."
+                                               FontSize="9" Foreground="{StaticResource SecondaryTextBrush}" TextWrapping="Wrap" Margin="0,4,0,10" />
+                                    <Button Content="Hủy khoản phí"
+                                            Command="{Binding DataContext.CancelCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                            IsEnabled="{Binding DataContext.CanCancel, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                            Style="{StaticResource DangerButtonStyle}" HorizontalAlignment="Left" Padding="14,8" />
+                                </StackPanel>
+                            </Border>
                         </StackPanel>
                     </StackPanel>
                 </ScrollViewer>

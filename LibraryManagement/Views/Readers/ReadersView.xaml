@@ -20,7 +20,7 @@
 
             <StackPanel Grid.Column="0">
                 <TextBlock Text="👥 Quản Lý Độc Giả (Reader Management)" FontSize="22" FontWeight="Bold" Foreground="{StaticResource TextBrush}"/>
-                <TextBlock Text="Quản lý đồng nhất sinh viên và độc giả ngoài trường (Manage students &amp; external readers)" Foreground="{StaticResource SecondaryTextBrush}" Margin="0,2,0,0"/>
+                <TextBlock Text="Quản lý sinh viên, giảng viên và độc giả ngoài trường" Foreground="{StaticResource SecondaryTextBrush}" Margin="0,2,0,0"/>
             </StackPanel>
 
             <Border Grid.Column="1" Style="{StaticResource CardStyle}" VerticalAlignment="Center" Padding="16,8">
@@ -51,7 +51,7 @@
                 <!-- Search Box -->
                 <TextBox Grid.Column="1"
                          Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}"
-                         Tag="🔍 Tìm theo ID, tên, mã SV, CCCD, SĐT, email..."
+                         Tag="🔍 Tìm theo ID, tên, mã SV, mã GV, CCCD, SĐT, email..."
                          Style="{StaticResource PlaceholderTextBoxStyle}"
                          VerticalContentAlignment="Center"
                          Margin="0,0,14,0"/>
@@ -129,6 +129,9 @@
                                             <DataTrigger Binding="{Binding ReaderType}" Value="External">
                                                 <Setter Property="Background" Value="#FEF3C7"/>
                                             </DataTrigger>
+                                            <DataTrigger Binding="{Binding ReaderType}" Value="Lecturer">
+                                                <Setter Property="Background" Value="#EDE9FE"/>
+                                            </DataTrigger>
                                         </Style.Triggers>
                                     </Style>
                                 </Border.Style>
@@ -142,6 +145,9 @@
                                                 <DataTrigger Binding="{Binding ReaderType}" Value="External">
                                                     <Setter Property="Foreground" Value="#B45309"/>
                                                 </DataTrigger>
+                                                <DataTrigger Binding="{Binding ReaderType}" Value="Lecturer">
+                                                    <Setter Property="Foreground" Value="#6D28D9"/>
+                                                </DataTrigger>
                                             </Style.Triggers>
                                         </Style>
                                     </TextBlock.Style>
@@ -152,7 +158,7 @@
                 </DataGridTemplateColumn>
 
                 <!-- Student ID / Identity Number -->
-                <DataGridTextColumn Header="Mã SV / CCCD" Binding="{Binding DisplayIdentification}" Width="120">
+                <DataGridTextColumn Header="Mã định danh" Binding="{Binding DisplayIdentification}" Width="120">
                     <DataGridTextColumn.ElementStyle>
                         <Style TargetType="TextBlock">
                             <Setter Property="VerticalAlignment" Value="Center"/>
@@ -160,6 +166,8 @@
                         </Style>
                     </DataGridTextColumn.ElementStyle>
                 </DataGridTextColumn>
+
+                <DataGridTextColumn Header="Khoa / Bộ môn" Binding="{Binding DisplayDepartment}" Width="1.2*"/>
 
                 <!-- Status Badge -->
                 <DataGridTemplateColumn Header="Trạng Thái" Width="95">

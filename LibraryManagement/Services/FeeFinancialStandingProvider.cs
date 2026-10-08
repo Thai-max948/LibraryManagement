@@ -12,13 +12,13 @@ public sealed class FeeFinancialStandingProvider : IReaderFinancialStandingProvi
 
     public ReaderFinancialStanding GetStanding(int readerId)
     {
-        decimal balance = _fees.GetOutstandingBalance(readerId);
+        decimal balance = _fees.GetBlockingOutstandingBalance(readerId);
         return new ReaderFinancialStanding { OutstandingAmount = balance, BlocksBorrowing = balance > 0m };
     }
 
     public ReaderFinancialStanding GetStanding(SqlConnection connection, SqlTransaction transaction, int readerId)
     {
-        decimal balance = _fees.GetOutstandingBalance(connection, transaction, readerId);
+        decimal balance = _fees.GetBlockingOutstandingBalance(connection, transaction, readerId);
         return new ReaderFinancialStanding { OutstandingAmount = balance, BlocksBorrowing = balance > 0m };
     }
 }

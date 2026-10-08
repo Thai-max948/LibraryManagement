@@ -124,6 +124,71 @@ public sealed class HistoryModuleIntegrationTests : IClassFixture<SqlIntegration
         Assert.True(legacy.IsLegacyRecord);
     }
 
+    [IntegrationFact]
+    [Trait("Category", "Integration")]
+    public void HistoryUsesSqlPagesOfEightForFortySevenMatchingRecords()
+    {
+        ReturnOutcomeMigration.Apply();
+        CirculationAuditMigration.Apply();
+        HistorySchemaMigration.Apply();
+
+        string token = Guid.NewGuid().ToString("N");
+        string readerName = "History page reader " + token;
+        string bookTitle = "History page book " + token;
+        int readerId = new ReaderService().AddReader(new Reader
+        {
+            FullName = readerName,
+            StudentId = "HP-" + token,
+            Phone = "0901234567"
+        });
+        int bookId = new BookService().AddBook(new Book
+        {
+            Title = bookTitle,
+            Author = "History paging test",
+            PublishYear = 2026,
+            Quantity = 0
+        });
+
+        var insertedIds = new List<int>();
+        using (var connection = Database.GetConnection())
+        {
+            connection.Open();
+            for (int index = 0; index < 47; index++)
+            {
+                DateTime borrowDate = new DateTime(2026, 1, 1).AddDays(index);
+                using var command = new SqlCommand(@"
+                    INSERT INTO dbo.BorrowRecords
+                        (BookId, ReaderId, BorrowDate, DueDate, Status, ReaderNameSnapshot, BookTitleSnapshot)
+                    OUTPUT INSERTED.BorrowId
+                    VALUES (@BookId, @ReaderId, @BorrowDate, @DueDate, 'Borrowing', @ReaderName, @BookTitle);", connection);
+                command.Parameters.AddWithValue("@BookId", bookId);
+                command.Parameters.AddWithValue("@ReaderId", readerId);
+                command.Parameters.AddWithValue("@BorrowDate", borrowDate);
+                command.Parameters.AddWithValue("@DueDate", borrowDate.AddDays(7));
+                command.Parameters.AddWithValue("@ReaderName", readerName);
+                command.Parameters.AddWithValue("@BookTitle", bookTitle);
+                insertedIds.Add(Convert.ToInt32(command.ExecuteScalar()));
+            }
+        }
+
+        var history = new HistoryService();
+        var firstPage = history.GetPage(new HistoryQuery { SearchText = bookTitle, PageNumber = 1 });
+        var lastPage = history.GetPage(new HistoryQuery { SearchText = bookTitle, PageNumber = 6 });
+
+        Assert.Equal(47, firstPage.TotalCount);
+        Assert.Equal(6, firstPage.TotalPages);
+        Assert.Equal(8, firstPage.PageSize);
+        Assert.Equal(8, firstPage.Records.Count);
+        Assert.Equal(7, lastPage.Records.Count);
+        Assert.Equal(insertedIds.TakeLast(8).Reverse(), firstPage.Records.Select(record => record.BorrowId));
+        Assert.Equal(insertedIds.Take(7).Reverse(), lastPage.Records.Select(record => record.BorrowId));
+        Assert.All(firstPage.Records.Concat(lastPage.Records), record =>
+        {
+            Assert.Equal(readerName, record.ReaderName);
+            Assert.Equal(bookTitle, record.BookTitle);
+        });
+    }
+
     private static int InsertReturnedHistoryRecord(
         int bookId,
         int readerId,
