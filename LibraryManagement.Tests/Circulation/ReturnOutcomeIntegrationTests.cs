@@ -49,7 +49,7 @@ public sealed class ReturnOutcomeIntegrationTests : IClassFixture<SqlIntegration
     [Trait("Category", "Integration")]
     public void DamagedReturn_QuarantinesCopyAndPreservesCondition()
     {
-        var (loanId, copyId, bookId, _) = NewLoan();
+        var (loanId, copyId, bookId, _) = NewLoan(replacementValue: 100m);
         var service = new BorrowService();
         service.ReturnBook(loanId, ReturnCondition.Damaged, "Rách trang 120");
         var loan = new BorrowRepository().GetById(loanId)!;
@@ -149,7 +149,7 @@ public sealed class ReturnOutcomeIntegrationTests : IClassFixture<SqlIntegration
     [Trait("Category", "Integration")]
     public void NeedsRepair_PersistsDispositionAuditAndFeeResult()
     {
-        var (loanId, copyId, bookId, readerId) = NewLoan();
+        var (loanId, copyId, bookId, readerId) = NewLoan(replacementValue: 100m);
         var result = new BorrowService().ReturnBook(loanId, ReturnCondition.NeedsRepair, "Cần đóng lại gáy");
         Assert.Equal(ReturnCondition.NeedsRepair, result.Disposition);
         Assert.True(result.RequiresFeeProcessing);
@@ -276,7 +276,7 @@ public sealed class ReturnOutcomeIntegrationTests : IClassFixture<SqlIntegration
     [Trait("Category", "Integration")]
     public void TwoCopiesOfSameBook_ReturnIndependently()
     {
-        var (loanId, copyId, bookId, readerId) = NewLoan();
+        var (loanId, copyId, bookId, readerId) = NewLoan(replacementValue: 100m);
         int secondId = new BookCopyService().AddCopy(bookId);
         int secondLoan = new BorrowService().BorrowBook(readerId, secondId);
         new BorrowService().ReturnBook(loanId, ReturnCondition.Damaged, "Rách bìa");
@@ -321,7 +321,7 @@ public sealed class ReturnOutcomeIntegrationTests : IClassFixture<SqlIntegration
     [Trait("Category", "Integration")]
     public void UpgradeOldOutcomeConstraints_AllowsNeedsRepairAndPreservesHistory()
     {
-        var (loanId, _, _, _) = NewLoan();
+        var (loanId, _, _, _) = NewLoan(replacementValue: 100m);
         using (var connection = Database.GetConnection())
         {
             connection.Open();

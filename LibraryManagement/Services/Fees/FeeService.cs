@@ -140,7 +140,8 @@ public sealed class FeeService : IFeeService
     }
 
     // BorrowService owns the transaction. This method joins it so circulation and all assessed
-    // fees commit or roll back together. Missing optional policy/value remains an explicit warning.
+    // fees commit or roll back together. Missing late-fee configuration remains a warning;
+    // damage and replacement assessments must succeed before a return can be completed.
     public FeeAssessmentResult AssessReturnFees(SqlConnection connection, SqlTransaction transaction, ReturnResult result)
     {
         var created = new List<Fee>();
@@ -181,23 +182,26 @@ public sealed class FeeService : IFeeService
                 ?? throw new BusinessRuleException("Outcome trả sách hư hỏng chưa xác định DamageLevel.");
             bool major = damageLevel == DamageSeverity.Major;
             if (!snapshot.BookPrice.HasValue)
-                warnings.Add($"Chưa tạo Damage Fee ({damageLevel}): sách chưa có Replacement Value. " +
-                    "Hãy cập nhật ReplacementValue trong Book và xử lý khoản phí của Return này theo quy trình được cấp quyền.");
-            else
+                throw new FeePolicyNotConfiguredException(
+                    "Không thể hoàn tất trả sách hư hỏng vì Book chưa cấu hình ReplacementValue. " +
+                    "Hãy cập nhật ReplacementValue trong Book rồi thử lại.");
+
+            FeeCalculation damageCalculation;
+            try
             {
-                try
-                {
-                    FeeCalculation calculation = new(FeeCalculator.CalculateDamageSnapshot(
-                        snapshot.BookPrice.Value, major, policy), DamageLevel: major ? "Major" : "Minor");
-                    if (calculation.Amount > 0m)
-                        created.Add(CreateReturnFee(connection, transaction, result, snapshot, FeeType.Damage,
-                            calculation, major ? "Sách cần sửa chữa; áp dụng mức hư hỏng nặng." : "Sách hư hỏng; áp dụng mức hư hỏng nhẹ."));
-                }
-                catch (FeePolicyNotConfiguredException ex)
-                {
-                    warnings.Add($"Chưa tạo Damage Fee ({damageLevel}): {ex.Message}");
-                }
+                damageCalculation = new FeeCalculation(FeeCalculator.CalculateDamageSnapshot(
+                    snapshot.BookPrice.Value, major, policy), DamageLevel: major ? "Major" : "Minor");
             }
+            catch (FeePolicyNotConfiguredException ex)
+            {
+                throw new FeePolicyNotConfiguredException(
+                    $"Không thể hoàn tất trả sách hư hỏng ({damageLevel}). {ex.Message} " +
+                    $"Hãy cấu hình FeePolicy.{(major ? nameof(policy.MajorDamageRate) : nameof(policy.MinorDamageRate))} " +
+                    "trong appsettings.json rồi thử lại.");
+            }
+            if (damageCalculation.Amount > 0m)
+                created.Add(CreateReturnFee(connection, transaction, result, snapshot, FeeType.Damage,
+                    damageCalculation, major ? "Sách cần sửa chữa; áp dụng mức hư hỏng nặng." : "Sách hư hỏng; áp dụng mức hư hỏng nhẹ."));
         }
 
         if (result.IsLost)

@@ -283,7 +283,8 @@ public sealed class ProjectIntegrationTests : IClassFixture<SqlIntegrationFixtur
             Title = "Archive flow test",
             Author = "Author",
             PublishYear = 2026,
-            Quantity = 1
+            Quantity = 1,
+            ReplacementValue = 100m
         });
         int copyId = Assert.Single(copies.GetCopies(bookId)).CopyId;
         Assert.Throws<BusinessRuleException>(() => service.ArchiveBook(bookId));

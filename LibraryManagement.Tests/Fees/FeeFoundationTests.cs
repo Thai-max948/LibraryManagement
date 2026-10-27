@@ -1126,7 +1126,7 @@ public sealed class FeeSqlIntegrationTests
     }
 
     [IntegrationFact]
-    public async Task DamagedReturnWithMissingDamagePolicyReportsWarningAndKeepsReturnOutcome()
+    public async Task DamagedReturnWithMissingDamagePolicyRollsBackOutcome()
     {
         using var fixture = new SqlIntegrationFixture();
         var feeService = new FeeService(new FeeRepository(), new AuthServiceCurrentUserContext(),
@@ -1151,16 +1151,18 @@ public sealed class FeeSqlIntegrationTests
         });
 
         int borrowId = circulation.BorrowBook(readerId, copy.CopyId);
-        ReturnResult returned = circulation.ReturnBook(borrowId, ReturnCondition.Damaged, "Minor damage");
-
-        Assert.Equal(0, returned.FeesCreated);
-        Assert.Contains(returned.FeeWarnings, warning => warning.Contains("FeePolicy.MinorDamageRate", StringComparison.Ordinal));
+        FeePolicyNotConfiguredException error = Assert.Throws<FeePolicyNotConfiguredException>(
+            () => circulation.ReturnBook(borrowId, ReturnCondition.Damaged, "Minor damage"));
+        Assert.Contains("FeePolicy.MinorDamageRate", error.Message, StringComparison.Ordinal);
+        Assert.Equal("Borrowing", new BorrowRepository().GetById(borrowId)!.Status);
+        Assert.Equal(BookCopyStatuses.Borrowed, new BookCopyService().GetByBarcode(copy.Barcode)!.Status);
+        Assert.Single(circulation.GetAuditEvents(new[] { borrowId }));
         Assert.Contains(await feeService.GetFeesByBorrowAsync(borrowId), fee => fee.FeeType == FeeType.Borrow);
         Assert.DoesNotContain(await feeService.GetFeesByBorrowAsync(borrowId), fee => fee.FeeType == FeeType.Damage);
     }
 
     [IntegrationFact]
-    public async Task DamagedReturnWithMissingReplacementValueReportsActionableWarningWithoutInventingPrice()
+    public async Task DamagedReturnWithMissingReplacementValueRollsBackUntilPriceIsConfigured()
     {
         using var fixture = new SqlIntegrationFixture();
         var feeService = new FeeService(new FeeRepository(), new AuthServiceCurrentUserContext(),
@@ -1185,12 +1187,26 @@ public sealed class FeeSqlIntegrationTests
         });
 
         int borrowId = circulation.BorrowBook(readerId, copy.CopyId);
-        ReturnResult returned = circulation.ReturnBook(borrowId, ReturnCondition.Damaged, "Minor damage");
-
-        Assert.Equal(0, returned.FeesCreated);
-        Assert.Contains(returned.FeeWarnings, warning => warning.Contains("Replacement Value", StringComparison.Ordinal));
-        Assert.Contains(returned.FeeWarnings, warning => warning.Contains("cập nhật ReplacementValue", StringComparison.Ordinal));
+        FeePolicyNotConfiguredException error = Assert.Throws<FeePolicyNotConfiguredException>(
+            () => circulation.ReturnBook(borrowId, ReturnCondition.NeedsRepair, "Major damage"));
+        Assert.Contains("ReplacementValue", error.Message, StringComparison.Ordinal);
+        Assert.Equal("Borrowing", new BorrowRepository().GetById(borrowId)!.Status);
+        Assert.Equal(BookCopyStatuses.Borrowed, new BookCopyService().GetByBarcode(copy.Barcode)!.Status);
+        Assert.Single(circulation.GetAuditEvents(new[] { borrowId }));
         Assert.DoesNotContain(await feeService.GetFeesByBorrowAsync(borrowId), fee => fee.FeeType == FeeType.Damage);
+
+        var books = new BookService();
+        Book pricedBook = books.GetBookById(bookId)!;
+        pricedBook.ReplacementValue = 200000m;
+        books.UpdateBook(pricedBook);
+        ReturnResult returned = circulation.ReturnBook(borrowId, ReturnCondition.NeedsRepair, "Major damage");
+        Assert.Equal(1, returned.FeesCreated);
+        Fee damage = Assert.Single(await feeService.GetFeesByBorrowAsync(borrowId),
+            fee => fee.FeeType == FeeType.Damage);
+        Assert.Equal(100000m, damage.Amount);
+        Assert.Equal(200000m, damage.BookPriceSnapshot);
+        Assert.Equal("Returned", new BorrowRepository().GetById(borrowId)!.Status);
+        Assert.Equal(BookCopyStatuses.UnderRepair, new BookCopyService().GetByBarcode(copy.Barcode)!.Status);
     }
 
     [IntegrationFact]
